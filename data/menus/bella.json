@@ -1,0 +1,56 @@
+[
+  {
+    "id": 201,
+    "name": "Penne all'Arrabbiata",
+    "description": "Artisan penne in a fiery San Marzano tomato sauce infused with crushed Calabrian chili and garlic.",
+    "price": 460.00,
+    "allergens": ["gluten"],
+    "tags": ["spicy", "vegan", "savory"],
+    "emoji": "🍝"
+  },
+  {
+    "id": 202,
+    "name": "Creamy Truffle Parmesan Fettuccine",
+    "description": "Handmade pasta swirled in aged 24-month Parmigiano-Reggiano cream and black truffle butter.",
+    "price": 580.00,
+    "allergens": ["dairy", "gluten"],
+    "tags": ["savory"],
+    "emoji": "🧀"
+  },
+  {
+    "id": 203,
+    "name": "Neapolitan Margherita Pizza",
+    "description": "Double-fermented dough topped with San Marzano tomatoes, fresh buffalo mozzarella, and basil.",
+    "price": 520.00,
+    "allergens": ["dairy", "gluten"],
+    "tags": ["savory"],
+    "emoji": "🍕"
+  },
+  {
+    "id": 204,
+    "name": "Gluten-Free Caprese di Burrata",
+    "description": "Heirloom tomatoes, creamy artisanal burrata, extra virgin olive oil, and aged Modena balsamic.",
+    "price": 480.00,
+    "allergens": ["dairy"],
+    "tags": ["sweet", "savory"],
+    "emoji": "🍅"
+  },
+  {
+    "id": 205,
+    "name": "Spicy Diavola Flatbread",
+    "description": "Crispy wood-fired dough with spicy Calabrese salami, chili honey drizzle, and smoked provolone.",
+    "price": 540.00,
+    "allergens": ["dairy", "gluten"],
+    "tags": ["spicy", "sweet", "savory"],
+    "emoji": "🌶️"
+  },
+  {
+    "id": 206,
+    "name": "Traditional Venetian Tiramisu",
+    "description": "Espresso-soaked savoiardi ladyfingers layered with sweet mascarpone zabaglione and Dutch cocoa.",
+    "price": 320.00,
+    "allergens": ["dairy", "gluten"],
+    "tags": ["sweet"],
+    "emoji": "🍰"
+  }
+]

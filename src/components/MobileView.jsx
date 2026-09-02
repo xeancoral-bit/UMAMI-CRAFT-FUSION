@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { io } from 'socket.io-client';
-import { Shield, User, Smartphone, RefreshCw, CheckCircle, Flame, Leaf, Candy, HelpCircle } from 'lucide-react';
+import { Shield, Smartphone, CheckCircle, Flame, Leaf, Candy } from 'lucide-react';
 // MENU_ITEMS is now loaded dynamically from the backend API /api/menu
 
 const ALLERGEN_OPTIONS = [
@@ -43,17 +43,30 @@ function MobileView({ kioskId, onResetSession }) {
     return saved ? JSON.parse(saved) : null;
   });
   const socketRef = useRef(null);
-
   const [menuItems, setMenuItems] = useState([]);
+  const [restaurantMeta, setRestaurantMeta] = useState(null);
   const [captiveParams, setCaptiveParams] = useState(null);
 
-  // Load menu items dynamically from API
+  // Extract kioskPort parameter from URL to target the correct restaurant instance
+  const urlParams = new URLSearchParams(window.location.search);
+  const kioskPort = urlParams.get('kioskPort');
+  const backendTargetUrl = kioskPort ? `http://${window.location.hostname}:${kioskPort}` : '';
+
+  // Load menu items and restaurant metadata dynamically
   useEffect(() => {
-    fetch('/api/menu')
+    const menuEndpoint = backendTargetUrl ? `${backendTargetUrl}/api/menu` : '/api/menu';
+    const restEndpoint = backendTargetUrl ? `${backendTargetUrl}/api/restaurant` : '/api/restaurant';
+
+    fetch(menuEndpoint)
       .then(res => res.json())
       .then(data => setMenuItems(data))
       .catch(err => console.error("Error loading menu:", err));
-  }, []);
+
+    fetch(restEndpoint)
+      .then(res => res.json())
+      .then(data => setRestaurantMeta(data))
+      .catch(err => console.error("Error loading restaurant info:", err));
+  }, [backendTargetUrl]);
 
   // Check for OpenNDS captive portal parameters in URL on mount
   useEffect(() => {
@@ -78,18 +91,18 @@ function MobileView({ kioskId, onResetSession }) {
     localStorage.setItem('synapse_preferences', JSON.stringify(preferences));
   }, [preferences]);
 
-  // Setup WebSocket connection if kioskId is present and user is onboarded
+  // Setup WebSocket connection targeting the specific restaurant port
   useEffect(() => {
     if (!kioskId || !isOnboarded) return;
 
-    const socket = io();
+    const socket = backendTargetUrl ? io(backendTargetUrl) : io();
     socketRef.current = socket;
 
     socket.on('connect', () => {
       setSocketConnected(true);
-      console.log("[Mobile] Connected to server, sending handshake for kiosk:", kioskId);
+      console.log(`[Mobile] Connected to server (${backendTargetUrl || 'local'}), sending handshake for kiosk:`, kioskId);
       socket.emit('join-session', { kioskId, role: 'mobile' });
-      // Push initial preferences instantly
+      // Push current preferences instantly
       socket.emit('project-preferences', { kioskId, allergens, preferences });
     });
 
@@ -99,19 +112,22 @@ function MobileView({ kioskId, onResetSession }) {
 
     return () => {
       socket.disconnect();
+      socketRef.current = null;
+      setSocketConnected(false);
     };
-  }, [kioskId]);
+  }, [kioskId, isOnboarded, backendTargetUrl]);
 
   // Instantly push preferences to the socket room whenever preferences or allergens change
   useEffect(() => {
-    if (socketRef.current && socketConnected && kioskId) {
+    if (socketRef.current && socketConnected && kioskId && isOnboarded) {
+      console.log("[Mobile] Live pushing updated preferences to Kiosk:", { allergens, preferences });
       socketRef.current.emit('project-preferences', {
         kioskId,
         allergens,
         preferences
       });
     }
-  }, [allergens, preferences, socketConnected, kioskId]);
+  }, [allergens, preferences, socketConnected, kioskId, isOnboarded]);
 
   // Toggle handlers
   const handleAllergenToggle = (id) => {
@@ -218,9 +234,14 @@ function MobileView({ kioskId, onResetSession }) {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
                 <span style={{ fontSize: '10px', textTransform: 'uppercase', color: 'var(--accent-green)', fontWeight: '700', letterSpacing: '0.05em' }}>
-                  Broadcasting Securely
+                  {restaurantMeta ? `${restaurantMeta.cuisine} • Broadcasting` : 'Broadcasting Securely'}
                 </span>
-                <h4 style={{ fontSize: '15px', fontWeight: '600' }}>Kiosk Session #{kioskId}</h4>
+                <h4 style={{ fontSize: '15px', fontWeight: '700' }}>
+                  {restaurantMeta ? restaurantMeta.name : `Kiosk Session #${kioskId}`}
+                </h4>
+                <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                  Terminal ID: #{kioskId} {kioskPort && `• Port :${kioskPort}`}
+                </p>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <span className={`pulse-indicator ${socketConnected ? 'active' : 'disconnected'}`}></span>
@@ -581,7 +602,9 @@ function MobileView({ kioskId, onResetSession }) {
             </div>
           )}
 
+
           {/* Proceed to Kiosk or Standby Scan Message */}
+
           {kioskId ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
               <button
@@ -602,7 +625,7 @@ function MobileView({ kioskId, onResetSession }) {
                   gap: '8px'
                 }}
               >
-                Pair & Connect to Kiosk #{kioskId}
+                Pair & Connect to {restaurantMeta ? restaurantMeta.name : `Kiosk #${kioskId}`}
               </button>
               <p style={{ fontSize: '11px', color: 'var(--text-muted)', textAlign: 'center' }}>
                 Your allergens and preferences will be projected temporarily.

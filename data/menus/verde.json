@@ -1,0 +1,56 @@
+[
+  {
+    "id": 301,
+    "name": "Fire-Roasted Chipotle Quinoa Bowl",
+    "description": "Warm tri-color quinoa, charred corn, black beans, avocado, and house-smoked chipotle crema.",
+    "price": 420.00,
+    "allergens": [],
+    "tags": ["vegan", "spicy", "savory"],
+    "emoji": "🥗"
+  },
+  {
+    "id": 302,
+    "name": "Golden Turmeric Sweet Potato Curry",
+    "description": "Roasted sweet potatoes, baby spinach, and chickpeas simmered in creamy golden coconut-turmeric milk.",
+    "price": 450.00,
+    "allergens": [],
+    "tags": ["vegan", "spicy", "sweet"],
+    "emoji": "🍛"
+  },
+  {
+    "id": 303,
+    "name": "Wild Berry Acai Energy Bowl",
+    "description": "Thick organic Amazonian acai topped with fresh blueberries, chia seeds, and raw agave nectar.",
+    "price": 340.00,
+    "allergens": [],
+    "tags": ["vegan", "sweet"],
+    "emoji": "🥣"
+  },
+  {
+    "id": 304,
+    "name": "Avocado Tahini Super Greens",
+    "description": "Massaged organic kale, cucumber ribbons, hemp hearts, and cold-pressed lemon sesame tahini dressing.",
+    "price": 380.00,
+    "allergens": [],
+    "tags": ["vegan", "savory"],
+    "emoji": "🥑"
+  },
+  {
+    "id": 305,
+    "name": "Spicy Mango Ginger Elixir",
+    "description": "Cold-pressed fresh mango juice infused with ginger root, habanero essence, and sparkling mineral water.",
+    "price": 220.00,
+    "allergens": [],
+    "tags": ["vegan", "sweet", "spicy"],
+    "emoji": "🍹"
+  },
+  {
+    "id": 306,
+    "name": "Raw Dark Cacao Avocado Mousse",
+    "description": "Silky dark chocolate cream whipped from ripe Hass avocados, raw cacao powder, and maple syrup.",
+    "price": 280.00,
+    "allergens": [],
+    "tags": ["vegan", "sweet"],
+    "emoji": "🍫"
+  }
+]

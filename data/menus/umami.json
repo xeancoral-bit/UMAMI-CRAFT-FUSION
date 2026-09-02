@@ -1,0 +1,56 @@
+[
+  {
+    "id": 101,
+    "name": "Spicy Szechuan Dumplings",
+    "description": "Handmade pork dumplings tossed in fiery Sichuan chili crisp and toasted sesame.",
+    "price": 380.00,
+    "allergens": ["soy", "gluten"],
+    "tags": ["spicy", "savory"],
+    "emoji": "🥟"
+  },
+  {
+    "id": 102,
+    "name": "Smoked Truffle Edamame",
+    "description": "Steamed organic edamame tossed in white truffle oil and smoked Maldon salt.",
+    "price": 250.00,
+    "allergens": ["soy"],
+    "tags": ["vegan", "savory"],
+    "emoji": "🫛"
+  },
+  {
+    "id": 103,
+    "name": "Honey Glazed Peanut Noodles",
+    "description": "Warm wheat noodles tossed in rich peanut butter reduction, soy glaze, and scallions.",
+    "price": 420.00,
+    "allergens": ["peanuts", "soy", "gluten"],
+    "tags": ["sweet", "savory"],
+    "emoji": "🍜"
+  },
+  {
+    "id": 104,
+    "name": "Crispy Five-Spice Tofu Bites",
+    "description": "Flash-fried tofu cubes with fiery five-spice pepper salt and sweet tamarind dip.",
+    "price": 320.00,
+    "allergens": ["soy"],
+    "tags": ["spicy", "vegan"],
+    "emoji": "🥢"
+  },
+  {
+    "id": 105,
+    "name": "Thai Coconut Curry Bowl",
+    "description": "Aromatic lemongrass red curry with coconut milk, seasonal veggies, and fragrant jasmine rice.",
+    "price": 490.00,
+    "allergens": [],
+    "tags": ["vegan", "spicy"],
+    "emoji": "🍛"
+  },
+  {
+    "id": 106,
+    "name": "Mango Sticky Rice",
+    "description": "Sweet glutinous rice infused with rich coconut cream, paired with fresh ripe mango slices.",
+    "price": 280.00,
+    "allergens": [],
+    "tags": ["vegan", "sweet"],
+    "emoji": "🥭"
+  }
+]

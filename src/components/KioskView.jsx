@@ -21,13 +21,42 @@ function KioskView() {
   const countdownIntervalRef = useRef(null);
 
   const [masterMenu, setMasterMenu] = useState([]);
+  const [lanIp, setLanIp] = useState(null);
+  const [restaurantInfo, setRestaurantInfo] = useState({
+    name: 'Synapse Cuisine',
+    cuisine: 'Zero-Retention Smart Menu Terminal',
+    tagline: 'A dining experience tailored to your profile.',
+    backendPort: 3001
+  });
 
-  // Load menu items from API
+  // Load restaurant metadata and menu
   useEffect(() => {
+    fetch('/api/restaurant')
+      .then(res => res.json())
+      .then(data => {
+        if (data && data.name) setRestaurantInfo(data);
+      })
+      .catch(err => console.error("Error fetching restaurant info:", err));
+
     fetch('/api/menu')
       .then(res => res.json())
       .then(data => setMasterMenu(data))
       .catch(err => console.error("Error loading menu:", err));
+  }, []);
+
+  // Fetch host LAN IP for dynamic Wi-Fi QR code generation
+  useEffect(() => {
+    fetch('/api/network-info')
+      .then(res => res.json())
+      .then(data => {
+        if (data && data.ip && data.ip !== 'localhost') {
+          setLanIp(data.ip);
+        }
+        if (data && data.restaurant) {
+          setRestaurantInfo(data.restaurant);
+        }
+      })
+      .catch(err => console.error("Error fetching network info:", err));
   }, []);
 
 
@@ -131,8 +160,9 @@ function KioskView() {
     setState('standby');
   };
 
-  // Generate mobile scanner URL
-  const clientUrl = `${window.location.origin}/?kioskId=${kioskId}`;
+  // Generate mobile scanner URL pointing to auto-detected LAN IP and specific restaurant socket port
+  const targetHost = lanIp || window.location.hostname || 'localhost';
+  const clientUrl = `http://${targetHost}:5173/?kioskId=${kioskId}&kioskPort=${restaurantInfo.backendPort || 3001}`;
 
   // Filtering and Sorting Menu Items
   // 1. Filter out items containing user allergens
@@ -162,10 +192,10 @@ function KioskView() {
           </div>
           <div>
             <h1 style={{ fontSize: '24px', fontWeight: '800', letterSpacing: '-0.02em', background: 'linear-gradient(to right, #ffffff, #9ca3af)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-              SYNAPSE CUISINE
+              {restaurantInfo.name.toUpperCase()}
             </h1>
             <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: '600', letterSpacing: '0.05em' }}>
-              ZERO-RETENTION SMART MENU TERMINAL
+              {restaurantInfo.cuisine.toUpperCase()} • SMART TERMINAL
             </span>
           </div>
         </div>
@@ -174,7 +204,7 @@ function KioskView() {
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(255,255,255,0.03)', padding: '6px 14px', borderRadius: '999px', border: '1px solid var(--border-glass)' }}>
             <div className={`pulse-indicator ${socketConnected ? 'active' : 'disconnected'}`}></div>
             <span style={{ fontSize: '12px', fontWeight: '500', color: socketConnected ? 'var(--text-primary)' : 'var(--accent-danger)' }}>
-              {socketConnected ? 'Server Active' : 'Connecting Server...'}
+              {socketConnected ? `Port :${restaurantInfo.backendPort || 3001}` : 'Connecting Server...'}
             </span>
           </div>
           
@@ -199,10 +229,10 @@ function KioskView() {
                 Privacy-First Architecture
               </div>
               <h2 style={{ fontSize: '48px', fontWeight: '800', lineHeight: '1.1', marginBottom: '20px', letterSpacing: '-0.02em' }}>
-                A dining experience tailored to <span style={{ background: 'var(--accent-gradient)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>your profile</span>.
+                {restaurantInfo.tagline}
               </h2>
               <p style={{ color: 'var(--text-secondary)', fontSize: '18px', marginBottom: '32px', maxWidth: '580px', fontWeight: '300', lineHeight: '1.6' }}>
-                Scan the QR code with your mobile browser. Select your dietary needs in private, and project a safe, custom menu here instantly. Zero logs, zero user database.
+                Scan the QR code with your phone. Select your dietary needs in private, and project a safe, custom menu here instantly. Zero logs, zero database.
               </p>
               
               <div className="glass-card" style={{ padding: '24px', maxWidth: '500px' }}>
@@ -236,7 +266,9 @@ function KioskView() {
                 </div>
                 <div style={{ textAlign: 'center' }}>
                   <p style={{ fontWeight: '600', fontSize: '16px', marginBottom: '4px' }}>Scan to Personalize</p>
-                  <p style={{ color: 'var(--text-muted)', fontSize: '12px' }}>Connects to Kiosk ID: {kioskId}</p>
+                  <p style={{ color: 'var(--text-muted)', fontSize: '12px' }}>
+                    Connects to Kiosk ID: {kioskId} {lanIp && <span style={{ color: 'var(--accent-green)', fontWeight: '600' }}>• Wi-Fi: {lanIp}</span>}
+                  </p>
                 </div>
               </div>
             </div>

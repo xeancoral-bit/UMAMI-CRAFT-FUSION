@@ -5,13 +5,53 @@ import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs/promises';
+import os from 'os';
 
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// Parse CLI arguments (e.g. node server.js --port 3002 --restaurant bella --frontend 5174)
+const cliArgs = process.argv.slice(2);
+function getCliArg(flag, defaultVal) {
+  const idx = cliArgs.indexOf(flag);
+  return idx !== -1 && cliArgs[idx + 1] ? cliArgs[idx + 1] : defaultVal;
+}
+
 const app = express();
-const PORT = process.env.PORT || 3001;
+const PORT = parseInt(getCliArg('--port', process.env.PORT || 3001), 10);
+const FRONTEND_PORT = parseInt(getCliArg('--frontend', process.env.FRONTEND_PORT || 5173), 10);
+const RESTAURANT_ID = getCliArg('--restaurant', process.env.RESTAURANT_ID || 'umami');
+
+const RESTAURANTS = {
+  umami: {
+    id: 'umami',
+    name: 'Umami Craft Fusion',
+    cuisine: 'Asian Craft Fusion',
+    tagline: 'Bowls, Dumplings & Artisanal Street Noodles',
+    accentColor: '#D9383A',
+    menuFile: 'umami.json'
+  },
+  bella: {
+    id: 'bella',
+    name: 'Trattoria Bella',
+    cuisine: 'Artisan Italian',
+    tagline: 'Handmade Pastas & Wood-Fired Neapolitan Classics',
+    accentColor: '#B45309',
+    menuFile: 'bella.json'
+  },
+  verde: {
+    id: 'verde',
+    name: 'Verde Garden Kitchen',
+    cuisine: 'Organic & 100% Gluten-Free',
+    tagline: 'Superfood Bowls, Cold-Pressed Juices & Plant Kitchen',
+    accentColor: '#2D6A4F',
+    menuFile: 'verde.json'
+  }
+};
+
+const activeRestaurant = RESTAURANTS[RESTAURANT_ID] || RESTAURANTS.umami;
+
 
 // Enable CORS for development
 app.use(cors());
@@ -73,13 +113,47 @@ io.on('connection', (socket) => {
   });
 });
 
+// Helper to detect current LAN IPv4 address on active Wi-Fi / Ethernet interface
+function getLocalIpAddress() {
+  const interfaces = os.networkInterfaces();
+  for (const name of Object.keys(interfaces)) {
+    for (const iface of interfaces[name]) {
+      if (iface.family === 'IPv4' && !iface.internal) {
+        return iface.address;
+      }
+    }
+  }
+  return 'localhost';
+}
+
+// Restaurant profile metadata endpoint
+app.get('/api/restaurant', (req, res) => {
+  res.json({
+    ...activeRestaurant,
+    backendPort: PORT,
+    frontendPort: FRONTEND_PORT
+  });
+});
+
+// Network info endpoint for dynamic Kiosk QR code generation
+app.get('/api/network-info', (req, res) => {
+  const lanIp = getLocalIpAddress();
+  res.json({
+    ip: lanIp,
+    port: FRONTEND_PORT,
+    backendPort: PORT,
+    restaurant: activeRestaurant
+  });
+});
+
 // Menu JSON endpoint (representing future restaurant app integration)
 app.get('/api/menu', async (req, res) => {
   try {
-    const menuData = await fs.readFile(path.join(__dirname, 'menu.json'), 'utf8');
+    const menuPath = path.join(__dirname, 'data', 'menus', activeRestaurant.menuFile);
+    const menuData = await fs.readFile(menuPath, 'utf8');
     res.json(JSON.parse(menuData));
   } catch (error) {
-    console.error('Error reading menu.json:', error);
+    console.error(`Error reading ${activeRestaurant.menuFile}:`, error);
     res.status(500).json({ error: 'Failed to load menu items' });
   }
 });
@@ -157,7 +231,8 @@ app.get(/.*/, (req, res) => {
 
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`==================================================`);
-  console.log(`  Synapse Cuisine Backend running on port ${PORT}`);
+  console.log(`  [${activeRestaurant.name}] Backend running on port ${PORT}`);
+  console.log(`  Cuisine: ${activeRestaurant.cuisine}`);
   console.log(`  WebSocket Server ready for client connections`);
   console.log(`==================================================`);
 });
