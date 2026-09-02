@@ -20,7 +20,7 @@ function getCliArg(flag, defaultVal) {
 
 const app = express();
 const PORT = parseInt(getCliArg('--port', process.env.PORT || 3001), 10);
-const FRONTEND_PORT = parseInt(getCliArg('--frontend', process.env.FRONTEND_PORT || 5173), 10);
+const FRONTEND_PORT = parseInt(getCliArg('--frontend', process.env.FRONTEND_PORT || 3000), 10);
 const RESTAURANT_ID = getCliArg('--restaurant', process.env.RESTAURANT_ID || 'umami');
 
 const RESTAURANTS = {
@@ -93,12 +93,26 @@ io.on('connection', (socket) => {
   });
 
   // Mobile device places an order
-  socket.on('place-order', ({ kioskId, item }) => {
-    console.log(`[Socket] Order placed in Room ${kioskId}:`, item);
+  socket.on('place-order', (orderPayload) => {
+    const { kioskId, item, items, itemCount, totalPrice, orderedTags } = orderPayload || {};
+    const effectiveItems = items && items.length > 0 ? items : (item ? [item] : []);
+    const effectiveCount = itemCount || effectiveItems.reduce((sum, i) => sum + (i.quantity || 1), 0);
+    const effectiveTotal = totalPrice !== undefined ? totalPrice : effectiveItems.reduce((sum, i) => sum + (i.price * (i.quantity || 1)), 0);
     
-    // Broadcast order completion to all other clients in the room
+    console.log(`[Socket] Order placed in Room ${kioskId}:`, {
+      itemCount: effectiveCount,
+      totalPrice: effectiveTotal,
+      items: effectiveItems.map(i => `${i.name} (x${i.quantity || 1})`),
+      orderedTags
+    });
+    
+    // Broadcast order completion with multi-item receipt data to all other clients in the room
     socket.to(kioskId).emit('order-placed', {
-      item,
+      item: item || effectiveItems[0],
+      items: effectiveItems,
+      itemCount: effectiveCount,
+      totalPrice: effectiveTotal,
+      orderedTags: orderedTags || [],
       timestamp: new Date().toISOString()
     });
   });
@@ -116,13 +130,31 @@ io.on('connection', (socket) => {
 // Helper to detect current LAN IPv4 address on active Wi-Fi / Ethernet interface
 function getLocalIpAddress() {
   const interfaces = os.networkInterfaces();
-  for (const name of Object.keys(interfaces)) {
-    for (const iface of interfaces[name]) {
-      if (iface.family === 'IPv4' && !iface.internal) {
-        return iface.address;
+  const candidates = [];
+
+  for (const [name, ifaceList] of Object.entries(interfaces)) {
+    if (!ifaceList) continue;
+    for (const iface of ifaceList) {
+      if (iface.family === 'IPv4' && !iface.internal && !iface.address.startsWith('127.') && !iface.address.startsWith('169.254.')) {
+        const lowerName = name.toLowerCase();
+        let priority = 1;
+        if (lowerName.includes('wi-fi') || lowerName.includes('wifi') || lowerName.includes('wireless') || lowerName.includes('wlan')) {
+          priority = 10;
+        } else if (lowerName.includes('ethernet') || lowerName.includes('eth') || lowerName.includes('en0')) {
+          priority = 8;
+        } else if (lowerName.includes('vethernet') || lowerName.includes('virtual') || lowerName.includes('docker') || lowerName.includes('wsl')) {
+          priority = 0;
+        }
+        candidates.push({ address: iface.address, priority });
       }
     }
   }
+
+  if (candidates.length > 0) {
+    candidates.sort((a, b) => b.priority - a.priority);
+    return candidates[0].address;
+  }
+
   return 'localhost';
 }
 

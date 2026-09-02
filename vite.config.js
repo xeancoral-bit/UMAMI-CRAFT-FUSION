@@ -4,8 +4,8 @@ import react from '@vitejs/plugin-react'
 // https://vite.dev/config/
 export default defineConfig(() => {
   const portArgIdx = process.argv.indexOf('--port');
-  const port = portArgIdx !== -1 && process.argv[portArgIdx + 1] ? process.argv[portArgIdx + 1] : '5173';
-  const backendPort = port === '5174' ? 3002 : (port === '5175' ? 3003 : 3001);
+  const port = portArgIdx !== -1 && process.argv[portArgIdx + 1] ? process.argv[portArgIdx + 1] : '3000';
+  const backendPort = port === '3010' ? 3002 : (port === '3020' ? 3003 : 3001);
 
   return {
     plugins: [react()],

@@ -1,8 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { io } from 'socket.io-client';
 import { QRCodeSVG } from 'qrcode.react';
-import { Monitor, Smartphone, Check, ShieldCheck, Clock, EyeOff, UtensilsCrossed, AlertTriangle } from 'lucide-react';
-// MASTER_MENU is now fetched dynamically from /api/menu
+import { 
+  Monitor, 
+  Smartphone, 
+  ShieldCheck, 
+  Clock, 
+  EyeOff, 
+  UtensilsCrossed, 
+  AlertTriangle,
+  Receipt
+} from 'lucide-react';
 
 function generateKioskId() {
   return Math.random().toString(36).substring(2, 8).toUpperCase();
@@ -14,6 +22,7 @@ function KioskView() {
   const [allergens, setAllergens] = useState([]);
   const [preferences, setPreferences] = useState([]);
   const [orderedItem, setOrderedItem] = useState(null);
+  const [orderReceipt, setOrderReceipt] = useState(null);
   const [timeLeft, setTimeLeft] = useState(90);
   const [socketConnected, setSocketConnected] = useState(false);
   
@@ -22,6 +31,8 @@ function KioskView() {
 
   const [masterMenu, setMasterMenu] = useState([]);
   const [lanIp, setLanIp] = useState(null);
+  const [customHost, setCustomHost] = useState('');
+  const [showIpConfig, setShowIpConfig] = useState(false);
   const [restaurantInfo, setRestaurantInfo] = useState({
     name: 'Synapse Cuisine',
     cuisine: 'Zero-Retention Smart Menu Terminal',
@@ -59,7 +70,6 @@ function KioskView() {
       .catch(err => console.error("Error fetching network info:", err));
   }, []);
 
-
   // Initialize Socket.io Connection
   useEffect(() => {
     const socket = io();
@@ -85,10 +95,20 @@ function KioskView() {
       setTimeLeft(90); // Reset countdown to 90s
     });
 
-    // Listen for order confirmation
+    // Listen for multi-item order confirmation
     socket.on('order-placed', (data) => {
-      console.log("[Kiosk] Order placed:", data);
-      setOrderedItem(data.item);
+      console.log("[Kiosk] Order placed received:", data);
+      const items = data.items || (data.item ? [data.item] : []);
+      const count = data.itemCount || items.reduce((s, i) => s + (i.quantity || 1), 0);
+      const total = data.totalPrice !== undefined ? data.totalPrice : items.reduce((s, i) => s + (i.price * (i.quantity || 1)), 0);
+      
+      setOrderedItem(data.item || items[0]);
+      setOrderReceipt({
+        items,
+        itemCount: count,
+        totalPrice: total,
+        orderedTags: data.orderedTags || []
+      });
       setState('success');
     });
 
@@ -135,12 +155,12 @@ function KioskView() {
     };
   }, [state]);
 
-  // Success screen auto-reset after 5 seconds
+  // Success screen auto-reset after 6 seconds
   useEffect(() => {
     if (state === 'success') {
       const resetTimeout = setTimeout(() => {
         handleReset();
-      }, 5000);
+      }, 6000);
       return () => clearTimeout(resetTimeout);
     }
   }, [state]);
@@ -150,6 +170,7 @@ function KioskView() {
     setAllergens([]);
     setPreferences([]);
     setOrderedItem(null);
+    setOrderReceipt(null);
     setTimeLeft(90);
     
     // 2. Generate a brand new kioskId for the next customer
@@ -161,8 +182,9 @@ function KioskView() {
   };
 
   // Generate mobile scanner URL pointing to auto-detected LAN IP and specific restaurant socket port
-  const targetHost = lanIp || window.location.hostname || 'localhost';
-  const clientUrl = `http://${targetHost}:5173/?kioskId=${kioskId}&kioskPort=${restaurantInfo.backendPort || 3001}`;
+  const targetHost = customHost || lanIp || window.location.hostname || 'localhost';
+  const currentFrontendPort = window.location.port || restaurantInfo.frontendPort || '5173';
+  const clientUrl = `http://${targetHost}:${currentFrontendPort}/?kioskId=${kioskId}&kioskPort=${restaurantInfo.backendPort || 3001}`;
 
   // Filtering and Sorting Menu Items
   // 1. Filter out items containing user allergens
@@ -181,6 +203,11 @@ function KioskView() {
     const scoreB = getMatchCount(b);
     return scoreB - scoreA; // High score first
   });
+
+  // Extract combined unique tags from receipt items
+  const combinedReceiptTags = orderReceipt && orderReceipt.items
+    ? Array.from(new Set(orderReceipt.items.flatMap(i => i.tags || [])))
+    : [];
 
   return (
     <div className="kiosk-container fade-in">
@@ -264,11 +291,47 @@ function KioskView() {
                 <div style={{ background: '#ffffff', padding: '20px', borderRadius: '24px', boxShadow: '0 10px 30px rgba(44, 26, 17, 0.08)', display: 'inline-block' }}>
                   <QRCodeSVG value={clientUrl} size={220} level="H" includeMargin={false} />
                 </div>
-                <div style={{ textAlign: 'center' }}>
+                <div style={{ textAlign: 'center', width: '100%' }}>
                   <p style={{ fontWeight: '600', fontSize: '16px', marginBottom: '4px' }}>Scan to Personalize</p>
-                  <p style={{ color: 'var(--text-muted)', fontSize: '12px' }}>
-                    Connects to Kiosk ID: {kioskId} {lanIp && <span style={{ color: 'var(--accent-green)', fontWeight: '600' }}>• Wi-Fi: {lanIp}</span>}
+                  <p style={{ color: 'var(--text-muted)', fontSize: '12px', marginBottom: '8px' }}>
+                    Kiosk ID: <strong style={{ color: 'var(--text-primary)' }}>{kioskId}</strong> • URL: <span style={{ color: 'var(--accent-green)', fontWeight: '600' }}>{targetHost}:{currentFrontendPort}</span>
                   </p>
+                  
+                  {/* IP / Host Override Toggle */}
+                  <div style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
+                    <button
+                      onClick={() => setShowIpConfig(prev => !prev)}
+                      style={{ background: 'none', border: 'none', fontSize: '11px', color: 'var(--text-muted)', textDecoration: 'underline', cursor: 'pointer' }}
+                    >
+                      {showIpConfig ? 'Hide Network Config' : '⚙️ Change IP / Troubleshooting'}
+                    </button>
+
+                    {showIpConfig && (
+                      <div className="fade-in" style={{ background: 'var(--bg-surface-elevated)', padding: '10px 14px', borderRadius: '12px', border: '1px solid var(--border-glass)', marginTop: '6px', width: '100%', maxWidth: '280px', textAlign: 'left' }}>
+                        <label style={{ fontSize: '10px', fontWeight: '700', color: 'var(--text-secondary)', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>
+                          Custom IP / Tunnel Host:
+                        </label>
+                        <input
+                          type="text"
+                          value={customHost}
+                          placeholder={lanIp || '192.168.1.14'}
+                          onChange={(e) => setCustomHost(e.target.value)}
+                          style={{
+                            width: '100%',
+                            padding: '6px 10px',
+                            borderRadius: '8px',
+                            border: '1px solid var(--border-glass)',
+                            fontSize: '12px',
+                            marginBottom: '6px',
+                            fontFamily: 'var(--font-sans)'
+                          }}
+                        />
+                        <p style={{ fontSize: '10px', color: 'var(--text-muted)', lineHeight: '1.3' }}>
+                          💡 <em>If phone gets ERR_ADDRESS_UNREACHABLE, change Wi-Fi in Windows Settings to <strong>Private Network</strong> or use the Simulate button.</em>
+                        </p>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
@@ -333,11 +396,12 @@ function KioskView() {
                   >
                     {hasMatch && (
                       <div style={{ position: 'absolute', top: '0', right: '0', background: 'var(--accent-gradient)', padding: '4px 12px', borderBottomLeftRadius: '12px', fontSize: '11px', fontWeight: '700', color: '#ffffff', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                        ★ Recommended Match
+                        ★ Recommended Match (+{matchCount})
                       </div>
                     )}
                     
                     <div style={{ marginBottom: '16px' }}>
+                      <div style={{ fontSize: '28px', marginBottom: '8px' }}>{item.emoji || '🍽️'}</div>
                       <h4 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '8px', paddingRight: hasMatch ? '120px' : '0' }}>{item.name}</h4>
                       <p style={{ color: 'var(--text-secondary)', fontSize: '13px', lineHeight: '1.5' }}>{item.description}</p>
                     </div>
@@ -347,7 +411,7 @@ function KioskView() {
                         ₱{item.price.toFixed(2)}
                       </div>
                       
-                      <div style={{ display: 'flex', gap: '6px' }}>
+                      <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                         {item.tags.map(tag => (
                           <span 
                             key={tag} 
@@ -375,27 +439,96 @@ function KioskView() {
           </div>
         )}
 
-        {/* STATE C: TRANSACTION SUCCESS SCREEN */}
+        {/* STATE C: TRANSACTION SUCCESS RECEIPT SCREEN */}
         {state === 'success' && (
-          <div className="slide-up" style={{ textAlign: 'center', maxWidth: '600px', margin: '0 auto', padding: '40px' }}>
-            <div className="success-checkmark" style={{ marginBottom: '32px' }}>
+          <div className="slide-up" style={{ maxWidth: '640px', margin: '0 auto', width: '100%' }}>
+            <div className="success-checkmark" style={{ marginBottom: '24px' }}>
               <div className="check-icon"></div>
             </div>
             
-            <h2 style={{ fontSize: '36px', fontWeight: '800', marginBottom: '16px' }}>Order Received!</h2>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '16px', lineHeight: '1.6', marginBottom: '40px' }}>
-              Thank you! We've received your order for the <strong style={{ color: 'var(--text-primary)' }}>{orderedItem?.name}</strong>. Your meal is being prepared.
-            </p>
+            <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+              <h2 style={{ fontSize: '32px', fontWeight: '800', marginBottom: '8px' }}>Order Confirmed & Received!</h2>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '15px' }}>
+                Your customized meal is now being prepared by the kitchen team.
+              </p>
+            </div>
+
+            {/* Multi-Item Receipt Card */}
+            <div className="kiosk-receipt-card">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Receipt size={18} color="var(--accent-red)" />
+                  <span style={{ fontWeight: '800', letterSpacing: '0.05em', textTransform: 'uppercase', fontSize: '13px' }}>
+                    Order Summary
+                  </span>
+                </div>
+                <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                  Session #{kioskId}
+                </span>
+              </div>
+
+              {/* Items List */}
+              <div className="kiosk-receipt-items">
+                {orderReceipt && orderReceipt.items && orderReceipt.items.length > 0 ? (
+                  orderReceipt.items.map((item, idx) => (
+                    <div key={idx} className="kiosk-receipt-row">
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ fontSize: '18px' }}>{item.emoji || '🍽️'}</span>
+                        <div>
+                          <span style={{ fontWeight: '600' }}>{item.name}</span>
+                          <span style={{ fontSize: '12px', color: 'var(--text-muted)', marginLeft: '6px' }}>
+                            (x{item.quantity || 1})
+                          </span>
+                        </div>
+                      </div>
+                      <span style={{ fontWeight: '700' }}>
+                        ₱{((item.price || 0) * (item.quantity || 1)).toFixed(2)}
+                      </span>
+                    </div>
+                  ))
+                ) : (
+                  <div className="kiosk-receipt-row">
+                    <span>{orderedItem?.name || 'Custom Meal'}</span>
+                    <span style={{ fontWeight: '700' }}>₱{(orderedItem?.price || 0).toFixed(2)}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Total Row */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '8px', fontSize: '18px', fontWeight: '800' }}>
+                <span>Total Amount:</span>
+                <span style={{ color: 'var(--accent-red)' }}>
+                  ₱{(orderReceipt?.totalPrice || orderedItem?.price || 0).toFixed(2)}
+                </span>
+              </div>
+
+              {/* Combined Taste Profile Tags */}
+              {combinedReceiptTags.length > 0 && (
+                <div style={{ marginTop: '16px', paddingTop: '12px', borderTop: '1px solid var(--border-glass)' }}>
+                  <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: '600', textTransform: 'uppercase', display: 'block', marginBottom: '6px' }}>
+                    Taste Profile Fingerprint:
+                  </span>
+                  <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                    {combinedReceiptTags.map(tag => (
+                      <span key={tag} className="badge badge-recommend" style={{ fontSize: '10px' }}>
+                        ✨ {tag}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
             
-            <div className="glass-card" style={{ padding: '20px', display: 'flex', alignItems: 'center', gap: '16px', justifyContent: 'center', background: 'rgba(16, 185, 129, 0.05)', borderColor: 'rgba(16, 185, 129, 0.2)' }}>
+            {/* Zero Retention Notification */}
+            <div className="glass-card" style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', gap: '14px', justifyContent: 'center', background: 'rgba(16, 185, 129, 0.05)', borderColor: 'rgba(16, 185, 129, 0.2)', borderRadius: '16px' }}>
               <EyeOff size={20} color="var(--accent-success)" />
               <span style={{ fontSize: '13px', color: 'var(--accent-success)', fontWeight: '600' }}>
-                Zero-Retention Wipe: All preference data cleared from terminal memory.
+                Zero-Retention Wipe: Dietary credentials wiped completely from terminal memory.
               </span>
             </div>
             
-            <p style={{ color: 'var(--text-muted)', fontSize: '12px', marginTop: '40px' }}>
-              Returning to standby mode shortly...
+            <p style={{ color: 'var(--text-muted)', fontSize: '12px', marginTop: '24px', textAlign: 'center' }}>
+              Returning to standby mode in 6s...
             </p>
           </div>
         )}

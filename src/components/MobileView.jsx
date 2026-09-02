@@ -1,7 +1,22 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { io } from 'socket.io-client';
-import { Shield, Smartphone, CheckCircle, Flame, Leaf, Candy } from 'lucide-react';
-// MENU_ITEMS is now loaded dynamically from the backend API /api/menu
+import {
+  Shield,
+  Smartphone,
+  CheckCircle,
+  Flame,
+  Leaf,
+  Candy,
+  UtensilsCrossed,
+  HeartPulse,
+  ShoppingCart,
+  Plus,
+  Minus,
+  Trash2,
+  X,
+  ChevronUp,
+  Receipt
+} from 'lucide-react';
 
 const ALLERGEN_OPTIONS = [
   { id: 'peanuts', label: 'Peanuts' },
@@ -13,7 +28,9 @@ const ALLERGEN_OPTIONS = [
 const PREFERENCE_OPTIONS = [
   { id: 'spicy', label: 'Spicy', icon: <Flame size={14} style={{ marginRight: '4px' }} /> },
   { id: 'vegan', label: 'Vegan', icon: <Leaf size={14} style={{ marginRight: '4px' }} /> },
-  { id: 'sweet', label: 'Sweet', icon: <Candy size={14} style={{ marginRight: '4px' }} /> }
+  { id: 'sweet', label: 'Sweet', icon: <Candy size={14} style={{ marginRight: '4px' }} /> },
+  { id: 'savory', label: 'Savory', icon: <UtensilsCrossed size={14} style={{ marginRight: '4px' }} /> },
+  { id: 'healthy', label: 'Healthy', icon: <HeartPulse size={14} style={{ marginRight: '4px' }} /> }
 ];
 
 function MobileView({ kioskId, onResetSession }) {
@@ -22,7 +39,7 @@ function MobileView({ kioskId, onResetSession }) {
     const saved = localStorage.getItem('synapse_allergens');
     return saved ? JSON.parse(saved) : [];
   });
-  
+
   const [preferences, setPreferences] = useState(() => {
     const saved = localStorage.getItem('synapse_preferences');
     return saved ? JSON.parse(saved) : [];
@@ -33,7 +50,9 @@ function MobileView({ kioskId, onResetSession }) {
     return saved ? JSON.parse(saved) : [];
   });
 
-  const [selectedItemId, setSelectedItemId] = useState(null);
+  const [cart, setCart] = useState({}); // { [itemId]: quantity }
+  const [isCartOpen, setIsCartOpen] = useState(false);
+
   const [socketConnected, setSocketConnected] = useState(false);
   const [isOnboarded, setIsOnboarded] = useState(() => {
     return localStorage.getItem('synapse_onboarded') === 'true';
@@ -50,9 +69,11 @@ function MobileView({ kioskId, onResetSession }) {
   // Extract kioskPort parameter from URL to target the correct restaurant instance
   const urlParams = new URLSearchParams(window.location.search);
   const kioskPort = urlParams.get('kioskPort');
-  const backendTargetUrl = kioskPort ? `http://${window.location.hostname}:${kioskPort}` : '';
+  const backendTargetUrl = (kioskPort && kioskPort !== window.location.port)
+    ? `http://${window.location.hostname}:${kioskPort}`
+    : '';
 
-  // Load menu items and restaurant metadata dynamically
+  // Load menu items and restaurant metadata dynamically with resilient fallback
   useEffect(() => {
     const menuEndpoint = backendTargetUrl ? `${backendTargetUrl}/api/menu` : '/api/menu';
     const restEndpoint = backendTargetUrl ? `${backendTargetUrl}/api/restaurant` : '/api/restaurant';
@@ -60,12 +81,28 @@ function MobileView({ kioskId, onResetSession }) {
     fetch(menuEndpoint)
       .then(res => res.json())
       .then(data => setMenuItems(data))
-      .catch(err => console.error("Error loading menu:", err));
+      .catch(err => {
+        console.warn("Direct menu fetch error, trying relative fallback:", err);
+        if (backendTargetUrl) {
+          fetch('/api/menu')
+            .then(r => r.json())
+            .then(d => setMenuItems(d))
+            .catch(e => console.error("Fallback menu fetch failed:", e));
+        }
+      });
 
     fetch(restEndpoint)
       .then(res => res.json())
       .then(data => setRestaurantMeta(data))
-      .catch(err => console.error("Error loading restaurant info:", err));
+      .catch(err => {
+        console.warn("Direct restaurant fetch error, trying relative fallback:", err);
+        if (backendTargetUrl) {
+          fetch('/api/restaurant')
+            .then(r => r.json())
+            .then(d => setRestaurantMeta(d))
+            .catch(e => console.error("Fallback restaurant fetch failed:", e));
+        }
+      });
   }, [backendTargetUrl]);
 
   // Check for OpenNDS captive portal parameters in URL on mount
@@ -81,7 +118,6 @@ function MobileView({ kioskId, onResetSession }) {
     }
   }, []);
 
-
   // Sync state to localStorage on changes
   useEffect(() => {
     localStorage.setItem('synapse_allergens', JSON.stringify(allergens));
@@ -95,12 +131,14 @@ function MobileView({ kioskId, onResetSession }) {
   useEffect(() => {
     if (!kioskId || !isOnboarded) return;
 
-    const socket = backendTargetUrl ? io(backendTargetUrl) : io();
+    const socket = io(backendTargetUrl || undefined, {
+      transports: ['websocket', 'polling']
+    });
     socketRef.current = socket;
 
     socket.on('connect', () => {
       setSocketConnected(true);
-      console.log(`[Mobile] Connected to server (${backendTargetUrl || 'local'}), sending handshake for kiosk:`, kioskId);
+      console.log(`[Mobile] Connected to server (${backendTargetUrl || 'local proxy'}), sending handshake for kiosk:`, kioskId);
       socket.emit('join-session', { kioskId, role: 'mobile' });
       // Push current preferences instantly
       socket.emit('project-preferences', { kioskId, allergens, preferences });
@@ -131,15 +169,61 @@ function MobileView({ kioskId, onResetSession }) {
 
   // Toggle handlers
   const handleAllergenToggle = (id) => {
-    setAllergens(prev => 
+    setAllergens(prev =>
       prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
     );
   };
 
   const handlePreferenceToggle = (id) => {
-    setPreferences(prev => 
+    setPreferences(prev =>
       prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
     );
+  };
+
+  // Cart Helper Methods
+  const handleAddToCart = (item) => {
+    setCart(prev => ({
+      ...prev,
+      [item.id]: (prev[item.id] || 0) + 1
+    }));
+  };
+
+  const handleUpdateQuantity = (itemId, delta) => {
+    setCart(prev => {
+      const current = prev[itemId] || 0;
+      const next = current + delta;
+      if (next <= 0) {
+        const copy = { ...prev };
+        delete copy[itemId];
+        return copy;
+      }
+      return { ...prev, [itemId]: next };
+    });
+  };
+
+  const handleRemoveFromCart = (itemId) => {
+    setCart(prev => {
+      const copy = { ...prev };
+      delete copy[itemId];
+      return copy;
+    });
+  };
+
+  const getCartItems = () => {
+    return Object.entries(cart)
+      .map(([id, qty]) => {
+        const item = menuItems.find(m => m.id === parseInt(id, 10));
+        return item ? { ...item, quantity: qty } : null;
+      })
+      .filter(Boolean);
+  };
+
+  const getCartTotal = () => {
+    return getCartItems().reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  };
+
+  const getCartCount = () => {
+    return Object.values(cart).reduce((sum, qty) => sum + qty, 0);
   };
 
   // Factory reset: clear all local storage
@@ -148,56 +232,96 @@ function MobileView({ kioskId, onResetSession }) {
     setAllergens([]);
     setPreferences([]);
     setHistory([]);
-    setSelectedItemId(null);
+    setCart({});
+    setIsCartOpen(false);
     setIsOnboarded(false);
     setLastOrder(null);
     alert("Profile and order history reset to factory defaults.");
   };
 
-  // Place order flow
+  // Place multi-item order flow
   const handlePlaceOrder = () => {
-    if (!selectedItemId) {
-      alert("Please select a food item to order.");
+    const cartItems = getCartItems();
+    if (cartItems.length === 0) {
+      alert("Please add at least one dish to your order.");
       return;
     }
 
-    const orderedItem = menuItems.find(item => item.id === selectedItemId);
-    if (!orderedItem) return;
+    // 1. Update local user history with ordered food item tags (cumulative weighting by quantity)
+    const newHistory = [...history];
+    const allOrderedTags = [];
+    let totalPrice = 0;
 
-    // 1. Update local user history with ordered food item tags to fine-tune preferences
-    const newHistory = [...history, ...orderedItem.tags];
+    cartItems.forEach(cartItem => {
+      totalPrice += cartItem.price * cartItem.quantity;
+      for (let i = 0; i < cartItem.quantity; i++) {
+        cartItem.tags.forEach(tag => {
+          newHistory.push(tag);
+          allOrderedTags.push(tag);
+        });
+      }
+    });
+
     localStorage.setItem('synapse_order_history', JSON.stringify(newHistory));
     setHistory(newHistory);
 
-    // 2. Update active preferences based on ordered item tags (e.g. if they order spicy, add spicy to profile)
+    // 2. Update active preferences based on ordered tags if not already present
+    const validStandardTags = ['spicy', 'vegan', 'sweet', 'savory', 'healthy'];
     const newPreferences = [...preferences];
     let prefUpdated = false;
-    orderedItem.tags.forEach(tag => {
-      if (['spicy', 'vegan', 'sweet'].includes(tag) && !newPreferences.includes(tag)) {
+    allOrderedTags.forEach(tag => {
+      if (validStandardTags.includes(tag) && !newPreferences.includes(tag)) {
         newPreferences.push(tag);
         prefUpdated = true;
       }
     });
+
     if (prefUpdated) {
       localStorage.setItem('synapse_preferences', JSON.stringify(newPreferences));
       setPreferences(newPreferences);
     }
 
-    // 3. Store this item as the last ordered item for quick repeat ordering
-    localStorage.setItem('synapse_last_order', JSON.stringify(orderedItem));
-    setLastOrder(orderedItem);
+    // 3. Store this order for quick repeat ordering
+    const lastOrderPayload = {
+      items: cartItems,
+      itemCount: getCartCount(),
+      totalPrice,
+      primaryName: cartItems.length === 1 ? cartItems[0].name : `${cartItems[0].name} + ${cartItems.length - 1} more`,
+      timestamp: new Date().toISOString()
+    };
+    localStorage.setItem('synapse_last_order', JSON.stringify(lastOrderPayload));
+    setLastOrder(lastOrderPayload);
 
     // 4. Emit success command to close Kiosk session via WebSocket
     if (socketRef.current && socketConnected) {
       socketRef.current.emit('place-order', {
         kioskId,
-        item: orderedItem
+        items: cartItems,
+        itemCount: getCartCount(),
+        totalPrice,
+        orderedTags: allOrderedTags
       });
     }
 
-    // 5. Clear session memory locally on phone (redirects to clear kioskId)
-    setSelectedItemId(null);
+    // 5. Clear session memory locally on phone
+    setCart({});
+    setIsCartOpen(false);
     onResetSession();
+  };
+
+  // Repeat Last Order handler
+  const handleRepeatLastOrder = () => {
+    if (!lastOrder) return;
+    const newCart = {};
+    if (Array.isArray(lastOrder.items) && lastOrder.items.length > 0) {
+      lastOrder.items.forEach(item => {
+        newCart[item.id] = item.quantity || 1;
+      });
+    } else if (lastOrder.id) {
+      newCart[lastOrder.id] = 1;
+    }
+    setCart(newCart);
+    setIsCartOpen(true);
   };
 
   // Safe foods filtering (Mobile list)
@@ -211,15 +335,15 @@ function MobileView({ kioskId, onResetSession }) {
     return acc;
   }, {});
 
-  const recommendedFromHistory = Object.entries(tagCounts)
-    .filter(([_, count]) => count >= 2)
-    .map(([tag]) => tag);
+  const cartItemsList = getCartItems();
+  const totalCartCount = getCartCount();
+  const totalCartPrice = getCartTotal();
 
   return (
-    <div className="mobile-wrapper fade-in">
+    <div className="mobile-wrapper fade-in" style={{ position: 'relative' }}>
       {/* App Header */}
-      <header style={{ textAlign: 'center', marginBottom: '24px', paddingBottom: '16px', borderBottom: '1px solid var(--border-glass)' }}>
-        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', color: 'var(--accent-teal)', marginBottom: '8px' }}>
+      <header style={{ textAlign: 'center', marginBottom: '20px', paddingBottom: '14px', borderBottom: '1px solid var(--border-glass)' }}>
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', color: 'var(--accent-teal)', marginBottom: '6px' }}>
           <Shield size={20} />
           <span style={{ fontWeight: '800', letterSpacing: '0.05em', fontSize: '14px' }}>SYNAPSE ID</span>
         </div>
@@ -229,8 +353,8 @@ function MobileView({ kioskId, onResetSession }) {
 
       {/* VIEW 2: ACTIVE KIOSK SCAN VIEW */}
       {kioskId && isOnboarded ? (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', flex: 1 }}>
-          <div className="glass-card" style={{ padding: '16px', background: 'rgba(45, 106, 79, 0.04)', borderColor: 'rgba(45, 106, 79, 0.15)' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', flex: 1 }}>
+          <div className="glass-card" style={{ padding: '14px', background: 'rgba(45, 106, 79, 0.04)', borderColor: 'rgba(45, 106, 79, 0.15)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
                 <span style={{ fontSize: '10px', textTransform: 'uppercase', color: 'var(--accent-green)', fontWeight: '700', letterSpacing: '0.05em' }}>
@@ -254,10 +378,10 @@ function MobileView({ kioskId, onResetSession }) {
 
           {/* Quick Edit settings in connected view */}
           <div>
-            <h5 style={{ fontSize: '12px', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px', fontWeight: '700' }}>
+            <h5 style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px', fontWeight: '700' }}>
               Active Profile Filters (Syncs Live)
             </h5>
-            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '12px' }}>
+            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '8px' }}>
               {ALLERGEN_OPTIONS.map(opt => {
                 const checked = allergens.includes(opt.id);
                 return (
@@ -266,7 +390,7 @@ function MobileView({ kioskId, onResetSession }) {
                     onClick={() => handleAllergenToggle(opt.id)}
                     style={{
                       fontSize: '11px',
-                      padding: '6px 12px',
+                      padding: '5px 10px',
                       borderRadius: '8px',
                       background: checked ? 'rgba(239, 68, 68, 0.15)' : 'var(--bg-surface-elevated)',
                       color: checked ? '#fca5a5' : 'var(--text-secondary)',
@@ -280,7 +404,7 @@ function MobileView({ kioskId, onResetSession }) {
               })}
             </div>
 
-            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
               {PREFERENCE_OPTIONS.map(opt => {
                 const checked = preferences.includes(opt.id);
                 return (
@@ -289,7 +413,7 @@ function MobileView({ kioskId, onResetSession }) {
                     onClick={() => handlePreferenceToggle(opt.id)}
                     style={{
                       fontSize: '11px',
-                      padding: '6px 12px',
+                      padding: '5px 10px',
                       borderRadius: '8px',
                       background: checked ? 'rgba(45, 106, 79, 0.12)' : 'var(--bg-surface-elevated)',
                       color: checked ? 'var(--accent-green)' : 'var(--text-secondary)',
@@ -309,71 +433,99 @@ function MobileView({ kioskId, onResetSession }) {
 
           {/* Ordering Panel */}
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-            <h5 style={{ fontSize: '12px', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px', fontWeight: '700' }}>
-              Select Food to Order
-            </h5>
-            
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', overflowY: 'auto', maxHeight: '260px', paddingRight: '4px', marginBottom: '16px' }}>
-              {lastOrder && !lastOrder.allergens.some(a => allergens.includes(a)) && (
-                <div
-                  onClick={() => setSelectedItemId(lastOrder.id)}
-                  style={{
-                    padding: '12px',
-                    borderRadius: '12px',
-                    background: selectedItemId === lastOrder.id ? 'rgba(45, 106, 79, 0.08)' : 'rgba(245, 166, 35, 0.04)',
-                    border: `1px solid ${selectedItemId === lastOrder.id ? 'var(--accent-green)' : 'rgba(245, 166, 35, 0.25)'}`,
-                    cursor: 'pointer',
-                    transition: 'all 0.15s ease',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    marginBottom: '6px'
-                  }}
-                >
-                  <div style={{ paddingRight: '8px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <span style={{ fontSize: '9px', background: 'rgba(245, 166, 35, 0.15)', color: '#B45309', padding: '2px 6px', borderRadius: '4px', fontWeight: '800', letterSpacing: '0.05em' }}>
-                        🔄 RE-ORDER LAST
-                      </span>
-                      <h6 style={{ fontSize: '14px', fontWeight: '700' }}>{lastOrder.name}</h6>
-                    </div>
-                    <p style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }}>{lastOrder.description}</p>
-                  </div>
-                  <div style={{ textAlign: 'right', fontWeight: '800', fontSize: '14px', minWidth: '60px' }}>
-                    ₱{lastOrder.price.toFixed(2)}
-                  </div>
-                </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+              <h5 style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: '700' }}>
+                Safe Menu ({safeItems.length} items)
+              </h5>
+              {totalCartCount > 0 && (
+                <span style={{ fontSize: '11px', color: 'var(--accent-red)', fontWeight: '700' }}>
+                  {totalCartCount} in cart (₱{totalCartPrice.toFixed(2)})
+                </span>
               )}
+            </div>
 
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', overflowY: 'auto', maxHeight: '300px', paddingRight: '4px', marginBottom: '12px' }}>
               {safeItems.map(item => {
-                const isSelected = selectedItemId === item.id;
+                const qtyInCart = cart[item.id] || 0;
                 const isMatch = preferences.some(p => item.tags.includes(p));
-                
+                const matchCount = item.tags.filter(p => preferences.includes(p)).length;
+
                 return (
                   <div
                     key={item.id}
-                    onClick={() => setSelectedItemId(item.id)}
                     style={{
                       padding: '12px',
                       borderRadius: '12px',
-                      background: isSelected ? 'rgba(217, 56, 58, 0.06)' : 'var(--bg-surface)',
-                      border: `1px solid ${isSelected ? 'var(--accent-red)' : 'var(--border-glass)'}`,
-                      cursor: 'pointer',
+                      background: qtyInCart > 0 ? 'rgba(217, 56, 58, 0.05)' : 'var(--bg-surface)',
+                      border: `1px solid ${qtyInCart > 0 ? 'var(--accent-red)' : 'var(--border-glass)'}`,
                       transition: 'all 0.15s ease',
                       display: 'flex',
                       justifyContent: 'space-between',
                       alignItems: 'center'
                     }}
                   >
-                    <div style={{ paddingRight: '8px' }}>
+                    <div style={{ paddingRight: '8px', flex: 1 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span style={{ fontSize: '18px' }}>{item.emoji || '🍽️'}</span>
                         <h6 style={{ fontSize: '14px', fontWeight: '700' }}>{item.name}</h6>
-                        {isMatch && <span style={{ fontSize: '9px', background: 'var(--accent-gradient)', color: '#04060b', padding: '1px 4px', borderRadius: '4px', fontWeight: '700' }}>MATCH</span>}
+                        {isMatch && (
+                          <span style={{ fontSize: '9px', background: 'var(--accent-gradient)', color: '#ffffff', padding: '1px 5px', borderRadius: '4px', fontWeight: '700' }}>
+                            MATCH (+{matchCount})
+                          </span>
+                        )}
                       </div>
-                      <p style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }}>{item.description}</p>
+                      <p style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '3px' }}>{item.description}</p>
+                      <div style={{ display: 'flex', gap: '4px', marginTop: '6px', flexWrap: 'wrap' }}>
+                        {item.tags.map(tag => (
+                          <span key={tag} className={`badge ${preferences.includes(tag) ? 'badge-recommend' : 'badge-tag'}`} style={{ fontSize: '9px', padding: '2px 6px' }}>
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
                     </div>
-                    <div style={{ textAlign: 'right', fontWeight: '800', fontSize: '14px' }}>
-                      ₱{item.price.toFixed(2)}
+
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px', minWidth: '90px' }}>
+                      <div style={{ fontWeight: '800', fontSize: '14px' }}>
+                        ₱{item.price.toFixed(2)}
+                      </div>
+
+                      {qtyInCart > 0 ? (
+                        <div className="qty-stepper">
+                          <button
+                            className="qty-btn"
+                            onClick={() => handleUpdateQuantity(item.id, -1)}
+                            title="Decrease quantity"
+                          >
+                            <Minus size={12} />
+                          </button>
+                          <span className="qty-count">{qtyInCart}</span>
+                          <button
+                            className="qty-btn"
+                            onClick={() => handleUpdateQuantity(item.id, 1)}
+                            title="Increase quantity"
+                          >
+                            <Plus size={12} />
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => handleAddToCart(item)}
+                          style={{
+                            background: 'var(--bg-surface-elevated)',
+                            color: 'var(--text-primary)',
+                            border: '1px solid var(--border-glass)',
+                            borderRadius: '8px',
+                            padding: '5px 10px',
+                            fontSize: '11px',
+                            fontWeight: '700',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px'
+                          }}
+                        >
+                          <Plus size={12} /> Add
+                        </button>
+                      )}
                     </div>
                   </div>
                 );
@@ -386,32 +538,54 @@ function MobileView({ kioskId, onResetSession }) {
               )}
             </div>
 
-            {/* Place Order Footer */}
-            <div style={{ marginTop: 'auto', paddingTop: '16px', borderTop: '1px solid var(--border-glass)' }}>
+            {/* Sticky Floating Bottom Cart Trigger */}
+            {totalCartCount > 0 && (
+              <div className="cart-floating-bar" onClick={() => setIsCartOpen(true)} style={{ cursor: 'pointer' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <div style={{ background: 'var(--accent-gradient)', color: '#ffffff', width: '32px', height: '32px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '800', fontSize: '13px' }}>
+                    {totalCartCount}
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '13px', fontWeight: '700' }}>View Cart</div>
+                    <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{cartItemsList.length} unique {cartItemsList.length === 1 ? 'item' : 'items'}</div>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontSize: '16px', fontWeight: '800', color: 'var(--accent-red)' }}>
+                    ₱{totalCartPrice.toFixed(2)}
+                  </span>
+                  <ChevronUp size={18} color="var(--accent-red)" />
+                </div>
+              </div>
+            )}
+
+            {/* Actions Footer */}
+            <div style={{ marginTop: 'auto', paddingTop: '12px', borderTop: '1px solid var(--border-glass)' }}>
               <button
-                onClick={handlePlaceOrder}
+                onClick={() => setIsCartOpen(true)}
                 className="btn-primary"
-                disabled={!selectedItemId}
+                disabled={totalCartCount === 0}
                 style={{
                   width: '100%',
-                  padding: '14px',
-                  borderRadius: '14px',
-                  fontSize: '15px',
+                  padding: '12px',
+                  borderRadius: '12px',
+                  fontSize: '14px',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   gap: '8px',
-                  opacity: selectedItemId ? 1 : 0.4,
-                  cursor: selectedItemId ? 'pointer' : 'not-allowed'
+                  opacity: totalCartCount > 0 ? 1 : 0.45,
+                  cursor: totalCartCount > 0 ? 'pointer' : 'not-allowed'
                 }}
               >
-                Place Order
+                <ShoppingCart size={16} />
+                {totalCartCount > 0 ? `Review Order (${totalCartCount} items • ₱${totalCartPrice.toFixed(2)})` : 'Add items to order'}
               </button>
-              
-              <button 
+
+              <button
                 onClick={onResetSession}
                 className="btn-secondary"
-                style={{ width: '100%', padding: '10px', marginTop: '10px', fontSize: '13px', borderRadius: '12px' }}
+                style={{ width: '100%', padding: '8px', marginTop: '8px', fontSize: '12px', borderRadius: '10px' }}
               >
                 Disconnect Session
               </button>
@@ -420,42 +594,37 @@ function MobileView({ kioskId, onResetSession }) {
         </div>
       ) : (
         /* VIEW 1: PROFILE SETUP / ONBOARDING VIEW */
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-          
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+
           {/* Captive Portal Activation Banner */}
           {captiveParams && (
-            <div className="glass-card highlighted" style={{ padding: '20px', borderRadius: '16px' }}>
-              <div style={{ display: 'flex', gap: '12px', alignItems: 'center', marginBottom: '12px' }}>
+            <div className="glass-card highlighted" style={{ padding: '16px', borderRadius: '16px' }}>
+              <div style={{ display: 'flex', gap: '12px', alignItems: 'center', marginBottom: '8px' }}>
                 <div style={{ background: 'rgba(45, 106, 79, 0.08)', padding: '8px', borderRadius: '10px', color: 'var(--accent-green)' }}>
-                  <Shield size={20} />
+                  <Shield size={18} />
                 </div>
                 <div>
-                  <h5 style={{ fontSize: '15px', fontWeight: '700' }}>Restaurant Wi-Fi Connected</h5>
+                  <h5 style={{ fontSize: '14px', fontWeight: '700' }}>Restaurant Wi-Fi Connected</h5>
                   <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
                     Device MAC: {captiveParams.clientmac || 'Unknown'}
                   </span>
                 </div>
               </div>
-              <p style={{ fontSize: '12px', color: 'var(--text-secondary)', lineHeight: '1.4', marginBottom: '16px' }}>
-                To unlock full internet access on this network, authenticate your device. Your dietary preferences will remain secure and private.
+              <p style={{ fontSize: '11px', color: 'var(--text-secondary)', lineHeight: '1.4', marginBottom: '12px' }}>
+                Authenticate to unlock guest Wi-Fi. Your dietary vault stays strictly local on your phone.
               </p>
               <button
                 onClick={() => {
-                  // Redirect client to opennds authentication URL (mock or real)
                   const authUrl = `http://${captiveParams.gatewayaddress}/opennds_auth/?tok=${captiveParams.tok}&redir=${encodeURIComponent(captiveParams.redir || window.location.origin)}`;
                   window.location.href = authUrl;
                 }}
                 className="btn-primary"
-                style={{ 
-                  width: '100%', 
-                  padding: '12px', 
-                  fontSize: '13px', 
-                  borderRadius: '10px', 
-                  fontWeight: '700',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '6px'
+                style={{
+                  width: '100%',
+                  padding: '10px',
+                  fontSize: '12px',
+                  borderRadius: '10px',
+                  fontWeight: '700'
                 }}
               >
                 Connect to Guest Wi-Fi
@@ -463,36 +632,48 @@ function MobileView({ kioskId, onResetSession }) {
             </div>
           )}
 
-          {/* Quick Repeat Last Order Card */}
+          {/* Quick Repeat Last Order Card (Multi-Item Aware) */}
           {lastOrder && (
-            <div className="glass-card" style={{ padding: '16px', background: 'rgba(245, 166, 35, 0.04)', borderColor: 'rgba(245, 166, 35, 0.25)', borderRadius: '16px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
+            <div className="glass-card" style={{ padding: '14px', background: 'rgba(245, 166, 35, 0.04)', borderColor: 'rgba(245, 166, 35, 0.25)', borderRadius: '16px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '6px' }}>
                 <div>
                   <span style={{ fontSize: '9px', background: 'rgba(245, 166, 35, 0.15)', color: '#B45309', padding: '2px 6px', borderRadius: '4px', fontWeight: '800', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
                     🔄 Repeat Last Order
                   </span>
-                  <h5 style={{ fontSize: '15px', fontWeight: '700', marginTop: '6px' }}>{lastOrder.name}</h5>
+                  <h5 style={{ fontSize: '14px', fontWeight: '700', marginTop: '4px' }}>
+                    {lastOrder.primaryName || (lastOrder.items ? `${lastOrder.items.length} items` : lastOrder.name)}
+                  </h5>
                 </div>
-                <span style={{ fontSize: '14px', fontWeight: '800' }}>₱{lastOrder.price.toFixed(2)}</span>
+                <span style={{ fontSize: '13px', fontWeight: '800' }}>
+                  ₱{(lastOrder.totalPrice || lastOrder.price || 0).toFixed(2)}
+                </span>
               </div>
-              <p style={{ fontSize: '11px', color: 'var(--text-secondary)', lineHeight: '1.4' }}>
-                {lastOrder.description}
-              </p>
+
+              {Array.isArray(lastOrder.items) && (
+                <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', margin: '6px 0' }}>
+                  {lastOrder.items.map((i, idx) => (
+                    <span key={idx} style={{ fontSize: '10px', background: 'rgba(44, 26, 17, 0.05)', padding: '2px 6px', borderRadius: '4px' }}>
+                      {i.emoji || '🍽️'} {i.name} (x{i.quantity || 1})
+                    </span>
+                  ))}
+                </div>
+              )}
+
               {kioskId ? (
                 <button
                   onClick={() => {
-                    setSelectedItemId(lastOrder.id);
+                    handleRepeatLastOrder();
                     localStorage.setItem('synapse_onboarded', 'true');
                     setIsOnboarded(true);
                   }}
                   className="btn-primary"
-                  style={{ width: '100%', padding: '10px', marginTop: '12px', fontSize: '13px', borderRadius: '10px', fontWeight: '600' }}
+                  style={{ width: '100%', padding: '9px', marginTop: '8px', fontSize: '12px', borderRadius: '10px', fontWeight: '600' }}
                 >
-                  Quick Re-Order & Pair
+                  Load Past Order & Pair
                 </button>
               ) : (
-                <div style={{ marginTop: '10px', fontSize: '10px', color: 'var(--text-muted)', fontStyle: 'italic', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                  <span>👉 Scan any Kiosk terminal to repeat this order instantly.</span>
+                <div style={{ marginTop: '6px', fontSize: '10px', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                  👉 Scan any Kiosk terminal to repeat this order instantly.
                 </div>
               )}
             </div>
@@ -500,7 +681,7 @@ function MobileView({ kioskId, onResetSession }) {
 
           {/* Allergens Checklist */}
           <div>
-            <h4 style={{ fontSize: '14px', fontWeight: '700', color: 'var(--text-primary)', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <h4 style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-primary)', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
               🚫 1. Exclude Allergens
             </h4>
             <div className="preference-list">
@@ -508,22 +689,22 @@ function MobileView({ kioskId, onResetSession }) {
                 const checked = allergens.includes(opt.id);
                 return (
                   <label key={opt.id} className={`custom-checkbox ${checked ? 'checked' : ''}`}>
-                    <input 
-                      type="checkbox" 
+                    <input
+                      type="checkbox"
                       checked={checked}
                       onChange={() => handleAllergenToggle(opt.id)}
                     />
                     <div className="checkbox-box"></div>
-                    <span style={{ fontSize: '14px', fontWeight: '500' }}>{opt.label}</span>
+                    <span style={{ fontSize: '13px', fontWeight: '500' }}>{opt.label}</span>
                   </label>
                 );
               })}
             </div>
           </div>
 
-          {/* Preferences Checklist */}
+          {/* Preferences Checklist (All 5 Profiles) */}
           <div>
-            <h4 style={{ fontSize: '14px', fontWeight: '700', color: 'var(--text-primary)', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <h4 style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-primary)', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
               ⭐ 2. Flavor Preferences
             </h4>
             <div className="preference-list">
@@ -531,13 +712,13 @@ function MobileView({ kioskId, onResetSession }) {
                 const checked = preferences.includes(opt.id);
                 return (
                   <label key={opt.id} className={`custom-checkbox ${checked ? 'checked' : ''}`}>
-                    <input 
-                      type="checkbox" 
+                    <input
+                      type="checkbox"
                       checked={checked}
                       onChange={() => handlePreferenceToggle(opt.id)}
                     />
                     <div className="checkbox-box"></div>
-                    <span style={{ fontSize: '14px', fontWeight: '500', display: 'flex', alignItems: 'center' }}>
+                    <span style={{ fontSize: '13px', fontWeight: '500', display: 'flex', alignItems: 'center' }}>
                       {opt.icon}
                       {opt.label}
                     </span>
@@ -549,25 +730,25 @@ function MobileView({ kioskId, onResetSession }) {
 
           {/* Automated Taste Profile Training (History Insights) */}
           {history.length > 0 && (
-            <div className="glass-card" style={{ padding: '16px', background: 'rgba(255, 255, 255, 0.02)' }}>
-              <h5 style={{ fontSize: '12px', color: 'var(--accent-green)', textTransform: 'uppercase', marginBottom: '8px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <CheckCircle size={14} /> Taste Profile AI Insights
+            <div className="glass-card" style={{ padding: '14px', background: 'rgba(255, 255, 255, 0.02)' }}>
+              <h5 style={{ fontSize: '11px', color: 'var(--accent-green)', textTransform: 'uppercase', marginBottom: '6px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <CheckCircle size={13} /> Taste Profile Insights
               </h5>
-              <p style={{ fontSize: '11px', color: 'var(--text-secondary)', lineHeight: '1.4', marginBottom: '10px' }}>
-                Your order history is stored in local browser state. Based on your past orders, we have identified these affinities:
+              <p style={{ fontSize: '11px', color: 'var(--text-secondary)', lineHeight: '1.4', marginBottom: '8px' }}>
+                Cumulative taste weights calculated from your local multi-item order history:
               </p>
-              
-              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+
+              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                 {Object.entries(tagCounts).map(([tag, count]) => {
                   const isStrongSuggestion = count >= 2;
                   const isChecked = preferences.includes(tag);
-                  
+
                   return (
                     <div
                       key={tag}
                       style={{
-                        fontSize: '11px',
-                        padding: '4px 10px',
+                        fontSize: '10px',
+                        padding: '3px 8px',
                         borderRadius: '6px',
                         background: isStrongSuggestion ? 'rgba(45, 106, 79, 0.08)' : 'rgba(44, 26, 17, 0.02)',
                         border: `1px solid ${isStrongSuggestion ? 'var(--accent-green)' : 'var(--border-glass)'}`,
@@ -577,22 +758,22 @@ function MobileView({ kioskId, onResetSession }) {
                         gap: '6px'
                       }}
                     >
-                      <span>{tag.toUpperCase()} ({count}x)</span>
+                      <span>{tag.toUpperCase()} ({count} pts)</span>
                       {isStrongSuggestion && !isChecked && (
                         <button
                           onClick={() => handlePreferenceToggle(tag)}
                           style={{
                             background: 'var(--accent-gradient)',
-                            color: '#000',
+                            color: '#ffffff',
                             border: 'none',
-                            padding: '1px 6px',
+                            padding: '1px 5px',
                             borderRadius: '4px',
                             fontSize: '8px',
                             fontWeight: '800',
                             cursor: 'pointer'
                           }}
                         >
-                          ADD FILTER
+                          + PROFILE
                         </button>
                       )}
                     </div>
@@ -602,11 +783,9 @@ function MobileView({ kioskId, onResetSession }) {
             </div>
           )}
 
-
           {/* Proceed to Kiosk or Standby Scan Message */}
-
           {kioskId ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               <button
                 onClick={() => {
                   localStorage.setItem('synapse_onboarded', 'true');
@@ -615,9 +794,9 @@ function MobileView({ kioskId, onResetSession }) {
                 className="btn-primary"
                 style={{
                   width: '100%',
-                  padding: '14px',
-                  borderRadius: '14px',
-                  fontSize: '15px',
+                  padding: '12px',
+                  borderRadius: '12px',
+                  fontSize: '14px',
                   fontWeight: '700',
                   display: 'flex',
                   alignItems: 'center',
@@ -632,23 +811,127 @@ function MobileView({ kioskId, onResetSession }) {
               </p>
             </div>
           ) : (
-            <div className="glass-card" style={{ padding: '16px', display: 'flex', gap: '12px', alignItems: 'center', background: 'rgba(255, 255, 255, 0.01)' }}>
-              <Smartphone size={20} color="var(--text-muted)" />
-              <span style={{ fontSize: '12px', color: 'var(--text-secondary)', lineHeight: '1.4' }}>
+            <div className="glass-card" style={{ padding: '14px', display: 'flex', gap: '10px', alignItems: 'center', background: 'rgba(255, 255, 255, 0.01)' }}>
+              <Smartphone size={18} color="var(--text-muted)" />
+              <span style={{ fontSize: '11px', color: 'var(--text-secondary)', lineHeight: '1.4' }}>
                 <strong>Awaiting scan.</strong> Scan a QR code on a kiosk table terminal to securely pair and order.
               </span>
             </div>
           )}
 
           {/* Factory Reset */}
-          <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid var(--border-glass)' }}>
+          <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid var(--border-glass)' }}>
             <button
               onClick={handleClearAllData}
               className="btn-danger"
-              style={{ width: '100%', padding: '12px', fontSize: '13px', borderRadius: '12px' }}
+              style={{ width: '100%', padding: '10px', fontSize: '12px', borderRadius: '10px' }}
             >
               Factory Reset (Wipe LocalStorage)
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Cart Drawer Modal */}
+      {isCartOpen && (
+        <div className="cart-drawer-overlay" onClick={() => setIsCartOpen(false)}>
+          <div className="cart-drawer-content" onClick={e => e.stopPropagation()}>
+            <div className="cart-drawer-header">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <ShoppingCart size={20} color="var(--accent-red)" />
+                <h4 style={{ fontSize: '16px', fontWeight: '800' }}>Your Order Cart</h4>
+              </div>
+              <button
+                onClick={() => setIsCartOpen(false)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px' }}
+              >
+                <X size={20} color="var(--text-muted)" />
+              </button>
+            </div>
+
+            {cartItemsList.length > 0 ? (
+              <>
+                <div className="cart-items-scroll">
+                  {cartItemsList.map(item => (
+                    <div key={item.id} className="cart-item-row">
+                      <div style={{ flex: 1, paddingRight: '12px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <span>{item.emoji || '🍽️'}</span>
+                          <span style={{ fontWeight: '700', fontSize: '13px' }}>{item.name}</span>
+                        </div>
+                        <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                          ₱{item.price.toFixed(2)} each
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <div className="qty-stepper">
+                          <button className="qty-btn" onClick={() => handleUpdateQuantity(item.id, -1)}>
+                            <Minus size={12} />
+                          </button>
+                          <span className="qty-count">{item.quantity}</span>
+                          <button className="qty-btn" onClick={() => handleUpdateQuantity(item.id, 1)}>
+                            <Plus size={12} />
+                          </button>
+                        </div>
+                        <span style={{ fontWeight: '800', fontSize: '13px', minWidth: '60px', textAlign: 'right' }}>
+                          ₱{(item.price * item.quantity).toFixed(2)}
+                        </span>
+                        <button
+                          onClick={() => handleRemoveFromCart(item.id)}
+                          style={{ background: 'none', border: 'none', color: 'var(--accent-danger)', cursor: 'pointer', padding: '2px' }}
+                          title="Remove item"
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div style={{ borderTop: '1px solid var(--border-glass)', paddingTop: '16px', marginTop: 'auto' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px', fontSize: '13px', color: 'var(--text-muted)' }}>
+                    <span>Total Items:</span>
+                    <span>{totalCartCount} items</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px', fontSize: '18px', fontWeight: '800' }}>
+                    <span>Order Total:</span>
+                    <span style={{ color: 'var(--accent-red)' }}>₱{totalCartPrice.toFixed(2)}</span>
+                  </div>
+
+                  <button
+                    onClick={handlePlaceOrder}
+                    className="btn-primary"
+                    style={{
+                      width: '100%',
+                      padding: '14px',
+                      borderRadius: '14px',
+                      fontSize: '15px',
+                      fontWeight: '800',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '8px'
+                    }}
+                  >
+                    <Receipt size={18} />
+                    Confirm & Place Order
+                  </button>
+                </div>
+              </>
+            ) : (
+              <div style={{ padding: '32px 16px', textAlign: 'center' }}>
+                <ShoppingCart size={36} color="var(--text-muted)" style={{ marginBottom: '12px' }} />
+                <p style={{ color: 'var(--text-secondary)', fontSize: '13px' }}>Your order cart is currently empty.</p>
+                <button
+                  onClick={() => setIsCartOpen(false)}
+                  className="btn-secondary"
+                  style={{ marginTop: '16px', padding: '8px 16px', fontSize: '12px', borderRadius: '8px' }}
+                >
+                  Browse Menu
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}
