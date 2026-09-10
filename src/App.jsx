@@ -1,10 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import KioskView from './components/KioskView';
 import MobileView from './components/MobileView';
+import KitchenView from './components/KitchenView';
 
 function App() {
   const [kioskId, setKioskId] = useState(null);
   const [isMobileScreen, setIsMobileScreen] = useState(false);
+  const [currentView, setCurrentView] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('view') || 'kiosk';
+  });
 
   // Check screen width for mobile layouts
   useEffect(() => {
@@ -21,7 +26,11 @@ function App() {
     const handleUrlCheck = () => {
       const params = new URLSearchParams(window.location.search);
       const id = params.get('kioskId');
+      const viewParam = params.get('view');
       setKioskId(id);
+      if (viewParam) {
+        setCurrentView(viewParam);
+      }
     };
 
     handleUrlCheck();
@@ -37,12 +46,28 @@ function App() {
     setKioskId(null);
   };
 
+  const handleOpenKitchen = () => {
+    const url = new URL(window.location.href);
+    url.searchParams.set('view', 'kitchen');
+    window.history.pushState({}, '', url.toString());
+    setCurrentView('kitchen');
+  };
+
+  const handleReturnToKiosk = () => {
+    const url = new URL(window.location.href);
+    url.searchParams.delete('view');
+    window.history.pushState({}, '', url.toString());
+    setCurrentView('kiosk');
+  };
+
   return (
     <div className="app-container">
       {kioskId || isMobileScreen ? (
         <MobileView kioskId={kioskId} onResetSession={handleResetSession} />
+      ) : currentView === 'kitchen' ? (
+        <KitchenView onReturnToKiosk={handleReturnToKiosk} />
       ) : (
-        <KioskView />
+        <KioskView onOpenKitchen={handleOpenKitchen} />
       )}
     </div>
   );

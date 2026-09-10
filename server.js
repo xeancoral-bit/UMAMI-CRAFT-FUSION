@@ -21,6 +21,7 @@ function getCliArg(flag, defaultVal) {
 const app = express();
 const PORT = parseInt(getCliArg('--port', process.env.PORT || 3001), 10);
 const FRONTEND_PORT = parseInt(getCliArg('--frontend', process.env.FRONTEND_PORT || 3000), 10);
+const MOBILE_FRONTEND_PORT = parseInt(getCliArg('--mobile-frontend', process.env.MOBILE_FRONTEND_PORT || FRONTEND_PORT), 10);
 const RESTAURANT_ID = getCliArg('--restaurant', process.env.RESTAURANT_ID || 'umami');
 
 const RESTAURANTS = {
@@ -53,8 +54,13 @@ const RESTAURANTS = {
 const activeRestaurant = RESTAURANTS[RESTAURANT_ID] || RESTAURANTS.umami;
 
 
+// Enable JSON body parsing for API requests
+app.use(express.json());
 // Enable CORS for development
 app.use(cors());
+
+// In-memory orders store for this restaurant instance
+const orders = [];
 
 // Serve static assets in production
 app.use(express.static(path.join(__dirname, 'dist')));
@@ -72,12 +78,22 @@ const io = new Server(server, {
 io.on('connection', (socket) => {
   console.log(`[Socket] User connected: ${socket.id}`);
 
-  // Device joins a session room based on kioskId
+  // Device joins a session room based on kioskId or kitchen role
   socket.on('join-session', ({ kioskId, role }) => {
-    socket.join(kioskId);
-    socket.kioskId = kioskId;
+    if (kioskId) {
+      socket.join(kioskId);
+      socket.kioskId = kioskId;
+    }
     socket.role = role;
-    console.log(`[Socket] Client ${socket.id} (${role}) joined room: ${kioskId}`);
+    if (role === 'kitchen') {
+      const kitchenRoom = `kitchen_${RESTAURANT_ID}`;
+      socket.join(kitchenRoom);
+      console.log(`[Socket] Kitchen terminal ${socket.id} joined ${kitchenRoom}`);
+      // Send current active orders on join
+      socket.emit('initial-orders', orders);
+    } else {
+      console.log(`[Socket] Client ${socket.id} (${role}) joined room: ${kioskId}`);
+    }
   });
 
   // Mobile device projects allergen and preference data
@@ -94,27 +110,71 @@ io.on('connection', (socket) => {
 
   // Mobile device places an order
   socket.on('place-order', (orderPayload) => {
-    const { kioskId, item, items, itemCount, totalPrice, orderedTags } = orderPayload || {};
+    const { kioskId, item, items, itemCount, totalPrice, orderedTags, allergens } = orderPayload || {};
     const effectiveItems = items && items.length > 0 ? items : (item ? [item] : []);
     const effectiveCount = itemCount || effectiveItems.reduce((sum, i) => sum + (i.quantity || 1), 0);
     const effectiveTotal = totalPrice !== undefined ? totalPrice : effectiveItems.reduce((sum, i) => sum + (i.price * (i.quantity || 1)), 0);
-    
-    console.log(`[Socket] Order placed in Room ${kioskId}:`, {
-      itemCount: effectiveCount,
-      totalPrice: effectiveTotal,
-      items: effectiveItems.map(i => `${i.name} (x${i.quantity || 1})`),
-      orderedTags
-    });
-    
-    // Broadcast order completion with multi-item receipt data to all other clients in the room
-    socket.to(kioskId).emit('order-placed', {
+    const orderId = `ORD-${Math.floor(1000 + Math.random() * 9000)}`;
+
+    const newOrder = {
+      orderId,
+      kioskId: kioskId || 'COUNTER',
+      restaurantId: RESTAURANT_ID,
       item: item || effectiveItems[0],
       items: effectiveItems,
       itemCount: effectiveCount,
       totalPrice: effectiveTotal,
       orderedTags: orderedTags || [],
-      timestamp: new Date().toISOString()
+      allergens: allergens || [],
+      status: 'Order Received',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+
+    orders.unshift(newOrder);
+    
+    console.log(`[Socket] Order ${orderId} placed in Room ${kioskId}:`, {
+      itemCount: effectiveCount,
+      totalPrice: effectiveTotal,
+      items: effectiveItems.map(i => `${i.name} (x${i.quantity || 1})`),
+      orderedTags
     });
+
+    // 1. Confirm to the ordering customer with the orderId and tracking details
+    socket.emit('order-confirmed', newOrder);
+    
+    // 2. Broadcast order completion with multi-item receipt data to the Kiosk
+    if (kioskId) {
+      socket.to(kioskId).emit('order-placed', newOrder);
+    }
+
+    // 3. Forward the order to the restaurant's kitchen display in real-time
+    io.to(`kitchen_${RESTAURANT_ID}`).emit('new-kitchen-order', newOrder);
+    io.emit('new-kitchen-order', newOrder);
+  });
+
+  // Kitchen or server updates order status ('Cooking', 'Order Ready', 'Completed')
+  socket.on('update-order-status', ({ orderId, status }) => {
+    const order = orders.find(o => o.orderId === orderId);
+    if (order) {
+      order.status = status;
+      order.updatedAt = new Date().toISOString();
+      console.log(`[Socket] Order ${orderId} status updated to: ${status}`);
+
+      const statusPayload = {
+        orderId,
+        kioskId: order.kioskId,
+        status,
+        updatedAt: order.updatedAt
+      };
+
+      // Notify all relevant listeners (customer phone, kitchen display, kiosk)
+      if (order.kioskId) {
+        io.to(order.kioskId).emit('order-status-updated', statusPayload);
+      }
+      io.to(`kitchen_${RESTAURANT_ID}`).emit('order-status-updated', statusPayload);
+      io.emit('order-status-updated', statusPayload);
+    }
   });
 
   // Clean up on disconnect
@@ -163,7 +223,8 @@ app.get('/api/restaurant', (req, res) => {
   res.json({
     ...activeRestaurant,
     backendPort: PORT,
-    frontendPort: FRONTEND_PORT
+    frontendPort: FRONTEND_PORT,
+    mobileFrontendPort: MOBILE_FRONTEND_PORT
   });
 });
 
@@ -174,8 +235,48 @@ app.get('/api/network-info', (req, res) => {
     ip: lanIp,
     port: FRONTEND_PORT,
     backendPort: PORT,
-    restaurant: activeRestaurant
+    mobileFrontendPort: MOBILE_FRONTEND_PORT,
+    restaurant: {
+      ...activeRestaurant,
+      backendPort: PORT,
+      frontendPort: FRONTEND_PORT,
+      mobileFrontendPort: MOBILE_FRONTEND_PORT
+    }
   });
+});
+
+// Kitchen orders list endpoint
+app.get('/api/orders', (req, res) => {
+  res.json(orders);
+});
+
+// Update order status endpoint
+app.patch('/api/orders/:orderId/status', (req, res) => {
+  const { orderId } = req.params;
+  const { status } = req.body;
+  const order = orders.find(o => o.orderId === orderId);
+
+  if (!order) {
+    return res.status(404).json({ error: 'Order not found' });
+  }
+
+  order.status = status;
+  order.updatedAt = new Date().toISOString();
+
+  const statusPayload = {
+    orderId,
+    kioskId: order.kioskId,
+    status,
+    updatedAt: order.updatedAt
+  };
+
+  if (order.kioskId) {
+    io.to(order.kioskId).emit('order-status-updated', statusPayload);
+  }
+  io.to(`kitchen_${RESTAURANT_ID}`).emit('order-status-updated', statusPayload);
+  io.emit('order-status-updated', statusPayload);
+
+  res.json(order);
 });
 
 // Menu JSON endpoint (representing future restaurant app integration)

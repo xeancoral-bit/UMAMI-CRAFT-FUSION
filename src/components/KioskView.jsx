@@ -16,7 +16,7 @@ function generateKioskId() {
   return Math.random().toString(36).substring(2, 8).toUpperCase();
 }
 
-function KioskView() {
+function KioskView({ onOpenKitchen }) {
   const [kioskId, setKioskId] = useState(generateKioskId());
   const [state, setState] = useState('standby'); // 'standby' | 'connected' | 'success'
   const [allergens, setAllergens] = useState([]);
@@ -34,10 +34,12 @@ function KioskView() {
   const [customHost, setCustomHost] = useState('');
   const [showIpConfig, setShowIpConfig] = useState(false);
   const [restaurantInfo, setRestaurantInfo] = useState({
+    id: 'umami',
     name: 'Synapse Cuisine',
     cuisine: 'Zero-Retention Smart Menu Terminal',
     tagline: 'A dining experience tailored to your profile.',
-    backendPort: 3001
+    backendPort: 3001,
+    frontendPort: 3000
   });
 
   // Load restaurant metadata and menu
@@ -45,7 +47,9 @@ function KioskView() {
     fetch('/api/restaurant')
       .then(res => res.json())
       .then(data => {
-        if (data && data.name) setRestaurantInfo(data);
+        if (data && data.name) {
+          setRestaurantInfo(prev => ({ ...prev, ...data }));
+        }
       })
       .catch(err => console.error("Error fetching restaurant info:", err));
 
@@ -64,7 +68,13 @@ function KioskView() {
           setLanIp(data.ip);
         }
         if (data && data.restaurant) {
-          setRestaurantInfo(data.restaurant);
+          setRestaurantInfo(prev => ({
+            ...prev,
+            ...data.restaurant,
+            backendPort: data.backendPort || data.restaurant.backendPort || prev.backendPort,
+            frontendPort: data.port || data.restaurant.frontendPort || prev.frontendPort,
+            mobileFrontendPort: data.mobileFrontendPort || data.restaurant.mobileFrontendPort || prev.mobileFrontendPort
+          }));
         }
       })
       .catch(err => console.error("Error fetching network info:", err));
@@ -183,8 +193,17 @@ function KioskView() {
 
   // Generate mobile scanner URL pointing to auto-detected LAN IP and specific restaurant socket port
   const targetHost = customHost || lanIp || window.location.hostname || 'localhost';
-  const currentFrontendPort = window.location.port || restaurantInfo.frontendPort || '5173';
-  const clientUrl = `http://${targetHost}:${currentFrontendPort}/?kioskId=${kioskId}&kioskPort=${restaurantInfo.backendPort || 3001}`;
+  const currentFrontendPort = restaurantInfo.frontendPort || window.location.port || '3000';
+  const mobileTargetPort = restaurantInfo.mobileFrontendPort || currentFrontendPort;
+  const currentBackendPort = restaurantInfo.backendPort || (currentFrontendPort === '3010' ? 3002 : (currentFrontendPort === '3020' ? 3003 : 3001));
+
+  let clientUrl = '';
+  if (customHost && (customHost.startsWith('http://') || customHost.startsWith('https://'))) {
+    const cleanHost = customHost.replace(/\/$/, '');
+    clientUrl = `${cleanHost}/?kioskId=${kioskId}&kioskPort=${currentBackendPort}&restaurant=${restaurantInfo.id || 'umami'}`;
+  } else {
+    clientUrl = `http://${targetHost}:${mobileTargetPort}/?kioskId=${kioskId}&kioskPort=${currentBackendPort}&restaurant=${restaurantInfo.id || 'umami'}`;
+  }
 
   // Filtering and Sorting Menu Items
   // 1. Filter out items containing user allergens
@@ -227,11 +246,36 @@ function KioskView() {
           </div>
         </div>
         
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+          {onOpenKitchen && (
+            <button
+              onClick={onOpenKitchen}
+              className="btn-secondary"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '8px 16px',
+                borderRadius: '999px',
+                fontSize: '12px',
+                fontWeight: '700',
+                cursor: 'pointer',
+                background: 'rgba(217, 56, 58, 0.08)',
+                color: 'var(--accent-red)',
+                border: '1px solid rgba(217, 56, 58, 0.25)',
+                transition: 'all var(--transition-fast)'
+              }}
+              title="Open Kitchen Display System"
+            >
+              <span>👨‍🍳</span>
+              <span>Kitchen Display</span>
+            </button>
+          )}
+
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(255,255,255,0.03)', padding: '6px 14px', borderRadius: '999px', border: '1px solid var(--border-glass)' }}>
             <div className={`pulse-indicator ${socketConnected ? 'active' : 'disconnected'}`}></div>
             <span style={{ fontSize: '12px', fontWeight: '500', color: socketConnected ? 'var(--text-primary)' : 'var(--accent-danger)' }}>
-              {socketConnected ? `Port :${restaurantInfo.backendPort || 3001}` : 'Connecting Server...'}
+              {socketConnected ? `Port :${currentBackendPort}` : 'Connecting Server...'}
             </span>
           </div>
           
@@ -294,7 +338,7 @@ function KioskView() {
                 <div style={{ textAlign: 'center', width: '100%' }}>
                   <p style={{ fontWeight: '600', fontSize: '16px', marginBottom: '4px' }}>Scan to Personalize</p>
                   <p style={{ color: 'var(--text-muted)', fontSize: '12px', marginBottom: '8px' }}>
-                    Kiosk ID: <strong style={{ color: 'var(--text-primary)' }}>{kioskId}</strong> • URL: <span style={{ color: 'var(--accent-green)', fontWeight: '600' }}>{targetHost}:{currentFrontendPort}</span>
+                    Kiosk ID: <strong style={{ color: 'var(--text-primary)' }}>{kioskId}</strong> • URL: <span style={{ color: 'var(--accent-green)', fontWeight: '600' }}>{targetHost}:{mobileTargetPort}</span>
                   </p>
                   
                   {/* IP / Host Override Toggle */}

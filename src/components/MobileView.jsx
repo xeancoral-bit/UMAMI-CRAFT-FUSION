@@ -15,8 +15,36 @@ import {
   Trash2,
   X,
   ChevronUp,
-  Receipt
+  Receipt,
+  BellRing,
+  Clock,
+  Sparkles
 } from 'lucide-react';
+
+function playReadyChime() {
+  try {
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(523.25, now); // C5
+    osc.frequency.setValueAtTime(659.25, now + 0.15); // E5
+    osc.frequency.setValueAtTime(783.99, now + 0.3); // G5
+    osc.frequency.setValueAtTime(1046.50, now + 0.45); // C6
+    gain.gain.setValueAtTime(0.3, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.9);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.9);
+  } catch (e) {
+    console.warn("Mobile ready chime audio playback failed:", e);
+  }
+}
 
 const ALLERGEN_OPTIONS = [
   { id: 'peanuts', label: 'Peanuts' },
@@ -55,12 +83,27 @@ function MobileView({ kioskId, onResetSession }) {
 
   const [socketConnected, setSocketConnected] = useState(false);
   const [isOnboarded, setIsOnboarded] = useState(() => {
-    return localStorage.getItem('synapse_onboarded') === 'true';
+    const savedOnboarded = localStorage.getItem('synapse_onboarded') === 'true';
+    let hasDietaryData = false;
+    try {
+      const a = localStorage.getItem('synapse_allergens');
+      const p = localStorage.getItem('synapse_preferences');
+      if ((a && JSON.parse(a).length > 0) || (p && JSON.parse(p).length > 0)) {
+        hasDietaryData = true;
+      }
+    } catch (e) {}
+    return savedOnboarded || hasDietaryData;
   });
   const [lastOrder, setLastOrder] = useState(() => {
     const saved = localStorage.getItem('synapse_last_order');
     return saved ? JSON.parse(saved) : null;
   });
+  const [activeOrder, setActiveOrder] = useState(() => {
+    const saved = localStorage.getItem('synapse_active_order');
+    return saved ? JSON.parse(saved) : null;
+  });
+  const [showReadyCelebration, setShowReadyCelebration] = useState(false);
+
   const socketRef = useRef(null);
   const [menuItems, setMenuItems] = useState([]);
   const [restaurantMeta, setRestaurantMeta] = useState(null);
@@ -73,6 +116,30 @@ function MobileView({ kioskId, onResetSession }) {
     ? `http://${window.location.hostname}:${kioskPort}`
     : '';
 
+  // Trigger audio, vibration, and browser notification on order ready
+  const triggerReadyAlert = (order) => {
+    playReadyChime();
+
+    if (navigator.vibrate) {
+      try {
+        navigator.vibrate([250, 100, 250, 100, 350]);
+      } catch (e) {}
+    }
+
+    if ('Notification' in window && Notification.permission === 'granted') {
+      try {
+        new Notification('🔔 Your Order is Ready!', {
+          body: `Order ${order.orderId || ''} at ${restaurantMeta ? restaurantMeta.name : 'the counter'} is ready for pickup!`,
+          icon: '/favicon.svg'
+        });
+      } catch (e) {
+        console.warn("Notification error:", e);
+      }
+    }
+
+    setShowReadyCelebration(true);
+  };
+
   // Load menu items and restaurant metadata dynamically with resilient fallback
   useEffect(() => {
     const menuEndpoint = backendTargetUrl ? `${backendTargetUrl}/api/menu` : '/api/menu';
@@ -83,12 +150,10 @@ function MobileView({ kioskId, onResetSession }) {
       .then(data => setMenuItems(data))
       .catch(err => {
         console.warn("Direct menu fetch error, trying relative fallback:", err);
-        if (backendTargetUrl) {
-          fetch('/api/menu')
-            .then(r => r.json())
-            .then(d => setMenuItems(d))
-            .catch(e => console.error("Fallback menu fetch failed:", e));
-        }
+        fetch('/api/menu')
+          .then(r => r.json())
+          .then(d => setMenuItems(d))
+          .catch(e => console.error("Fallback menu fetch failed:", e));
       });
 
     fetch(restEndpoint)
@@ -96,12 +161,10 @@ function MobileView({ kioskId, onResetSession }) {
       .then(data => setRestaurantMeta(data))
       .catch(err => {
         console.warn("Direct restaurant fetch error, trying relative fallback:", err);
-        if (backendTargetUrl) {
-          fetch('/api/restaurant')
-            .then(r => r.json())
-            .then(d => setRestaurantMeta(d))
-            .catch(e => console.error("Fallback restaurant fetch failed:", e));
-        }
+        fetch('/api/restaurant')
+          .then(r => r.json())
+          .then(d => setRestaurantMeta(d))
+          .catch(e => console.error("Fallback restaurant fetch failed:", e));
       });
   }, [backendTargetUrl]);
 
@@ -127,9 +190,27 @@ function MobileView({ kioskId, onResetSession }) {
     localStorage.setItem('synapse_preferences', JSON.stringify(preferences));
   }, [preferences]);
 
-  // Setup WebSocket connection targeting the specific restaurant port
   useEffect(() => {
-    if (!kioskId || !isOnboarded) return;
+    if (isOnboarded) {
+      localStorage.setItem('synapse_onboarded', 'true');
+    }
+  }, [isOnboarded]);
+
+  // When scanning a new kiosk session, if the previous order was already completed or ready, clear it
+  useEffect(() => {
+    if (kioskId && activeOrder && activeOrder.kioskId && activeOrder.kioskId !== kioskId) {
+      if (activeOrder.status === 'Completed' || activeOrder.status === 'Order Ready') {
+        localStorage.removeItem('synapse_active_order');
+        setActiveOrder(null);
+      }
+    }
+  }, [kioskId, activeOrder]);
+
+  // Setup WebSocket connection targeting the specific restaurant port
+  const targetKioskId = kioskId || (activeOrder ? activeOrder.kioskId : null);
+
+  useEffect(() => {
+    if (!targetKioskId) return;
 
     const socket = io(backendTargetUrl || undefined, {
       transports: ['websocket', 'polling']
@@ -138,10 +219,36 @@ function MobileView({ kioskId, onResetSession }) {
 
     socket.on('connect', () => {
       setSocketConnected(true);
-      console.log(`[Mobile] Connected to server (${backendTargetUrl || 'local proxy'}), sending handshake for kiosk:`, kioskId);
-      socket.emit('join-session', { kioskId, role: 'mobile' });
-      // Push current preferences instantly
-      socket.emit('project-preferences', { kioskId, allergens, preferences });
+      console.log(`[Mobile] Connected to server (${backendTargetUrl || 'local proxy'}), joining session:`, targetKioskId);
+      socket.emit('join-session', { kioskId: targetKioskId, role: 'mobile' });
+      
+      // Push current preferences if onboarded
+      if (isOnboarded && kioskId) {
+        socket.emit('project-preferences', { kioskId: targetKioskId, allergens, preferences });
+      }
+    });
+
+    socket.on('order-confirmed', (confirmedOrder) => {
+      console.log("[Mobile] Order confirmed by backend:", confirmedOrder);
+      setActiveOrder(confirmedOrder);
+      localStorage.setItem('synapse_active_order', JSON.stringify(confirmedOrder));
+    });
+
+    socket.on('order-status-updated', (data) => {
+      console.log("[Mobile] Received order status update:", data);
+      setActiveOrder(prev => {
+        if (!prev) return null;
+        if (prev.orderId === data.orderId || prev.kioskId === data.kioskId) {
+          const updated = { ...prev, status: data.status, updatedAt: data.updatedAt };
+          localStorage.setItem('synapse_active_order', JSON.stringify(updated));
+
+          if (data.status === 'Order Ready') {
+            triggerReadyAlert(updated);
+          }
+          return updated;
+        }
+        return prev;
+      });
     });
 
     socket.on('disconnect', () => {
@@ -153,7 +260,7 @@ function MobileView({ kioskId, onResetSession }) {
       socketRef.current = null;
       setSocketConnected(false);
     };
-  }, [kioskId, isOnboarded, backendTargetUrl]);
+  }, [targetKioskId, isOnboarded, backendTargetUrl]);
 
   // Instantly push preferences to the socket room whenever preferences or allergens change
   useEffect(() => {
@@ -292,20 +399,49 @@ function MobileView({ kioskId, onResetSession }) {
     localStorage.setItem('synapse_last_order', JSON.stringify(lastOrderPayload));
     setLastOrder(lastOrderPayload);
 
-    // 4. Emit success command to close Kiosk session via WebSocket
+    // 4. Request notification permission early if default
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission().catch(() => {});
+    }
+
+    const orderId = `ORD-${Math.floor(1000 + Math.random() * 9000)}`;
+    const newActiveOrder = {
+      orderId,
+      kioskId: kioskId || 'COUNTER',
+      items: cartItems,
+      itemCount: getCartCount(),
+      totalPrice,
+      orderedTags: allOrderedTags,
+      allergens,
+      status: 'Order Received',
+      createdAt: new Date().toISOString()
+    };
+
+    setActiveOrder(newActiveOrder);
+    localStorage.setItem('synapse_active_order', JSON.stringify(newActiveOrder));
+
+    // 5. Emit order to backend and kitchen
     if (socketRef.current && socketConnected) {
       socketRef.current.emit('place-order', {
         kioskId,
         items: cartItems,
         itemCount: getCartCount(),
         totalPrice,
-        orderedTags: allOrderedTags
+        orderedTags: allOrderedTags,
+        allergens
       });
     }
 
-    // 5. Clear session memory locally on phone
+    // 6. Clear cart locally
     setCart({});
     setIsCartOpen(false);
+  };
+
+  // Dismiss / complete active order session
+  const handleDismissOrder = () => {
+    localStorage.removeItem('synapse_active_order');
+    setActiveOrder(null);
+    setShowReadyCelebration(false);
     onResetSession();
   };
 
@@ -351,8 +487,198 @@ function MobileView({ kioskId, onResetSession }) {
         <p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>🔒 ALL DATA ENCRYPTED IN LOCALSTORAGE ONLY</p>
       </header>
 
-      {/* VIEW 2: ACTIVE KIOSK SCAN VIEW */}
-      {kioskId && isOnboarded ? (
+      {/* VIEW 3: LIVE ORDER TRACKING SCREEN WITH 3-STEP PROGRESS BAR */}
+      {activeOrder ? (
+        <div className="order-tracker-view fade-in">
+          {/* Tracking Header */}
+          <div className="glass-card" style={{ padding: '16px', marginBottom: '16px', background: 'rgba(45, 106, 79, 0.04)', borderColor: 'rgba(45, 106, 79, 0.15)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <span style={{ fontSize: '10px', textTransform: 'uppercase', color: 'var(--accent-green)', fontWeight: '700', letterSpacing: '0.05em' }}>
+                  {restaurantMeta ? `${restaurantMeta.name} • Live Tracker` : 'Kitchen Live Tracker'}
+                </span>
+                <h3 style={{ fontSize: '18px', fontWeight: '800', marginTop: '2px' }}>
+                  Order #{activeOrder.orderId}
+                </h3>
+                <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                  {activeOrder.kioskId && activeOrder.kioskId.startsWith('K-') ? `Kiosk #${activeOrder.kioskId}` : `Table #${activeOrder.kioskId}`} • Placed {new Date(activeOrder.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                </p>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span className={`pulse-indicator ${socketConnected ? 'active' : 'disconnected'}`}></span>
+                <span style={{ fontSize: '11px', color: socketConnected ? 'var(--text-secondary)' : 'var(--accent-danger)', fontWeight: '600' }}>
+                  {socketConnected ? 'Live' : 'Connecting'}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Stepper Card */}
+          <div className="glass-card" style={{ padding: '20px', marginBottom: '16px' }}>
+            <h4 style={{ fontSize: '13px', fontWeight: '700', marginBottom: '20px', textAlign: 'center', color: 'var(--text-secondary)' }}>
+              Preparation Status
+            </h4>
+
+            {/* Stepper Progress Bar */}
+            <div className="order-stepper">
+              <div className="stepper-track-bg"></div>
+              <div
+                className="stepper-track-fill"
+                style={{
+                  width: activeOrder.status === 'Order Ready' || activeOrder.status === 'Completed'
+                    ? '100%'
+                    : activeOrder.status === 'Cooking'
+                    ? '50%'
+                    : '0%'
+                }}
+              ></div>
+
+              {/* Step 1: Order Received */}
+              <div className={`step-node ${activeOrder.status ? 'completed' : ''}`}>
+                <div className="step-circle">
+                  <CheckCircle size={16} />
+                </div>
+                <span className="step-label">Order Received</span>
+              </div>
+
+              {/* Step 2: Cooking */}
+              <div className={`step-node ${activeOrder.status === 'Cooking' ? 'current' : (activeOrder.status === 'Order Ready' || activeOrder.status === 'Completed' ? 'completed' : '')}`}>
+                <div className="step-circle">
+                  <Flame size={16} />
+                </div>
+                <span className="step-label">Cooking</span>
+              </div>
+
+              {/* Step 3: Order Ready */}
+              <div className={`step-node ${activeOrder.status === 'Order Ready' || activeOrder.status === 'Completed' ? 'current-ready' : ''}`}>
+                <div className="step-circle">
+                  <BellRing size={16} />
+                </div>
+                <span className="step-label">Order Ready</span>
+              </div>
+            </div>
+
+            {/* Dynamic Status Detail Card */}
+            <div className={`order-status-message-box status-${activeOrder.status ? activeOrder.status.toLowerCase().replace(/\s+/g, '-') : 'received'}`} style={{ marginTop: '24px' }}>
+              {activeOrder.status === 'Order Received' && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <span style={{ fontSize: '24px' }}>📋</span>
+                  <div>
+                    <h5 style={{ fontSize: '14px', fontWeight: '700', color: 'var(--text-primary)' }}>Order Received by Kitchen</h5>
+                    <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                      Your meal has been forwarded to the chefs and placed in the queue.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {activeOrder.status === 'Cooking' && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <span style={{ fontSize: '24px' }}>🍳</span>
+                  <div>
+                    <h5 style={{ fontSize: '14px', fontWeight: '700', color: '#B45309' }}>Chefs are Cooking Your Meal!</h5>
+                    <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                      Your personalized order is sizzling in the kitchen right now.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {(activeOrder.status === 'Order Ready' || activeOrder.status === 'Completed') && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <span style={{ fontSize: '24px' }}>🔔</span>
+                  <div>
+                    <h5 style={{ fontSize: '14px', fontWeight: '700', color: 'var(--accent-green)' }}>Order Ready for Pickup!</h5>
+                    <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                      Please head to the pickup counter to collect your fresh dishes.
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Itemized Order Receipt Details */}
+          <div className="glass-card" style={{ padding: '16px', marginBottom: '16px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', paddingBottom: '8px', borderBottom: '1px solid var(--border-glass)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Receipt size={16} color="var(--text-muted)" />
+                <span style={{ fontSize: '12px', fontWeight: '700', textTransform: 'uppercase', color: 'var(--text-muted)' }}>
+                  Receipt Details
+                </span>
+              </div>
+              <span style={{ fontSize: '14px', fontWeight: '800', color: 'var(--accent-red)' }}>
+                ₱{(activeOrder.totalPrice || 0).toFixed(2)}
+              </span>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '180px', overflowY: 'auto' }}>
+              {(activeOrder.items || (activeOrder.item ? [activeOrder.item] : [])).map((item, idx) => (
+                <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '13px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ fontWeight: '700', color: 'var(--text-primary)' }}>{item.quantity || 1}x</span>
+                    <span>{item.emoji || '🍽️'}</span>
+                    <span style={{ fontWeight: '500' }}>{item.name}</span>
+                  </div>
+                  <span style={{ fontWeight: '700' }}>
+                    ₱{((item.price || 0) * (item.quantity || 1)).toFixed(2)}
+                  </span>
+                </div>
+              ))}
+            </div>
+
+            {activeOrder.allergens && activeOrder.allergens.length > 0 && (
+              <div style={{ marginTop: '12px', paddingTop: '10px', borderTop: '1px dashed var(--border-glass)', fontSize: '11px', color: '#dc2626', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span>⚠️ Excluded allergens:</span>
+                <strong>{activeOrder.allergens.map(a => a.toUpperCase()).join(', ')}</strong>
+              </div>
+            )}
+          </div>
+
+          {/* Ready Celebration Modal Overlay */}
+          {showReadyCelebration && (
+            <div className="celebration-overlay">
+              <div className="celebration-modal fade-in">
+                <div style={{ fontSize: '48px', marginBottom: '12px' }}>🔔🍽️</div>
+                <h3 style={{ fontSize: '20px', fontWeight: '800', marginBottom: '6px', color: 'var(--text-primary)' }}>
+                  Your Meal is Ready!
+                </h3>
+                <p style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: '1.5', marginBottom: '20px' }}>
+                  Order <strong>#{activeOrder.orderId}</strong> is complete and waiting for you at the counter.
+                </p>
+                <button
+                  onClick={() => setShowReadyCelebration(false)}
+                  className="btn-primary"
+                  style={{ width: '100%', padding: '14px', borderRadius: '12px', fontSize: '14px', fontWeight: '800' }}
+                >
+                  I'm on My Way to Pick Up!
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Action buttons */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '16px' }}>
+            {activeOrder.status === 'Order Ready' || activeOrder.status === 'Completed' ? (
+              <button
+                onClick={handleDismissOrder}
+                className="btn-primary"
+                style={{ width: '100%', padding: '14px', borderRadius: '12px', fontSize: '14px', fontWeight: '800' }}
+              >
+                ✓ Finish & Clear Order
+              </button>
+            ) : (
+              <button
+                onClick={handleDismissOrder}
+                className="btn-secondary"
+                style={{ width: '100%', padding: '10px', borderRadius: '10px', fontSize: '12px' }}
+              >
+                Close Tracking & Return
+              </button>
+            )}
+          </div>
+        </div>
+      ) : kioskId && isOnboarded ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', flex: 1 }}>
           <div className="glass-card" style={{ padding: '14px', background: 'rgba(45, 106, 79, 0.04)', borderColor: 'rgba(45, 106, 79, 0.15)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>

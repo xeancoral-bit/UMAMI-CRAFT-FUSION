@@ -11,7 +11,9 @@ export default defineConfig(() => {
     plugins: [react()],
     cacheDir: `node_modules/.vite-cache-${port}`,
     server: {
-      host: true,
+      port: parseInt(port, 10),
+      strictPort: true,
+      host: '0.0.0.0',
       allowedHosts: true,
       proxy: {
         '/socket.io': {
