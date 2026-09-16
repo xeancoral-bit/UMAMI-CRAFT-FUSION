@@ -1,8 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { io } from 'socket.io-client';
 import {
   Shield,
-  Smartphone,
   CheckCircle,
   Flame,
   Leaf,
@@ -16,49 +15,73 @@ import {
   X,
   ChevronUp,
   Receipt,
-  BellRing,
-  Clock,
-  Sparkles
+  Bell,
+  BellRing
 } from 'lucide-react';
+import DeviceMockup from './DeviceMockup';
 
+// Play a rich 4-note ready fanfare chime
 function playReadyChime() {
   try {
     const AudioCtx = window.AudioContext || window.webkitAudioContext;
     if (!AudioCtx) return;
     const ctx = new AudioCtx();
-    const now = ctx.currentTime;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
 
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(523.25, now); // C5
-    osc.frequency.setValueAtTime(659.25, now + 0.15); // E5
-    osc.frequency.setValueAtTime(783.99, now + 0.3); // G5
-    osc.frequency.setValueAtTime(1046.50, now + 0.45); // C6
-    gain.gain.setValueAtTime(0.3, now);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.9);
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.start(now);
-    osc.stop(now + 0.9);
+    const notes = [
+      { freq: 523.25, start: 0,    dur: 0.18 }, // C5
+      { freq: 659.25, start: 0.2,  dur: 0.18 }, // E5
+      { freq: 783.99, start: 0.4,  dur: 0.18 }, // G5
+      { freq: 1046.5, start: 0.6,  dur: 0.35 }, // C6  (held)
+      { freq: 783.99, start: 1.0,  dur: 0.18 }, // G5
+      { freq: 1046.5, start: 1.2,  dur: 0.5  }, // C6  (final)
+    ];
+
+    notes.forEach(({ freq, start, dur }) => {
+      const osc  = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, ctx.currentTime + start);
+      gain.gain.setValueAtTime(0, ctx.currentTime + start);
+      gain.gain.linearRampToValueAtTime(0.28, ctx.currentTime + start + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + start + dur);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(ctx.currentTime + start);
+      osc.stop(ctx.currentTime + start + dur + 0.05);
+    });
   } catch (e) {
-    console.warn("Mobile ready chime audio playback failed:", e);
+    console.warn('Mobile ready chime audio playback failed:', e);
   }
 }
 
+// Haptic vibration pulse patterns
+const VIBRATE_READY = [
+  300, 100,   // buzz — pause
+  300, 100,   // buzz — pause
+  600, 200,   // long buzz — pause
+  300, 100,   // buzz — pause
+  300          // final buzz
+];
+const VIBRATE_REMINDER = [200, 80, 200, 80, 400];
+
+function doVibrate(pattern) {
+  if (!navigator.vibrate) return;
+  try { navigator.vibrate(pattern); } catch (_) {}
+}
+
 const ALLERGEN_OPTIONS = [
-  { id: 'peanuts', label: 'Peanuts' },
-  { id: 'gluten', label: 'Gluten' },
-  { id: 'dairy', label: 'Dairy' },
-  { id: 'soy', label: 'Soy' }
+  { id: 'peanuts', label: 'Peanuts', emoji: '🥜' },
+  { id: 'gluten',  label: 'Gluten',  emoji: '🌾' },
+  { id: 'dairy',   label: 'Dairy',   emoji: '🥛' },
+  { id: 'soy',     label: 'Soy',     emoji: '🫘' }
 ];
 
 const PREFERENCE_OPTIONS = [
-  { id: 'spicy', label: 'Spicy', icon: <Flame size={14} style={{ marginRight: '4px' }} /> },
-  { id: 'vegan', label: 'Vegan', icon: <Leaf size={14} style={{ marginRight: '4px' }} /> },
-  { id: 'sweet', label: 'Sweet', icon: <Candy size={14} style={{ marginRight: '4px' }} /> },
-  { id: 'savory', label: 'Savory', icon: <UtensilsCrossed size={14} style={{ marginRight: '4px' }} /> },
-  { id: 'healthy', label: 'Healthy', icon: <HeartPulse size={14} style={{ marginRight: '4px' }} /> }
+  { id: 'spicy',   label: 'Spicy',   emoji: '🔥', icon: <Flame size={14} style={{ marginRight: '4px' }} /> },
+  { id: 'vegan',   label: 'Vegan',   emoji: '🌿', icon: <Leaf size={14} style={{ marginRight: '4px' }} /> },
+  { id: 'sweet',   label: 'Sweet',   emoji: '🍬', icon: <Candy size={14} style={{ marginRight: '4px' }} /> },
+  { id: 'savory',  label: 'Savory',  emoji: '🍴', icon: <UtensilsCrossed size={14} style={{ marginRight: '4px' }} /> },
+  { id: 'healthy', label: 'Healthy', emoji: '💚', icon: <HeartPulse size={14} style={{ marginRight: '4px' }} /> }
 ];
 
 function MobileView({ kioskId, onResetSession }) {
@@ -103,11 +126,16 @@ function MobileView({ kioskId, onResetSession }) {
     return saved ? JSON.parse(saved) : null;
   });
   const [showReadyCelebration, setShowReadyCelebration] = useState(false);
+  const [notifPermission, setNotifPermission] = useState(
+    'Notification' in window ? Notification.permission : 'unavailable'
+  );
+  const vibReminderRef = useRef(null);
 
   const socketRef = useRef(null);
   const [menuItems, setMenuItems] = useState([]);
   const [restaurantMeta, setRestaurantMeta] = useState(null);
   const [captiveParams, setCaptiveParams] = useState(null);
+
 
   // Extract kioskPort parameter from URL to target the correct restaurant instance
   const urlParams = new URLSearchParams(window.location.search);
@@ -116,29 +144,68 @@ function MobileView({ kioskId, onResetSession }) {
     ? `http://${window.location.hostname}:${kioskPort}`
     : '';
 
-  // Trigger audio, vibration, and browser notification on order ready
-  const triggerReadyAlert = (order) => {
+  // Request notification + vibration permission proactively
+  const requestAlertPermissions = useCallback(async () => {
+    if ('Notification' in window && Notification.permission === 'default') {
+      const result = await Notification.requestPermission();
+      setNotifPermission(result);
+    }
+    // Trigger a test vibration so the browser unlocks haptics on mobile
+    doVibrate([80, 60, 80]);
+  }, []);
+
+  // Stop the reminder vibration interval
+  const stopVibReminder = useCallback(() => {
+    if (vibReminderRef.current) {
+      clearInterval(vibReminderRef.current);
+      vibReminderRef.current = null;
+    }
+    if (navigator.vibrate) {
+      try { navigator.vibrate(0); } catch (_) {} // cancel any ongoing vibration
+    }
+  }, []);
+
+  // Full-strength ORDER READY alert: chime + vibration + browser notification + repeat reminder
+  const triggerReadyAlert = useCallback((order) => {
+    // 1. Rich audio fanfare
     playReadyChime();
 
-    if (navigator.vibrate) {
-      try {
-        navigator.vibrate([250, 100, 250, 100, 350]);
-      } catch (e) {}
-    }
+    // 2. Strong haptic burst
+    doVibrate(VIBRATE_READY);
 
+    // 3. Browser push notification (works even when tab is backgrounded)
     if ('Notification' in window && Notification.permission === 'granted') {
       try {
-        new Notification('🔔 Your Order is Ready!', {
-          body: `Order ${order.orderId || ''} at ${restaurantMeta ? restaurantMeta.name : 'the counter'} is ready for pickup!`,
-          icon: '/favicon.svg'
+        const n = new Notification('🔔 Your Order is Ready for Pickup!', {
+          body: `Order #${order.orderId || ''} at ${restaurantMeta ? restaurantMeta.name : 'the restaurant'} is freshly prepared and waiting for you.`,
+          icon: '/favicon.svg',
+          badge: '/favicon.svg',
+          tag: `order-ready-${order.orderId}`,  // replaces previous duplicate notifications
+          renotify: true,
+          requireInteraction: true,              // stays on screen until dismissed
+          silent: false
         });
+        // Bring app into focus when notification tapped
+        n.onclick = () => { window.focus(); n.close(); };
       } catch (e) {
-        console.warn("Notification error:", e);
+        console.warn('Notification error:', e);
       }
     }
 
+    // 4. Screen wake lock — keep display on so customer sees the alert
+    if ('wakeLock' in navigator) {
+      navigator.wakeLock.request('screen').catch(() => {});
+    }
+
+    // 5. Repeating vibration reminder every 30 s until acknowledged
+    stopVibReminder();
+    vibReminderRef.current = setInterval(() => {
+      doVibrate(VIBRATE_REMINDER);
+    }, 30_000);
+
+    // 6. Show full-screen celebration overlay
     setShowReadyCelebration(true);
-  };
+  }, [restaurantMeta, stopVibReminder]);
 
   // Load menu items and restaurant metadata dynamically with resilient fallback
   useEffect(() => {
@@ -239,11 +306,17 @@ function MobileView({ kioskId, onResetSession }) {
       setActiveOrder(prev => {
         if (!prev) return null;
         if (prev.orderId === data.orderId || prev.kioskId === data.kioskId) {
-          const updated = { ...prev, status: data.status, updatedAt: data.updatedAt };
+          const updated = { ...prev, status: data.status, busserName: data.busserName || prev.busserName, updatedAt: data.updatedAt };
           localStorage.setItem('synapse_active_order', JSON.stringify(updated));
 
           if (data.status === 'Order Ready') {
             triggerReadyAlert(updated);
+          }
+          if (data.status === 'Out for Delivery') {
+            // Gentle vibration for busser dispatched
+            if (navigator.vibrate) {
+              try { navigator.vibrate([100, 50, 100]); } catch(e) {}
+            }
           }
           return updated;
         }
@@ -261,6 +334,11 @@ function MobileView({ kioskId, onResetSession }) {
       setSocketConnected(false);
     };
   }, [targetKioskId, isOnboarded, backendTargetUrl]);
+
+  // Clean up vibration reminder on unmount
+  useEffect(() => {
+    return () => stopVibReminder();
+  }, [stopVibReminder]);
 
   // Instantly push preferences to the socket room whenever preferences or allergens change
   useEffect(() => {
@@ -439,6 +517,7 @@ function MobileView({ kioskId, onResetSession }) {
 
   // Dismiss / complete active order session
   const handleDismissOrder = () => {
+    stopVibReminder();            // cancel repeating haptic reminder
     localStorage.removeItem('synapse_active_order');
     setActiveOrder(null);
     setShowReadyCelebration(false);
@@ -475,17 +554,20 @@ function MobileView({ kioskId, onResetSession }) {
   const totalCartCount = getCartCount();
   const totalCartPrice = getCartTotal();
 
-  return (
+  // The inner phone content (shared between desktop phone frame and plain mobile wrapper)
+  const phoneContent = (
     <div className="mobile-wrapper fade-in" style={{ position: 'relative' }}>
-      {/* App Header */}
-      <header style={{ textAlign: 'center', marginBottom: '20px', paddingBottom: '14px', borderBottom: '1px solid var(--border-glass)' }}>
-        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', color: 'var(--accent-teal)', marginBottom: '6px' }}>
-          <Shield size={20} />
-          <span style={{ fontWeight: '800', letterSpacing: '0.05em', fontSize: '14px' }}>SYNAPSE ID</span>
-        </div>
-        <h2 style={{ fontSize: '20px', fontWeight: '700' }}>Local Dietary Vault</h2>
-        <p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>🔒 ALL DATA ENCRYPTED IN LOCALSTORAGE ONLY</p>
-      </header>
+      {/* App Header — shown only on tracking / menu views, not on onboarding */}
+      {(activeOrder || (kioskId && isOnboarded)) && (
+        <header style={{ textAlign: 'center', marginBottom: '20px', paddingBottom: '14px', borderBottom: '1px solid var(--border-glass)' }}>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', color: 'var(--accent-teal)', marginBottom: '6px' }}>
+            <Shield size={20} />
+            <span style={{ fontWeight: '800', letterSpacing: '0.05em', fontSize: '14px' }}>UMAMI CRAFT FUSION ID</span>
+          </div>
+          <h2 style={{ fontSize: '20px', fontWeight: '700' }}>Local Dietary Vault</h2>
+          <p style={{ fontSize: '11px', color: 'var(--text-muted)' }}>🔒 ALL DATA ENCRYPTED IN LOCALSTORAGE ONLY</p>
+        </header>
+      )}
 
       {/* VIEW 3: LIVE ORDER TRACKING SCREEN WITH 3-STEP PROGRESS BAR */}
       {activeOrder ? (
@@ -513,60 +595,94 @@ function MobileView({ kioskId, onResetSession }) {
             </div>
           </div>
 
-          {/* Stepper Card */}
-          <div className="glass-card" style={{ padding: '20px', marginBottom: '16px' }}>
-            <h4 style={{ fontSize: '13px', fontWeight: '700', marginBottom: '20px', textAlign: 'center', color: 'var(--text-secondary)' }}>
-              Preparation Status
-            </h4>
-
-            {/* Stepper Progress Bar */}
-            <div className="order-stepper">
-              <div className="stepper-track-bg"></div>
-              <div
-                className="stepper-track-fill"
-                style={{
-                  width: activeOrder.status === 'Order Ready' || activeOrder.status === 'Completed'
-                    ? '100%'
-                    : activeOrder.status === 'Cooking'
-                    ? '50%'
-                    : '0%'
-                }}
-              ></div>
-
-              {/* Step 1: Order Received */}
-              <div className={`step-node ${activeOrder.status ? 'completed' : ''}`}>
-                <div className="step-circle">
-                  <CheckCircle size={16} />
-                </div>
-                <span className="step-label">Order Received</span>
+          {/* Proactive Notification Permission Banner */}
+          {notifPermission !== 'granted' && notifPermission !== 'unavailable' && (
+            <div
+              onClick={requestAlertPermissions}
+              style={{
+                display: 'flex', alignItems: 'center', gap: '12px',
+                background: 'var(--brand-gradient)',
+                borderRadius: '16px', padding: '12px 16px', marginBottom: '14px',
+                cursor: 'pointer', boxShadow: 'var(--glow-brand)',
+                color: 'white'
+              }}
+            >
+              <div style={{ background: 'rgba(255,255,255,0.2)', borderRadius: '50%', padding: '8px', flexShrink: 0 }}>
+                <Bell size={18} color="white" />
               </div>
-
-              {/* Step 2: Cooking */}
-              <div className={`step-node ${activeOrder.status === 'Cooking' ? 'current' : (activeOrder.status === 'Order Ready' || activeOrder.status === 'Completed' ? 'completed' : '')}`}>
-                <div className="step-circle">
-                  <Flame size={16} />
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 800, fontSize: '13px', color: 'white' }}>Enable Ready Alert Haptics</div>
+                <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.9)', marginTop: '2px' }}>
+                  Tap to allow phone vibration so we alert you the second your food is ready.
                 </div>
-                <span className="step-label">Cooking</span>
               </div>
+              <div style={{ fontSize: '20px' }}>🔔</div>
+            </div>
+          )}
 
-              {/* Step 3: Order Ready */}
-              <div className={`step-node ${activeOrder.status === 'Order Ready' || activeOrder.status === 'Completed' ? 'current-ready' : ''}`}>
-                <div className="step-circle">
-                  <BellRing size={16} />
+          {/* Foodpanda-Style Live Tracking Stepper Card */}
+          <div className="fp-tracking-card" style={{ marginBottom: '16px' }}>
+            <div className="fp-tracking-header">
+              <div>
+                <div className="fp-tracking-title">
+                  <span>📍</span> Live Order Tracking
                 </div>
-                <span className="step-label">Order Ready</span>
+                <div className="fp-tracking-subtitle">
+                  Order #{activeOrder.orderId} • {restaurantMeta?.name || 'Restaurant'}
+                </div>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: 700 }}>
+                <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: socketConnected ? 'var(--accent-green)' : '#EF4444', display: 'inline-block', boxShadow: socketConnected ? '0 0 8px rgba(16,185,129,0.5)' : 'none' }}></span>
+                <span style={{ color: socketConnected ? 'var(--accent-green)' : '#EF4444' }}>
+                  {socketConnected ? 'Live' : 'Connecting...'}
+                </span>
               </div>
             </div>
 
-            {/* Dynamic Status Detail Card */}
-            <div className={`order-status-message-box status-${activeOrder.status ? activeOrder.status.toLowerCase().replace(/\s+/g, '-') : 'received'}`} style={{ marginTop: '24px' }}>
+            {/* 4-Step Foodpanda Stepper */}
+            <div className="fp-stepper-container">
+              <div className="fp-stepper-line-bg"></div>
+              <div className="fp-stepper-line-fill" style={{
+                width:
+                  (activeOrder.status === 'Out for Delivery' || activeOrder.status === 'Delivered' || activeOrder.status === 'Completed') ? 'calc(100% - 60px)' :
+                  (activeOrder.status === 'Order Ready') ? 'calc(66% - 20px)' :
+                  (activeOrder.status === 'Cooking') ? 'calc(33% - 20px)' : '0%'
+              }}></div>
+
+              {/* Step 1: Order Placed */}
+              <div className={`fp-step-item completed`}>
+                <div className="fp-step-circle">✓</div>
+                <span className="fp-step-label">Order Placed</span>
+              </div>
+
+              {/* Step 2: Cooking */}
+              <div className={`fp-step-item ${activeOrder.status === 'Cooking' ? 'active' : (activeOrder.status === 'Order Ready' || activeOrder.status === 'Out for Delivery' || activeOrder.status === 'Completed' ? 'completed' : '')}`}>
+                <div className="fp-step-circle">🍳</div>
+                <span className="fp-step-label">Preparing</span>
+              </div>
+
+              {/* Step 3: Order Ready / Busser */}
+              <div className={`fp-step-item ${activeOrder.status === 'Order Ready' ? 'active' : (activeOrder.status === 'Out for Delivery' || activeOrder.status === 'Completed' ? 'completed' : '')}`}>
+                <div className="fp-step-circle">🔔</div>
+                <span className="fp-step-label">Ready</span>
+              </div>
+
+              {/* Step 4: Delivered */}
+              <div className={`fp-step-item ${activeOrder.status === 'Out for Delivery' ? 'active' : (activeOrder.status === 'Completed' ? 'completed' : '')}`}>
+                <div className="fp-step-circle">🏃</div>
+                <span className="fp-step-label">Delivered</span>
+              </div>
+            </div>
+
+            {/* Dynamic Status Detail */}
+            <div className={`order-status-message-box status-${activeOrder.status ? activeOrder.status.toLowerCase().replace(/\s+/g, '-') : 'received'}`} style={{ marginTop: '16px' }}>
               {activeOrder.status === 'Order Received' && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                   <span style={{ fontSize: '24px' }}>📋</span>
                   <div>
-                    <h5 style={{ fontSize: '14px', fontWeight: '700', color: 'var(--text-primary)' }}>Order Received by Kitchen</h5>
+                    <h5 style={{ fontSize: '14px', fontWeight: '800', color: 'var(--text-primary)' }}>Order Received by Kitchen</h5>
                     <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>
-                      Your meal has been forwarded to the chefs and placed in the queue.
+                      Your meal has been forwarded to the chefs and placed in the preparation queue.
                     </p>
                   </div>
                 </div>
@@ -576,27 +692,55 @@ function MobileView({ kioskId, onResetSession }) {
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                   <span style={{ fontSize: '24px' }}>🍳</span>
                   <div>
-                    <h5 style={{ fontSize: '14px', fontWeight: '700', color: '#B45309' }}>Chefs are Cooking Your Meal!</h5>
+                    <h5 style={{ fontSize: '14px', fontWeight: '800', color: '#B45309' }}>Chefs Are Preparing Your Meal!</h5>
                     <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>
-                      Your personalized order is sizzling in the kitchen right now.
+                      Your personalized order is sizzling in the kitchen right now. Almost there!
                     </p>
                   </div>
                 </div>
               )}
 
-              {(activeOrder.status === 'Order Ready' || activeOrder.status === 'Completed') && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              {activeOrder.status === 'Order Ready' && (
+                <div className="fp-busser-alert-banner">
                   <span style={{ fontSize: '24px' }}>🔔</span>
                   <div>
-                    <h5 style={{ fontSize: '14px', fontWeight: '700', color: 'var(--accent-green)' }}>Order Ready for Pickup!</h5>
+                    <div style={{ fontWeight: 800, fontSize: '14px' }}>Order Ready! Busser Being Dispatched</div>
+                    <div style={{ fontSize: '12px', opacity: 0.85, marginTop: '2px' }}>
+                      Your food is ready at the pass. A food runner will bring it to your table shortly.
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {activeOrder.status === 'Out for Delivery' && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', background: 'rgba(59, 130, 246, 0.08)', border: '1px solid rgba(59, 130, 246, 0.2)', borderRadius: '12px', padding: '14px' }}>
+                  <span style={{ fontSize: '24px' }}>🏃</span>
+                  <div>
+                    <h5 style={{ fontSize: '14px', fontWeight: '800', color: 'var(--accent-blue)' }}>
+                      Food Runner On the Way!
+                      {activeOrder.busserName && <span style={{ fontWeight: 700, fontSize: '12px', color: 'var(--text-secondary)', marginLeft: '6px' }}>({activeOrder.busserName})</span>}
+                    </h5>
                     <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>
-                      Please head to the pickup counter to collect your fresh dishes.
+                      Your order is being delivered to your table right now. Look out for your runner!
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {activeOrder.status === 'Completed' && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', background: 'rgba(16, 185, 129, 0.08)', border: '1px solid rgba(16, 185, 129, 0.2)', borderRadius: '12px', padding: '14px' }}>
+                  <span style={{ fontSize: '24px' }}>✅</span>
+                  <div>
+                    <h5 style={{ fontSize: '14px', fontWeight: '800', color: 'var(--accent-green)' }}>Order Delivered & Completed!</h5>
+                    <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                      Enjoy your meal! Thank you for dining with us.
                     </p>
                   </div>
                 </div>
               )}
             </div>
           </div>
+
 
           {/* Itemized Order Receipt Details */}
           <div className="glass-card" style={{ padding: '16px', marginBottom: '16px' }}>
@@ -635,25 +779,99 @@ function MobileView({ kioskId, onResetSession }) {
             )}
           </div>
 
-          {/* Ready Celebration Modal Overlay */}
+          {/* Full-Screen Ready Celebration Overlay */}
           {showReadyCelebration && (
-            <div className="celebration-overlay">
-              <div className="celebration-modal fade-in">
-                <div style={{ fontSize: '48px', marginBottom: '12px' }}>🔔🍽️</div>
-                <h3 style={{ fontSize: '20px', fontWeight: '800', marginBottom: '6px', color: 'var(--text-primary)' }}>
-                  Your Meal is Ready!
-                </h3>
-                <p style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: '1.5', marginBottom: '20px' }}>
-                  Order <strong>#{activeOrder.orderId}</strong> is complete and waiting for you at the counter.
-                </p>
-                <button
-                  onClick={() => setShowReadyCelebration(false)}
-                  className="btn-primary"
-                  style={{ width: '100%', padding: '14px', borderRadius: '12px', fontSize: '14px', fontWeight: '800' }}
-                >
-                  I'm on My Way to Pick Up!
-                </button>
+            <div style={{
+              position: 'fixed', inset: 0, zIndex: 9999,
+              background: 'rgba(10, 5, 20, 0.92)',
+              backdropFilter: 'blur(12px)',
+              display: 'flex', flexDirection: 'column',
+              alignItems: 'center', justifyContent: 'center',
+              animation: 'fade-in 0.3s ease'
+            }}>
+              {/* Pulsing ring */}
+              <div style={{ position: 'relative', marginBottom: '28px' }}>
+                <div style={{
+                  width: '120px', height: '120px', borderRadius: '50%',
+                  background: 'var(--brand-gradient)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: '52px', boxShadow: '0 0 0 0 rgba(228,87,41,0.7)',
+                  animation: 'vibrate-ring 0.6s ease-in-out 3, pulse-ring 2.5s ease-in-out 0.6s infinite'
+                }}>
+                  🔔
+                </div>
               </div>
+
+              <h2 style={{
+                fontSize: '28px', fontWeight: 900, color: 'white',
+                textAlign: 'center', marginBottom: '10px', letterSpacing: '-0.5px'
+              }}>
+                Your Meal is Ready! 🍽️
+              </h2>
+              <p style={{
+                fontSize: '15px', color: 'rgba(255,255,255,0.75)',
+                textAlign: 'center', lineHeight: '1.6',
+                maxWidth: '280px', marginBottom: '8px'
+              }}>
+                Order <strong style={{ color: 'white' }}>#{activeOrder.orderId}</strong><br/>
+                is freshly prepared and waiting for you.
+              </p>
+              <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.5)', marginBottom: '36px', textAlign: 'center' }}>
+                {restaurantMeta?.name || 'Our kitchen'} • Ready at the counter
+              </p>
+
+              <button
+                onClick={() => {
+                  stopVibReminder();
+                  setShowReadyCelebration(false);
+                }}
+                style={{
+                  background: 'var(--brand-gradient)',
+                  color: 'white', border: 'none', borderRadius: '18px',
+                  padding: '18px 48px', fontSize: '16px', fontWeight: 800,
+                  cursor: 'pointer', letterSpacing: '0.3px',
+                  boxShadow: '0 8px 32px rgba(228,87,41,0.4)',
+                  width: '100%', maxWidth: '320px',
+                  marginBottom: '14px'
+                }}
+              >
+                🚶 I'm On My Way!
+              </button>
+
+              <button
+                onClick={() => setShowReadyCelebration(false)}
+                style={{
+                  background: 'transparent', color: 'rgba(255,255,255,0.5)',
+                  border: '1px solid rgba(255,255,255,0.15)',
+                  borderRadius: '12px', padding: '12px 32px',
+                  fontSize: '13px', cursor: 'pointer'
+                }}
+              >
+                Dismiss — Keep Tracking
+              </button>
+            </div>
+          )}
+
+          {/* Persistent Ready Banner (visible below modal when not in celebration mode) */}
+          {activeOrder.status === 'Order Ready' && !showReadyCelebration && (
+            <div
+              onClick={() => setShowReadyCelebration(true)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: '12px',
+                background: 'var(--brand-gradient)',
+                borderRadius: '16px', padding: '14px 16px', marginBottom: '16px',
+                cursor: 'pointer', boxShadow: '0 4px 20px rgba(228,87,41,0.4)',
+                animation: 'pulse-ring 1.8s ease-in-out infinite'
+              }}
+            >
+              <BellRing size={22} color="white" style={{ flexShrink: 0, animation: 'bell-shake 0.5s ease-in-out infinite' }} />
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 900, fontSize: '14px', color: 'white' }}>Your Order is Ready!</div>
+                <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.85)', marginTop: '2px' }}>
+                  Tap to view — please collect from the counter
+                </div>
+              </div>
+              <div style={{ fontSize: '20px' }}>👆</div>
             </div>
           )}
 
@@ -919,24 +1137,45 @@ function MobileView({ kioskId, onResetSession }) {
           </div>
         </div>
       ) : (
-        /* VIEW 1: PROFILE SETUP / ONBOARDING VIEW */
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        /* ═══════════════════════════════════════════════════════
+           VIEW 1 — PREMIUM ONBOARDING  (matches Image 1 design)
+           ═══════════════════════════════════════════════════════ */
+        <div className="mvault-root">
 
-          {/* Captive Portal Activation Banner */}
+          {/* ── Decorative corner: ensō brush + kanji ── */}
+          <div className="mvault-deco-corner" aria-hidden="true">
+            <div className="mvault-enso" />
+            <div className="mvault-kanji">旨味</div>
+            <div className="mvault-deco-tag">GOOD<br/>FOOD<br/>BETTER<br/>DAYS</div>
+          </div>
+
+          {/* ── Hero Header ── */}
+          <div className="mvault-hero">
+            <div className="mvault-badge">
+              <Shield size={15} strokeWidth={2.5} color="#059669" />
+              <span>UMAMI CRAFT FUSION ID</span>
+            </div>
+            <h1 className="mvault-title">
+              Local <span className="mvault-title-accent">Dietary Vault</span>
+            </h1>
+            <p className="mvault-subtitle">🔒 ALL DATA ENCRYPTED IN LOCAL STORAGE ONLY</p>
+            <div className="mvault-divider-herb">⸻ 🌿 ⸻</div>
+            <p className="mvault-tagline">Your preferences. A better dining experience.</p>
+          </div>
+
+          {/* ── Captive Portal Activation Banner (if present) ── */}
           {captiveParams && (
-            <div className="glass-card highlighted" style={{ padding: '16px', borderRadius: '16px' }}>
-              <div style={{ display: 'flex', gap: '12px', alignItems: 'center', marginBottom: '8px' }}>
-                <div style={{ background: 'rgba(45, 106, 79, 0.08)', padding: '8px', borderRadius: '10px', color: 'var(--accent-green)' }}>
-                  <Shield size={18} />
+            <div className="glass-card highlighted" style={{ padding: '14px', borderRadius: '14px', marginBottom: '4px' }}>
+              <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '6px' }}>
+                <div style={{ background: 'rgba(16,185,129,0.1)', padding: '7px', borderRadius: '9px', color: 'var(--accent-green)' }}>
+                  <Shield size={16} />
                 </div>
                 <div>
-                  <h5 style={{ fontSize: '14px', fontWeight: '700' }}>Restaurant Wi-Fi Connected</h5>
-                  <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
-                    Device MAC: {captiveParams.clientmac || 'Unknown'}
-                  </span>
+                  <h5 style={{ fontSize: '13px', fontWeight: '700' }}>Restaurant Wi-Fi Connected</h5>
+                  <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Device MAC: {captiveParams.clientmac || 'Unknown'}</span>
                 </div>
               </div>
-              <p style={{ fontSize: '11px', color: 'var(--text-secondary)', lineHeight: '1.4', marginBottom: '12px' }}>
+              <p style={{ fontSize: '11px', color: 'var(--text-secondary)', lineHeight: '1.4', marginBottom: '10px' }}>
                 Authenticate to unlock guest Wi-Fi. Your dietary vault stays strictly local on your phone.
               </p>
               <button
@@ -945,28 +1184,22 @@ function MobileView({ kioskId, onResetSession }) {
                   window.location.href = authUrl;
                 }}
                 className="btn-primary"
-                style={{
-                  width: '100%',
-                  padding: '10px',
-                  fontSize: '12px',
-                  borderRadius: '10px',
-                  fontWeight: '700'
-                }}
+                style={{ width: '100%', padding: '9px', fontSize: '12px', borderRadius: '10px', fontWeight: '700' }}
               >
                 Connect to Guest Wi-Fi
               </button>
             </div>
           )}
 
-          {/* Quick Repeat Last Order Card (Multi-Item Aware) */}
+          {/* ── Quick Repeat Last Order ── */}
           {lastOrder && (
-            <div className="glass-card" style={{ padding: '14px', background: 'rgba(245, 166, 35, 0.04)', borderColor: 'rgba(245, 166, 35, 0.25)', borderRadius: '16px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '6px' }}>
+            <div className="glass-card" style={{ padding: '12px 14px', background: 'rgba(245,166,35,0.04)', borderColor: 'rgba(245,166,35,0.25)', borderRadius: '14px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '4px' }}>
                 <div>
-                  <span style={{ fontSize: '9px', background: 'rgba(245, 166, 35, 0.15)', color: '#B45309', padding: '2px 6px', borderRadius: '4px', fontWeight: '800', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
+                  <span style={{ fontSize: '9px', background: 'rgba(245,166,35,0.15)', color: '#B45309', padding: '2px 6px', borderRadius: '4px', fontWeight: '800', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
                     🔄 Repeat Last Order
                   </span>
-                  <h5 style={{ fontSize: '14px', fontWeight: '700', marginTop: '4px' }}>
+                  <h5 style={{ fontSize: '13px', fontWeight: '700', marginTop: '4px' }}>
                     {lastOrder.primaryName || (lastOrder.items ? `${lastOrder.items.length} items` : lastOrder.name)}
                   </h5>
                 </div>
@@ -974,133 +1207,84 @@ function MobileView({ kioskId, onResetSession }) {
                   ₱{(lastOrder.totalPrice || lastOrder.price || 0).toFixed(2)}
                 </span>
               </div>
-
-              {Array.isArray(lastOrder.items) && (
-                <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', margin: '6px 0' }}>
-                  {lastOrder.items.map((i, idx) => (
-                    <span key={idx} style={{ fontSize: '10px', background: 'rgba(44, 26, 17, 0.05)', padding: '2px 6px', borderRadius: '4px' }}>
-                      {i.emoji || '🍽️'} {i.name} (x{i.quantity || 1})
-                    </span>
-                  ))}
-                </div>
-              )}
-
-              {kioskId ? (
+              {kioskId && (
                 <button
-                  onClick={() => {
-                    handleRepeatLastOrder();
-                    localStorage.setItem('synapse_onboarded', 'true');
-                    setIsOnboarded(true);
-                  }}
+                  onClick={() => { handleRepeatLastOrder(); localStorage.setItem('synapse_onboarded', 'true'); setIsOnboarded(true); }}
                   className="btn-primary"
-                  style={{ width: '100%', padding: '9px', marginTop: '8px', fontSize: '12px', borderRadius: '10px', fontWeight: '600' }}
+                  style={{ width: '100%', padding: '8px', marginTop: '8px', fontSize: '12px', borderRadius: '10px', fontWeight: '600' }}
                 >
-                  Load Past Order & Pair
+                  Load Past Order &amp; Pair
                 </button>
-              ) : (
-                <div style={{ marginTop: '6px', fontSize: '10px', color: 'var(--text-muted)', fontStyle: 'italic' }}>
-                  👉 Scan any Kiosk terminal to repeat this order instantly.
-                </div>
               )}
             </div>
           )}
 
-          {/* Allergens Checklist */}
-          <div>
-            <h4 style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-primary)', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              🚫 1. Exclude Allergens
-            </h4>
-            <div className="preference-list">
-              {ALLERGEN_OPTIONS.map(opt => {
-                const checked = allergens.includes(opt.id);
-                return (
-                  <label key={opt.id} className={`custom-checkbox ${checked ? 'checked' : ''}`}>
-                    <input
-                      type="checkbox"
-                      checked={checked}
-                      onChange={() => handleAllergenToggle(opt.id)}
-                    />
-                    <div className="checkbox-box"></div>
-                    <span style={{ fontSize: '13px', fontWeight: '500' }}>{opt.label}</span>
-                  </label>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Preferences Checklist (All 5 Profiles) */}
-          <div>
-            <h4 style={{ fontSize: '13px', fontWeight: '700', color: 'var(--text-primary)', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              ⭐ 2. Flavor Preferences
-            </h4>
-            <div className="preference-list">
-              {PREFERENCE_OPTIONS.map(opt => {
-                const checked = preferences.includes(opt.id);
-                return (
-                  <label key={opt.id} className={`custom-checkbox ${checked ? 'checked' : ''}`}>
-                    <input
-                      type="checkbox"
-                      checked={checked}
-                      onChange={() => handlePreferenceToggle(opt.id)}
-                    />
-                    <div className="checkbox-box"></div>
-                    <span style={{ fontSize: '13px', fontWeight: '500', display: 'flex', alignItems: 'center' }}>
-                      {opt.icon}
-                      {opt.label}
-                    </span>
-                  </label>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Automated Taste Profile Training (History Insights) */}
-          {history.length > 0 && (
-            <div className="glass-card" style={{ padding: '14px', background: 'rgba(255, 255, 255, 0.02)' }}>
-              <h5 style={{ fontSize: '11px', color: 'var(--accent-green)', textTransform: 'uppercase', marginBottom: '6px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <CheckCircle size={13} /> Taste Profile Insights
-              </h5>
-              <p style={{ fontSize: '11px', color: 'var(--text-secondary)', lineHeight: '1.4', marginBottom: '8px' }}>
-                Cumulative taste weights calculated from your local multi-item order history:
-              </p>
-
-              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                {Object.entries(tagCounts).map(([tag, count]) => {
-                  const isStrongSuggestion = count >= 2;
-                  const isChecked = preferences.includes(tag);
-
+          {/* ══ RESPONSIVE SECTIONS GRID: Allergens & Preferences ══ */}
+          <div className="mvault-sections-container">
+            {/* ══ SECTION 1 — Exclude Allergens ══ */}
+            <div className="mvault-section">
+              <div className="mvault-section-header">
+                <div className="mvault-section-num">1</div>
+                <div>
+                  <div className="mvault-section-title">Exclude Allergens</div>
+                  <div className="mvault-section-sub">STAY SAFE. EAT CONFIDENTLY.</div>
+                </div>
+              </div>
+              <div className="mvault-checklist">
+                {ALLERGEN_OPTIONS.map(opt => {
+                  const checked = allergens.includes(opt.id);
                   return (
-                    <div
-                      key={tag}
-                      style={{
-                        fontSize: '10px',
-                        padding: '3px 8px',
-                        borderRadius: '6px',
-                        background: isStrongSuggestion ? 'rgba(45, 106, 79, 0.08)' : 'rgba(44, 26, 17, 0.02)',
-                        border: `1px solid ${isStrongSuggestion ? 'var(--accent-green)' : 'var(--border-glass)'}`,
-                        color: isStrongSuggestion ? 'var(--text-primary)' : 'var(--text-muted)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '6px'
-                      }}
-                    >
-                      <span>{tag.toUpperCase()} ({count} pts)</span>
-                      {isStrongSuggestion && !isChecked && (
-                        <button
-                          onClick={() => handlePreferenceToggle(tag)}
-                          style={{
-                            background: 'var(--accent-gradient)',
-                            color: '#ffffff',
-                            border: 'none',
-                            padding: '1px 5px',
-                            borderRadius: '4px',
-                            fontSize: '8px',
-                            fontWeight: '800',
-                            cursor: 'pointer'
-                          }}
-                        >
-                          + PROFILE
-                        </button>
+                    <label key={opt.id} className={`mvault-check-row${checked ? ' checked' : ''}`}>
+                      <input type="checkbox" checked={checked} onChange={() => handleAllergenToggle(opt.id)} />
+                      <span className="mvault-check-box" aria-hidden="true" />
+                      <span className="mvault-check-emoji">{opt.emoji}</span>
+                      <span className="mvault-check-label">{opt.label}</span>
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* ══ SECTION 2 — Flavor Preferences ══ */}
+            <div className="mvault-section">
+              <div className="mvault-section-header">
+                <div className="mvault-section-num mvault-section-num--amber">2</div>
+                <div>
+                  <div className="mvault-section-title">Flavor Preferences</div>
+                  <div className="mvault-section-sub">MAKE IT YOURS.</div>
+                </div>
+              </div>
+              <div className="mvault-checklist">
+                {PREFERENCE_OPTIONS.map(opt => {
+                  const checked = preferences.includes(opt.id);
+                  return (
+                    <label key={opt.id} className={`mvault-check-row${checked ? ' checked' : ''}`}>
+                      <input type="checkbox" checked={checked} onChange={() => handlePreferenceToggle(opt.id)} />
+                      <span className="mvault-check-box" aria-hidden="true" />
+                      <span className="mvault-check-emoji">{opt.emoji}</span>
+                      <span className="mvault-check-label">{opt.label}</span>
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+
+          {/* ── Taste Profile History Insights (collapsed) ── */}
+          {history.length > 0 && (
+            <div className="glass-card" style={{ padding: '12px 14px', background: 'rgba(255,255,255,0.02)' }}>
+              <h5 style={{ fontSize: '10px', color: 'var(--accent-green)', textTransform: 'uppercase', marginBottom: '6px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <CheckCircle size={12} /> Taste Profile Insights
+              </h5>
+              <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap' }}>
+                {Object.entries(tagCounts).map(([tag, count]) => {
+                  const isStrong = count >= 2;
+                  const isChecked = preferences.includes(tag);
+                  return (
+                    <div key={tag} style={{ fontSize: '10px', padding: '2px 7px', borderRadius: '5px', background: isStrong ? 'rgba(45,106,79,0.08)' : 'rgba(44,26,17,0.02)', border: `1px solid ${isStrong ? 'var(--accent-green)' : 'var(--border-glass)'}`, color: isStrong ? 'var(--text-primary)' : 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                      <span>{tag.toUpperCase()} ({count})</span>
+                      {isStrong && !isChecked && (
+                        <button onClick={() => handlePreferenceToggle(tag)} style={{ background: 'var(--accent-gradient)', color: '#fff', border: 'none', padding: '1px 5px', borderRadius: '3px', fontSize: '8px', fontWeight: '800', cursor: 'pointer' }}>+ PROFILE</button>
                       )}
                     </div>
                   );
@@ -1109,52 +1293,54 @@ function MobileView({ kioskId, onResetSession }) {
             </div>
           )}
 
-          {/* Proceed to Kiosk or Standby Scan Message */}
-          {kioskId ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <button
-                onClick={() => {
-                  localStorage.setItem('synapse_onboarded', 'true');
-                  setIsOnboarded(true);
-                }}
-                className="btn-primary"
-                style={{
-                  width: '100%',
-                  padding: '12px',
-                  borderRadius: '12px',
-                  fontSize: '14px',
-                  fontWeight: '700',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '8px'
-                }}
-              >
-                Pair & Connect to {restaurantMeta ? restaurantMeta.name : `Kiosk #${kioskId}`}
-              </button>
-              <p style={{ fontSize: '11px', color: 'var(--text-muted)', textAlign: 'center' }}>
-                Your allergens and preferences will be projected temporarily.
-              </p>
+          {/* ── Privacy Trust Bar ── */}
+          <div className="mvault-privacy-bar">
+            <div className="mvault-privacy-left">
+              <Shield size={18} color="#059669" strokeWidth={2.5} />
+              <div>
+                <div className="mvault-privacy-bold">Your data stays on this device.</div>
+                <div className="mvault-privacy-sub">No account, no cloud, no app needed.</div>
+              </div>
             </div>
-          ) : (
-            <div className="glass-card" style={{ padding: '14px', display: 'flex', gap: '10px', alignItems: 'center', background: 'rgba(255, 255, 255, 0.01)' }}>
-              <Smartphone size={18} color="var(--text-muted)" />
-              <span style={{ fontSize: '11px', color: 'var(--text-secondary)', lineHeight: '1.4' }}>
-                <strong>Awaiting scan.</strong> Scan a QR code on a kiosk table terminal to securely pair and order.
-              </span>
-            </div>
-          )}
+            <div className="mvault-privacy-right">PRIVATE • SECURE • JUST FOR YOU</div>
+          </div>
 
-          {/* Factory Reset */}
-          <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid var(--border-glass)' }}>
-            <button
-              onClick={handleClearAllData}
-              className="btn-danger"
-              style={{ width: '100%', padding: '10px', fontSize: '12px', borderRadius: '10px' }}
-            >
-              Factory Reset (Wipe LocalStorage)
+          {/* ── Primary CTA ── */}
+          <div className="mvault-cta-group">
+            {kioskId ? (
+              <button
+                onClick={() => { localStorage.setItem('synapse_onboarded', 'true'); setIsOnboarded(true); }}
+                className="mvault-save-btn"
+              >
+                <span>💾</span>
+                <span>Save Preferences</span>
+                <span className="mvault-save-arrow">›</span>
+              </button>
+            ) : (
+              <button
+                onClick={() => { localStorage.setItem('synapse_onboarded', 'true'); setIsOnboarded(true); }}
+                className="mvault-save-btn"
+              >
+                <span>💾</span>
+                <span>Save Preferences</span>
+                <span className="mvault-save-arrow">›</span>
+              </button>
+            )}
+            <button onClick={onResetSession} className="mvault-later-btn">
+              Maybe Later
             </button>
           </div>
+
+          {/* ── Factory Reset (subtle) ── */}
+          <div style={{ textAlign: 'center', paddingBottom: '8px' }}>
+            <button onClick={handleClearAllData} style={{ background: 'none', border: 'none', fontSize: '11px', color: 'var(--text-muted)', cursor: 'pointer', textDecoration: 'underline' }}>
+              Reset profile &amp; clear all data
+            </button>
+          </div>
+
+          {/* ── "Taste Meets Technology" watermark ── */}
+          <div className="mvault-watermark" aria-hidden="true">Taste<br/>Meets<br/>Technology</div>
+
         </div>
       )}
 
@@ -1261,6 +1447,66 @@ function MobileView({ kioskId, onResetSession }) {
           </div>
         </div>
       )}
+    </div>
+  );
+
+  // ── Customer Showcase View: Displays within the responsive Device Mockup ──
+  return (
+    <div className="mv-hero-page">
+      {/* Decorative background elements */}
+      <div className="mv-hero-bg-sun" aria-hidden="true" />
+      <div className="mv-hero-bg-mountains" aria-hidden="true">
+        <svg viewBox="0 0 900 400" preserveAspectRatio="xMidYMid slice" className="mv-mountain-svg">
+          <path d="M0 400 L100 260 L220 340 L360 180 L480 300 L600 150 L720 280 L840 200 L900 260 L900 400Z" fill="rgba(180,140,110,0.08)" />
+          <path d="M0 400 L150 300 L300 380 L450 240 L580 330 L700 200 L820 300 L900 240 L900 400Z" fill="rgba(180,140,110,0.06)" />
+        </svg>
+      </div>
+      {/* Left bamboo deco */}
+      <div className="mv-hero-bamboo-left" aria-hidden="true">
+        <svg viewBox="0 0 120 500" fill="none" className="mv-bamboo-svg">
+          <line x1="40" y1="0" x2="40" y2="500" stroke="rgba(100,130,80,0.18)" strokeWidth="8" strokeLinecap="round"/>
+          <line x1="70" y1="60" x2="70" y2="500" stroke="rgba(100,130,80,0.12)" strokeWidth="6" strokeLinecap="round"/>
+          {[80,160,240,320,400].map(y => <line key={y} x1="20" y1={y} x2="58" y2={y-20} stroke="rgba(100,130,80,0.2)" strokeWidth="3" strokeLinecap="round" />)}
+          {[120,200,280,360,440].map(y => <line key={y} x1="52" y1={y} x2="88" y2={y-22} stroke="rgba(100,130,80,0.15)" strokeWidth="2.5" strokeLinecap="round" />)}
+        </svg>
+      </div>
+      {/* Right cloud wave */}
+      <div className="mv-hero-wave-right" aria-hidden="true">
+        <svg viewBox="0 0 200 200" fill="none" className="mv-wave-svg">
+          {[30,70,110,150].map((y,i) => (
+            <path key={i} d={`M10 ${y} Q40 ${y-18} 70 ${y} Q100 ${y+18} 130 ${y} Q160 ${y-18} 190 ${y}`}
+              stroke="rgba(180,130,100,0.18)" strokeWidth="2.5" fill="none" strokeLinecap="round"/>
+          ))}
+        </svg>
+      </div>
+
+      {/* ── Top Hero Header Showcase ── */}
+      <header className="mv-hero-header-banner">
+        <p className="mv-hero-eyebrow">GOOD FOOD • BRIGHTER DAYS</p>
+        <h1 className="mv-hero-headline">
+          Personalized Dining for a <span className="mv-hero-accent">Brighter Tomorrow</span>
+        </h1>
+        <p className="mv-hero-tagline">
+          Your preferences. A better dining experience.
+        </p>
+        {kioskId && (
+          <div style={{ marginTop: '10px', display: 'inline-flex', alignItems: 'center', gap: '8px', background: 'rgba(5, 150, 105, 0.12)', border: '1px solid rgba(5, 150, 105, 0.35)', padding: '5px 16px', borderRadius: '9999px', fontSize: '12px', fontWeight: '700', color: '#059669' }}>
+            <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#10B981', display: 'inline-block', boxShadow: '0 0 6px #10B981' }}></span>
+            <span>Live Paired to Kiosk Terminal #{kioskId}</span>
+          </div>
+        )}
+      </header>
+
+      {/* ── Responsive Device Mockup Showcase ── */}
+      <div className="mv-hero-mockup-wrapper">
+        <DeviceMockup
+          defaultDevice="auto"
+          showToolbar={!kioskId}
+          title={kioskId ? `Umami Craft Fusion • Kiosk #${kioskId}` : "Umami Craft Fusion Local Dietary Vault"}
+        >
+          {phoneContent}
+        </DeviceMockup>
+      </div>
     </div>
   );
 }

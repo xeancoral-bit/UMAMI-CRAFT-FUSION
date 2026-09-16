@@ -316,7 +316,8 @@ function KitchenView({ onReturnToKiosk }) {
                   <span className={`ticket-status-badge badge-${order.status ? order.status.toLowerCase().replace(/\s+/g, '-') : 'received'}`}>
                     {order.status === 'Order Received' && '📋 Received'}
                     {order.status === 'Cooking' && '🍳 Cooking'}
-                    {order.status === 'Order Ready' && '🔔 Ready'}
+                    {order.status === 'Order Ready' && '🔔 Ready for Busser'}
+                    {order.status === 'Out for Delivery' && `🏃 Runner: ${order.busserName || 'Dispatched'}`}
                     {order.status === 'Completed' && '✓ Completed'}
                   </span>
                 </div>
@@ -365,7 +366,7 @@ function KitchenView({ onReturnToKiosk }) {
                         </div>
                       </div>
                       <span className="ticket-item-price">
-                        ₱{((item.price || 0) * (item.quantity || 1)).toFixed(2)}
+                        ${((item.price || 0) * (item.quantity || 1)).toFixed(2)}
                       </span>
                     </div>
                   ))}
@@ -378,7 +379,7 @@ function KitchenView({ onReturnToKiosk }) {
                       Total Items: <strong>{order.itemCount || items.reduce((s, i) => s + (i.quantity || 1), 0)}</strong>
                     </span>
                     <span style={{ fontSize: '15px', fontWeight: '800', color: 'var(--text-primary)' }}>
-                      ₱{(order.totalPrice || 0).toFixed(2)}
+                      ${(order.totalPrice || 0).toFixed(2)}
                     </span>
                   </div>
 
@@ -406,37 +407,57 @@ function KitchenView({ onReturnToKiosk }) {
                         <button
                           onClick={() => handleUpdateStatus(order.orderId, 'Order Ready')}
                           className="ticket-btn btn-mark-ready"
-                          style={{ flex: 1 }}
+                          style={{ flex: 1, background: 'var(--panda-pink)' }}
                         >
                           <BellRing size={15} />
-                          <span>Mark Ready 🔔</span>
+                          <span>Order Ready (Call Busser) 🔔</span>
                         </button>
                       </div>
                     )}
 
                     {order.status === 'Order Ready' && (
-                      <div style={{ display: 'flex', gap: '8px', width: '100%' }}>
-                        <button
-                          onClick={() => handleUpdateStatus(order.orderId, 'Cooking')}
-                          className="ticket-btn btn-back"
-                          title="Back to Cooking"
-                        >
-                          🍳
-                        </button>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%' }}>
+                        <div style={{ fontSize: '12px', color: 'var(--panda-pink)', fontWeight: 700, textAlign: 'center' }}>
+                          🔔 Awaiting Busser / Runner Pickup
+                        </div>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          <button
+                            onClick={() => handleUpdateStatus(order.orderId, 'Cooking')}
+                            className="ticket-btn btn-back"
+                            title="Back to Cooking"
+                          >
+                            ↩
+                          </button>
+                          <button
+                            onClick={() => handleUpdateStatus(order.orderId, 'Completed')}
+                            className="ticket-btn btn-complete"
+                            style={{ flex: 1 }}
+                          >
+                            <Check size={15} />
+                            <span>Direct Pickup / Complete ✓</span>
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {order.status === 'Out for Delivery' && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%' }}>
+                        <div style={{ fontSize: '12px', color: 'var(--accent-blue)', fontWeight: 700, textAlign: 'center' }}>
+                          🏃 In Transit with Busser ({order.busserName || 'Runner'})
+                        </div>
                         <button
                           onClick={() => handleUpdateStatus(order.orderId, 'Completed')}
                           className="ticket-btn btn-complete"
-                          style={{ flex: 1 }}
                         >
                           <Check size={15} />
-                          <span>Complete & Archive ✓</span>
+                          <span>Confirm Delivered ✓</span>
                         </button>
                       </div>
                     )}
 
                     {order.status === 'Completed' && (
-                      <div style={{ textAlign: 'center', padding: '6px', fontSize: '11px', color: 'var(--text-muted)' }}>
-                        ✓ Order completed & archived
+                      <div style={{ textAlign: 'center', padding: '6px', fontSize: '11px', color: 'var(--accent-green)', fontWeight: 700 }}>
+                        ✓ Order delivered & completed
                       </div>
                     )}
                   </div>

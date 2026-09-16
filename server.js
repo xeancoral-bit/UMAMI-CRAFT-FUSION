@@ -30,7 +30,7 @@ const RESTAURANTS = {
     name: 'Umami Craft Fusion',
     cuisine: 'Asian Craft Fusion',
     tagline: 'Bowls, Dumplings & Artisanal Street Noodles',
-    accentColor: '#D9383A',
+    accentColor: '#E45729',
     menuFile: 'umami.json'
   },
   bella: {
@@ -62,6 +62,23 @@ app.use(cors());
 // In-memory orders store for this restaurant instance
 const orders = [];
 
+// In-memory restaurant floor tables state (10 tables)
+const restaurantTables = [
+  { tableNumber: 1, capacity: 2, status: 'Available', orderId: null, lastBussed: new Date().toISOString() },
+  { tableNumber: 2, capacity: 4, status: 'Occupied', orderId: null, lastBussed: new Date().toISOString() },
+  { tableNumber: 3, capacity: 4, status: 'Needs Bussing', orderId: null, lastBussed: new Date(Date.now() - 15 * 60000).toISOString() },
+  { tableNumber: 4, capacity: 6, status: 'Available', orderId: null, lastBussed: new Date().toISOString() },
+  { tableNumber: 5, capacity: 2, status: 'Occupied', orderId: null, lastBussed: new Date().toISOString() },
+  { tableNumber: 6, capacity: 4, status: 'Needs Bussing', orderId: null, lastBussed: new Date(Date.now() - 25 * 60000).toISOString() },
+  { tableNumber: 7, capacity: 8, status: 'Available', orderId: null, lastBussed: new Date().toISOString() },
+  { tableNumber: 8, capacity: 4, status: 'Available', orderId: null, lastBussed: new Date().toISOString() },
+  { tableNumber: 9, capacity: 2, status: 'Needs Bussing', orderId: null, lastBussed: new Date(Date.now() - 8 * 60000).toISOString() },
+  { tableNumber: 10, capacity: 6, status: 'Available', orderId: null, lastBussed: new Date().toISOString() }
+];
+
+// Menu item 86 / availability override store
+const itemAvailability = {};
+
 // Serve static assets in production
 app.use(express.static(path.join(__dirname, 'dist')));
 
@@ -78,7 +95,7 @@ const io = new Server(server, {
 io.on('connection', (socket) => {
   console.log(`[Socket] User connected: ${socket.id}`);
 
-  // Device joins a session room based on kioskId or kitchen role
+  // Device joins a session room based on kioskId or role (kitchen, busser, restaurant, kiosk, mobile)
   socket.on('join-session', ({ kioskId, role }) => {
     if (kioskId) {
       socket.join(kioskId);
@@ -89,8 +106,18 @@ io.on('connection', (socket) => {
       const kitchenRoom = `kitchen_${RESTAURANT_ID}`;
       socket.join(kitchenRoom);
       console.log(`[Socket] Kitchen terminal ${socket.id} joined ${kitchenRoom}`);
-      // Send current active orders on join
       socket.emit('initial-orders', orders);
+    } else if (role === 'busser') {
+      const busserRoom = `busser_${RESTAURANT_ID}`;
+      socket.join(busserRoom);
+      console.log(`[Socket] Busser runner terminal ${socket.id} joined ${busserRoom}`);
+      socket.emit('initial-orders', orders);
+      socket.emit('initial-tables', restaurantTables);
+    } else if (role === 'restaurant') {
+      socket.emit('initial-orders', orders);
+      socket.emit('initial-tables', restaurantTables);
+      socket.emit('initial-availability', itemAvailability);
+      console.log(`[Socket] Restaurant Manager terminal ${socket.id} connected`);
     } else {
       console.log(`[Socket] Client ${socket.id} (${role}) joined room: ${kioskId}`);
     }
@@ -110,7 +137,7 @@ io.on('connection', (socket) => {
 
   // Mobile device places an order
   socket.on('place-order', (orderPayload) => {
-    const { kioskId, item, items, itemCount, totalPrice, orderedTags, allergens } = orderPayload || {};
+    const { kioskId, item, items, itemCount, totalPrice, orderedTags, allergens, diningOption, tableNumber } = orderPayload || {};
     const effectiveItems = items && items.length > 0 ? items : (item ? [item] : []);
     const effectiveCount = itemCount || effectiveItems.reduce((sum, i) => sum + (i.quantity || 1), 0);
     const effectiveTotal = totalPrice !== undefined ? totalPrice : effectiveItems.reduce((sum, i) => sum + (i.price * (i.quantity || 1)), 0);
@@ -119,6 +146,8 @@ io.on('connection', (socket) => {
     const newOrder = {
       orderId,
       kioskId: kioskId || 'COUNTER',
+      tableNumber: tableNumber || (kioskId && kioskId.startsWith('T-') ? kioskId.replace('T-', '') : (kioskId || 'Counter')),
+      diningOption: diningOption || 'Dine-In',
       restaurantId: RESTAURANT_ID,
       item: item || effectiveItems[0],
       items: effectiveItems,
@@ -127,6 +156,7 @@ io.on('connection', (socket) => {
       orderedTags: orderedTags || [],
       allergens: allergens || [],
       status: 'Order Received',
+      busserName: null,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
@@ -148,33 +178,85 @@ io.on('connection', (socket) => {
       socket.to(kioskId).emit('order-placed', newOrder);
     }
 
-    // 3. Forward the order to the restaurant's kitchen display in real-time
+    // 3. Forward the order to kitchen and busser displays in real-time
     io.to(`kitchen_${RESTAURANT_ID}`).emit('new-kitchen-order', newOrder);
+    io.to(`busser_${RESTAURANT_ID}`).emit('new-kitchen-order', newOrder);
     io.emit('new-kitchen-order', newOrder);
   });
 
-  // Kitchen or server updates order status ('Cooking', 'Order Ready', 'Completed')
-  socket.on('update-order-status', ({ orderId, status }) => {
+  // Kitchen or server updates order status ('Cooking', 'Order Ready', 'Out for Delivery', 'Delivered', 'Completed')
+  socket.on('update-order-status', ({ orderId, status, busserName }) => {
     const order = orders.find(o => o.orderId === orderId);
     if (order) {
       order.status = status;
+      if (busserName !== undefined) order.busserName = busserName;
       order.updatedAt = new Date().toISOString();
-      console.log(`[Socket] Order ${orderId} status updated to: ${status}`);
+      console.log(`[Socket] Order ${orderId} status updated to: ${status}${busserName ? ` (Busser: ${busserName})` : ''}`);
 
       const statusPayload = {
         orderId,
         kioskId: order.kioskId,
+        tableNumber: order.tableNumber,
         status,
+        busserName: order.busserName,
         updatedAt: order.updatedAt
       };
 
-      // Notify all relevant listeners (customer phone, kitchen display, kiosk)
+      // Notify all relevant listeners (customer phone, kitchen display, kiosk, bussers)
       if (order.kioskId) {
         io.to(order.kioskId).emit('order-status-updated', statusPayload);
       }
       io.to(`kitchen_${RESTAURANT_ID}`).emit('order-status-updated', statusPayload);
+      io.to(`busser_${RESTAURANT_ID}`).emit('order-status-updated', statusPayload);
       io.emit('order-status-updated', statusPayload);
     }
+  });
+
+  // Busser claims a ready order to deliver to table / counter
+  socket.on('claim-order', ({ orderId, busserName }) => {
+    const order = orders.find(o => o.orderId === orderId);
+    if (order) {
+      order.status = 'Out for Delivery';
+      order.busserName = busserName || 'Food Runner';
+      order.updatedAt = new Date().toISOString();
+      console.log(`[Socket] Busser ${order.busserName} claimed order ${orderId} for delivery!`);
+
+      const statusPayload = {
+        orderId,
+        kioskId: order.kioskId,
+        tableNumber: order.tableNumber,
+        status: order.status,
+        busserName: order.busserName,
+        updatedAt: order.updatedAt
+      };
+
+      if (order.kioskId) {
+        io.to(order.kioskId).emit('order-status-updated', statusPayload);
+      }
+      io.to(`kitchen_${RESTAURANT_ID}`).emit('order-status-updated', statusPayload);
+      io.to(`busser_${RESTAURANT_ID}`).emit('order-status-updated', statusPayload);
+      io.emit('order-status-updated', statusPayload);
+    }
+  });
+
+  // Busser or Staff updates table turnover status (Available, Occupied, Needs Bussing)
+  socket.on('update-table-status', ({ tableNumber, status }) => {
+    const table = restaurantTables.find(t => t.tableNumber === parseInt(tableNumber, 10));
+    if (table) {
+      table.status = status;
+      if (status === 'Available') {
+        table.lastBussed = new Date().toISOString();
+      }
+      console.log(`[Socket] Table ${tableNumber} status updated to: ${status}`);
+      io.emit('table-status-updated', table);
+    }
+  });
+
+  // Restaurant Admin toggles item 86 / availability
+  socket.on('toggle-item-availability', ({ itemName, isAvailable }) => {
+    itemAvailability[itemName] = isAvailable;
+    console.log(`[Socket] Item [${itemName}] availability set to: ${isAvailable}`);
+    io.emit('item-availability-updated', { itemName, isAvailable });
   });
 
   // Clean up on disconnect
@@ -279,7 +361,82 @@ app.patch('/api/orders/:orderId/status', (req, res) => {
   res.json(order);
 });
 
-// Menu JSON endpoint (representing future restaurant app integration)
+// Claim order endpoint for Busser runner
+app.post('/api/orders/:orderId/claim', (req, res) => {
+  const { orderId } = req.params;
+  const { busserName } = req.body;
+  const order = orders.find(o => o.orderId === orderId);
+
+  if (!order) {
+    return res.status(404).json({ error: 'Order not found' });
+  }
+
+  order.status = 'Out for Delivery';
+  order.busserName = busserName || 'Food Runner';
+  order.updatedAt = new Date().toISOString();
+
+  const statusPayload = {
+    orderId,
+    kioskId: order.kioskId,
+    tableNumber: order.tableNumber,
+    status: order.status,
+    busserName: order.busserName,
+    updatedAt: order.updatedAt
+  };
+
+  if (order.kioskId) {
+    io.to(order.kioskId).emit('order-status-updated', statusPayload);
+  }
+  io.to(`kitchen_${RESTAURANT_ID}`).emit('order-status-updated', statusPayload);
+  io.to(`busser_${RESTAURANT_ID}`).emit('order-status-updated', statusPayload);
+  io.emit('order-status-updated', statusPayload);
+
+  res.json(order);
+});
+
+// Floor tables endpoint
+app.get('/api/tables', (req, res) => {
+  res.json(restaurantTables);
+});
+
+// Update table turnover status
+app.patch('/api/tables/:tableNumber/status', (req, res) => {
+  const tableNumber = parseInt(req.params.tableNumber, 10);
+  const { status } = req.body;
+  const table = restaurantTables.find(t => t.tableNumber === tableNumber);
+
+  if (!table) {
+    return res.status(404).json({ error: 'Table not found' });
+  }
+
+  table.status = status;
+  if (status === 'Available') {
+    table.lastBussed = new Date().toISOString();
+  }
+
+  io.emit('table-status-updated', table);
+  res.json(table);
+});
+
+// Item availability 86 store endpoint
+app.get('/api/availability', (req, res) => {
+  res.json(itemAvailability);
+});
+
+// Toggle item availability
+app.post('/api/availability', (req, res) => {
+  const { itemName, isAvailable } = req.body;
+  itemAvailability[itemName] = isAvailable;
+  io.emit('item-availability-updated', { itemName, isAvailable });
+  res.json({ success: true, itemName, isAvailable });
+});
+
+// List all registered restaurant brands
+app.get('/api/restaurants', (req, res) => {
+  res.json(Object.values(RESTAURANTS));
+});
+
+// Menu JSON endpoint (load from per-restaurant file)
 app.get('/api/menu', async (req, res) => {
   try {
     const menuPath = path.join(__dirname, 'data', 'menus', activeRestaurant.menuFile);

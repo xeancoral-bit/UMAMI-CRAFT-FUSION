@@ -1,27 +1,77 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { io } from 'socket.io-client';
 import KioskView from './components/KioskView';
 import MobileView from './components/MobileView';
 import KitchenView from './components/KitchenView';
+import BusserView from './components/BusserView';
+import RestaurantView from './components/RestaurantView';
+import NavBar from './components/NavBar';
 
 function App() {
   const [kioskId, setKioskId] = useState(null);
-  const [isMobileScreen, setIsMobileScreen] = useState(false);
   const [currentView, setCurrentView] = useState(() => {
     const params = new URLSearchParams(window.location.search);
     return params.get('view') || 'kiosk';
   });
+  const [restaurantInfo, setRestaurantInfo] = useState({
+    id: 'umami',
+    name: 'Umami Craft Fusion',
+    cuisine: 'Asian Craft Fusion',
+    tagline: 'Bowls, Dumplings & Artisanal Street Noodles'
+  });
+  const [activeOrdersCount, setActiveOrdersCount] = useState(0);
+  const [readyOrdersCount, setReadyOrdersCount] = useState(0);
+  const [socketConnected, setSocketConnected] = useState(false);
+  const socketRef = useRef(null);
 
-  // Check screen width for mobile layouts
+  // Load restaurant metadata
   useEffect(() => {
-    const handleResize = () => {
-      setIsMobileScreen(window.innerWidth < 768);
-    };
-    handleResize();
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    fetch('/api/restaurant')
+      .then(res => res.json())
+      .then(data => { if (data?.name) setRestaurantInfo(prev => ({ ...prev, ...data })); })
+      .catch(() => {});
   }, []);
 
-  // Check URL parameters for active session on load and when the URL changes
+  // Global socket for live badge counts in NavBar
+  useEffect(() => {
+    const socket = io();
+    socketRef.current = socket;
+
+    socket.on('connect', () => {
+      setSocketConnected(true);
+    });
+
+    socket.on('disconnect', () => {
+      setSocketConnected(false);
+    });
+
+    // Listen for order updates to keep badge counts current
+    const refreshCounts = (orders) => {
+      setActiveOrdersCount(orders.filter(o => o.status === 'Order Received' || o.status === 'Cooking').length);
+      setReadyOrdersCount(orders.filter(o => o.status === 'Order Ready').length);
+    };
+
+    socket.on('initial-orders', (orders) => {
+      if (Array.isArray(orders)) refreshCounts(orders);
+    });
+
+    socket.on('new-kitchen-order', () => {
+      // Refresh count from server
+      fetch('/api/orders').then(r => r.json()).then(data => {
+        if (Array.isArray(data)) refreshCounts(data);
+      }).catch(() => {});
+    });
+
+    socket.on('order-status-updated', () => {
+      fetch('/api/orders').then(r => r.json()).then(data => {
+        if (Array.isArray(data)) refreshCounts(data);
+      }).catch(() => {});
+    });
+
+    return () => socket.disconnect();
+  }, []);
+
+  // Check URL parameters
   useEffect(() => {
     const handleUrlCheck = () => {
       const params = new URLSearchParams(window.location.search);
@@ -30,47 +80,66 @@ function App() {
       setKioskId(id);
       if (viewParam) {
         setCurrentView(viewParam);
+      } else if (id) {
+        setCurrentView('mobile');
       }
     };
 
     handleUrlCheck();
-    
-    // Listen for history popstate events (e.g. back button)
     window.addEventListener('popstate', handleUrlCheck);
     return () => window.removeEventListener('popstate', handleUrlCheck);
   }, []);
 
   const handleResetSession = () => {
-    // Clear URL query parameters in browser search bar
     window.history.pushState({}, document.title, window.location.pathname);
     setKioskId(null);
   };
 
-  const handleOpenKitchen = () => {
+  const handleSelectView = (view) => {
     const url = new URL(window.location.href);
-    url.searchParams.set('view', 'kitchen');
+    url.searchParams.set('view', view);
+    // Clear kioskId when switching to staff views
+    if (['kitchen', 'busser', 'restaurant'].includes(view)) {
+      url.searchParams.delete('kioskId');
+      setKioskId(null);
+    }
     window.history.pushState({}, '', url.toString());
-    setCurrentView('kitchen');
-  };
-
-  const handleReturnToKiosk = () => {
-    const url = new URL(window.location.href);
-    url.searchParams.delete('view');
-    window.history.pushState({}, '', url.toString());
-    setCurrentView('kiosk');
+    setCurrentView(view);
   };
 
   return (
     <div className="app-container">
-      {kioskId || isMobileScreen ? (
+      <NavBar
+        currentView={currentView}
+        onSelectView={handleSelectView}
+        restaurantInfo={restaurantInfo}
+        activeOrdersCount={activeOrdersCount}
+        readyOrdersCount={readyOrdersCount}
+        socketConnected={socketConnected}
+      />
+
+      {currentView === 'mobile' && (
         <MobileView kioskId={kioskId} onResetSession={handleResetSession} />
-      ) : currentView === 'kitchen' ? (
-        <KitchenView onReturnToKiosk={handleReturnToKiosk} />
-      ) : (
-        <KioskView onOpenKitchen={handleOpenKitchen} />
+      )}
+
+      {currentView === 'kiosk' && (
+        <KioskView onOpenKitchen={() => handleSelectView('kitchen')} />
+      )}
+
+      {currentView === 'kitchen' && (
+        <KitchenView onReturnToKiosk={() => handleSelectView('kiosk')} />
+      )}
+
+      {currentView === 'busser' && (
+        <BusserView onReturnToHome={() => handleSelectView('kiosk')} />
+      )}
+
+      {currentView === 'restaurant' && (
+        <RestaurantView onReturnToKiosk={() => handleSelectView('kiosk')} />
       )}
     </div>
   );
 }
 
 export default App;
+

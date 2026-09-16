@@ -7,9 +7,14 @@ import {
   ShieldCheck, 
   Clock, 
   EyeOff, 
-  UtensilsCrossed, 
   AlertTriangle,
-  Receipt
+  Receipt,
+  Leaf,
+  Zap,
+  Settings,
+  ChevronRight,
+  Play,
+  Store
 } from 'lucide-react';
 
 function generateKioskId() {
@@ -230,154 +235,289 @@ function KioskView({ onOpenKitchen }) {
 
   return (
     <div className="kiosk-container fade-in">
-      {/* Header */}
-      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '20px', borderBottom: '1px solid var(--border-glass)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <div style={{ background: 'var(--accent-gradient)', padding: '10px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <UtensilsCrossed size={24} color="#04060b" />
-          </div>
+      {/* Kiosk Header */}
+      <header className="kiosk-header">
+        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+          <img
+            src="/brand-logo.png"
+            alt="Umami Craft Fusion"
+            style={{
+              width: '46px',
+              height: '46px',
+              borderRadius: '14px',
+              boxShadow: '0 4px 14px rgba(228, 87, 41, 0.25)',
+              border: '1px solid rgba(228, 87, 41, 0.3)',
+              objectFit: 'cover'
+            }}
+          />
           <div>
-            <h1 style={{ fontSize: '24px', fontWeight: '800', letterSpacing: '-0.02em', background: 'linear-gradient(to right, #ffffff, #9ca3af)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+            <h1 style={{ fontSize: '22px', fontWeight: '800', letterSpacing: '-0.02em', color: 'var(--text-primary)', lineHeight: '1.2' }}>
               {restaurantInfo.name.toUpperCase()}
             </h1>
-            <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: '600', letterSpacing: '0.05em' }}>
+            <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: '700', letterSpacing: '0.08em' }}>
               {restaurantInfo.cuisine.toUpperCase()} • SMART TERMINAL
             </span>
           </div>
         </div>
         
-        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           {onOpenKitchen && (
             <button
               onClick={onOpenKitchen}
-              className="btn-secondary"
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: '8px',
-                padding: '8px 16px',
+                padding: '8px 18px',
                 borderRadius: '999px',
-                fontSize: '12px',
+                fontSize: '13px',
                 fontWeight: '700',
                 cursor: 'pointer',
-                background: 'rgba(217, 56, 58, 0.08)',
-                color: 'var(--accent-red)',
-                border: '1px solid rgba(217, 56, 58, 0.25)',
+                background: 'rgba(228, 87, 41, 0.08)',
+                color: '#C24522',
+                border: '1px solid rgba(228, 87, 41, 0.22)',
+                boxShadow: 'var(--shadow-sm)',
                 transition: 'all var(--transition-fast)'
               }}
               title="Open Kitchen Display System"
             >
-              <span>👨‍🍳</span>
+              <Store size={15} color="#C24522" />
               <span>Kitchen Display</span>
+              <ChevronRight size={14} color="#C24522" />
             </button>
           )}
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(255,255,255,0.03)', padding: '6px 14px', borderRadius: '999px', border: '1px solid var(--border-glass)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#ffffff', padding: '8px 16px', borderRadius: '999px', border: '1px solid rgba(226, 214, 200, 0.9)', boxShadow: 'var(--shadow-sm)' }}>
             <div className={`pulse-indicator ${socketConnected ? 'active' : 'disconnected'}`}></div>
-            <span style={{ fontSize: '12px', fontWeight: '500', color: socketConnected ? 'var(--text-primary)' : 'var(--accent-danger)' }}>
-              {socketConnected ? `Port :${currentBackendPort}` : 'Connecting Server...'}
+            <span style={{ fontSize: '13px', fontWeight: '700', color: '#2D2620' }}>
+              {socketConnected ? `Port : ${currentBackendPort}` : 'Connecting Server...'}
             </span>
           </div>
           
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(45, 106, 79, 0.05)', padding: '6px 14px', borderRadius: '999px', border: '1px solid rgba(45, 106, 79, 0.15)' }}>
-            <Monitor size={14} color="var(--accent-green)" />
-            <span style={{ fontSize: '12px', fontWeight: '600', color: 'var(--accent-green)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(16, 185, 129, 0.08)', padding: '8px 16px', borderRadius: '999px', border: '1px solid rgba(16, 185, 129, 0.25)', boxShadow: 'var(--shadow-sm)' }}>
+            <Monitor size={15} color="#059669" />
+            <span style={{ fontSize: '13px', fontWeight: '700', color: '#059669' }}>
               Kiosk #{kioskId}
             </span>
+            <ChevronRight size={14} color="#059669" />
           </div>
+
+          <button
+            onClick={() => setShowIpConfig(prev => !prev)}
+            style={{
+              width: '38px',
+              height: '38px',
+              borderRadius: '50%',
+              background: '#ffffff',
+              border: '1px solid rgba(226, 214, 200, 0.9)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              color: '#5C5248',
+              boxShadow: 'var(--shadow-sm)'
+            }}
+            title="Kiosk Settings & Network Configuration"
+          >
+            <Settings size={16} />
+          </button>
         </div>
       </header>
 
       {/* Main Content Area */}
-      <main style={{ padding: '40px 0', flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+      <main style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
         
         {/* STATE A: STANDBY VIEW */}
         {state === 'standby' && (
-          <div className="slide-up" style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: '48px', alignItems: 'center' }}>
+          <div className="kiosk-hero-layout slide-up">
+            {/* Left Column: Headline, Features, Simulation Card */}
             <div>
-              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', background: 'rgba(16, 185, 129, 0.1)', color: 'var(--accent-success)', padding: '6px 12px', borderRadius: '8px', fontSize: '13px', fontWeight: '600', marginBottom: '24px', border: '1px solid rgba(16, 185, 129, 0.2)' }}>
-                <ShieldCheck size={16} />
-                Privacy-First Architecture
+              <div style={{
+                fontSize: '11px',
+                fontWeight: '800',
+                letterSpacing: '0.22em',
+                color: '#A07255',
+                textTransform: 'uppercase',
+                marginBottom: '10px'
+              }}>
+                GOOD FOOD. A SMARTER WAY.
               </div>
-              <h2 style={{ fontSize: '48px', fontWeight: '800', lineHeight: '1.1', marginBottom: '20px', letterSpacing: '-0.02em' }}>
-                {restaurantInfo.tagline}
-              </h2>
-              <p style={{ color: 'var(--text-secondary)', fontSize: '18px', marginBottom: '32px', maxWidth: '580px', fontWeight: '300', lineHeight: '1.6' }}>
+
+              <div style={{ fontSize: '46px', fontWeight: 800, lineHeight: 1.12, letterSpacing: '-0.02em', color: '#1C1917' }}>
+                Bowls, Dumplings &amp;
+              </div>
+              <div style={{ fontSize: '46px', fontWeight: 800, lineHeight: 1.12, letterSpacing: '-0.02em', color: '#C24522', marginBottom: '16px' }}>
+                Artisanal Street Noodles
+              </div>
+
+              <p style={{
+                color: '#6E645A',
+                fontSize: '15px',
+                marginBottom: '24px',
+                maxWidth: '540px',
+                fontWeight: '400',
+                lineHeight: '1.6'
+              }}>
                 Scan the QR code with your phone. Select your dietary needs in private, and project a safe, custom menu here instantly. Zero logs, zero database.
               </p>
-              
-              <div className="glass-card" style={{ padding: '24px', maxWidth: '500px' }}>
-                <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-start' }}>
-                  <div style={{ background: 'rgba(45, 106, 79, 0.06)', padding: '12px', borderRadius: '12px', color: 'var(--accent-green)' }}>
-                    <Smartphone size={24} />
+
+              {/* 4 Feature Badges in Row */}
+              <div className="kiosk-feature-row">
+                <div className="kiosk-feature-chip">
+                  <div className="kiosk-feature-icon-circle" style={{ background: 'rgba(228, 87, 41, 0.12)' }}>
+                    <ShieldCheck size={18} color="#C24522" />
                   </div>
                   <div>
-                    <h4 style={{ fontWeight: '600', marginBottom: '4px', fontSize: '15px' }}>Single-Screen Simulation Tool</h4>
-                    <p style={{ color: 'var(--text-secondary)', fontSize: '13px', lineHeight: '1.4', marginBottom: '16px' }}>
-                      Testing on a single device? Click below to launch a simulated mobile scanner window side-by-side.
-                    </p>
-                    <a 
-                      href={clientUrl} 
-                      target="_blank" 
-                      rel="noopener noreferrer" 
-                      className="btn-primary"
-                      style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '10px 18px', fontSize: '13px' }}
-                    >
-                      Simulate Mobile Scan
-                    </a>
+                    <div className="kiosk-feature-chip-title">Privacy-First</div>
+                    <div className="kiosk-feature-chip-desc">Your data stays on your device</div>
                   </div>
+                </div>
+
+                <div className="kiosk-feature-chip">
+                  <div className="kiosk-feature-icon-circle" style={{ background: 'rgba(16, 185, 129, 0.12)' }}>
+                    <Leaf size={18} color="#059669" />
+                  </div>
+                  <div>
+                    <div className="kiosk-feature-chip-title">Dietary Friendly</div>
+                    <div className="kiosk-feature-chip-desc">Allergies &amp; preferences</div>
+                  </div>
+                </div>
+
+                <div className="kiosk-feature-chip">
+                  <div className="kiosk-feature-icon-circle" style={{ background: 'rgba(245, 158, 11, 0.15)' }}>
+                    <Zap size={18} color="#D97706" />
+                  </div>
+                  <div>
+                    <div className="kiosk-feature-chip-title">Instant Results</div>
+                    <div className="kiosk-feature-chip-desc">Personalized menu in seconds</div>
+                  </div>
+                </div>
+
+                <div className="kiosk-feature-chip">
+                  <div className="kiosk-feature-icon-circle" style={{ background: 'rgba(59, 130, 246, 0.12)' }}>
+                    <Smartphone size={18} color="#2563EB" />
+                  </div>
+                  <div>
+                    <div className="kiosk-feature-chip-title">No App Needed</div>
+                    <div className="kiosk-feature-chip-desc">Just scan &amp; go</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Single-Screen Simulation Tool Card */}
+              <div className="kiosk-sim-card">
+                <img
+                  src="/phone-mockup.png"
+                  alt="Phone Scanner Simulation"
+                  style={{ width: '74px', height: '90px', objectFit: 'contain', flexShrink: 0 }}
+                />
+                <div style={{ flex: 1 }}>
+                  <h4 style={{ fontWeight: '700', marginBottom: '4px', fontSize: '15px', color: '#1C1917' }}>
+                    Single-Screen Simulation Tool
+                  </h4>
+                  <p style={{ color: '#746A60', fontSize: '12px', lineHeight: '1.4', marginBottom: '10px' }}>
+                    Testing on a single device? Click below to launch a simulated mobile scanner window side-by-side.
+                  </p>
+                  <a
+                    href={clientUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="kiosk-sim-btn"
+                  >
+                    <Play size={12} fill="#ffffff" />
+                    <span>Simulate Mobile Scan</span>
+                  </a>
                 </div>
               </div>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-              <div className="glass-card" style={{ padding: '32px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px', background: 'var(--bg-glass)', border: '1px solid var(--border-glass)', boxShadow: '0 20px 40px rgba(44, 26, 17, 0.04)', borderRadius: '32px' }}>
-                <div style={{ background: '#ffffff', padding: '20px', borderRadius: '24px', boxShadow: '0 10px 30px rgba(44, 26, 17, 0.08)', display: 'inline-block' }}>
-                  <QRCodeSVG value={clientUrl} size={220} level="H" includeMargin={false} />
+            {/* Center Column: Polished QR Code Card */}
+            <div style={{ display: 'flex', justifyContent: 'center' }}>
+              <div className="kiosk-qr-card">
+                <div className="qr-top-pill">
+                  <Smartphone size={13} color="#C24522" />
+                  <span>SCAN TO START</span>
                 </div>
-                <div style={{ textAlign: 'center', width: '100%' }}>
-                  <p style={{ fontWeight: '600', fontSize: '16px', marginBottom: '4px' }}>Scan to Personalize</p>
-                  <p style={{ color: 'var(--text-muted)', fontSize: '12px', marginBottom: '8px' }}>
-                    Kiosk ID: <strong style={{ color: 'var(--text-primary)' }}>{kioskId}</strong> • URL: <span style={{ color: 'var(--accent-green)', fontWeight: '600' }}>{targetHost}:{mobileTargetPort}</span>
-                  </p>
-                  
-                  {/* IP / Host Override Toggle */}
-                  <div style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
-                    <button
-                      onClick={() => setShowIpConfig(prev => !prev)}
-                      style={{ background: 'none', border: 'none', fontSize: '11px', color: 'var(--text-muted)', textDecoration: 'underline', cursor: 'pointer' }}
-                    >
-                      {showIpConfig ? 'Hide Network Config' : '⚙️ Change IP / Troubleshooting'}
-                    </button>
 
-                    {showIpConfig && (
-                      <div className="fade-in" style={{ background: 'var(--bg-surface-elevated)', padding: '10px 14px', borderRadius: '12px', border: '1px solid var(--border-glass)', marginTop: '6px', width: '100%', maxWidth: '280px', textAlign: 'left' }}>
-                        <label style={{ fontSize: '10px', fontWeight: '700', color: 'var(--text-secondary)', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>
-                          Custom IP / Tunnel Host:
-                        </label>
-                        <input
-                          type="text"
-                          value={customHost}
-                          placeholder={lanIp || '192.168.1.14'}
-                          onChange={(e) => setCustomHost(e.target.value)}
-                          style={{
-                            width: '100%',
-                            padding: '6px 10px',
-                            borderRadius: '8px',
-                            border: '1px solid var(--border-glass)',
-                            fontSize: '12px',
-                            marginBottom: '6px',
-                            fontFamily: 'var(--font-sans)'
-                          }}
-                        />
-                        <p style={{ fontSize: '10px', color: 'var(--text-muted)', lineHeight: '1.3' }}>
-                          💡 <em>If phone gets ERR_ADDRESS_UNREACHABLE, change Wi-Fi in Windows Settings to <strong>Private Network</strong> or use the Simulate button.</em>
-                        </p>
-                      </div>
-                    )}
-                  </div>
+                <div style={{ background: '#ffffff', padding: '12px', borderRadius: '20px', boxShadow: '0 4px 14px rgba(44, 26, 17, 0.04)' }}>
+                  <QRCodeSVG value={clientUrl} size={195} level="H" includeMargin={false} />
                 </div>
+
+                <div className="qr-divider">
+                  <span>Scan to Personalize</span>
+                </div>
+
+                <div style={{ fontSize: '12px', color: '#685D54', marginBottom: '4px' }}>
+                  Kiosk ID: <strong style={{ color: '#1C1917' }}>{kioskId}</strong>
+                </div>
+
+                <div style={{ fontSize: '12px', color: '#685D54', marginBottom: '10px' }}>
+                  URL: <span style={{ color: '#059669', fontWeight: 700 }}>{targetHost}:{mobileTargetPort}</span>
+                </div>
+
+                <button
+                  onClick={() => setShowIpConfig(prev => !prev)}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    fontSize: '11px',
+                    color: 'var(--text-muted)',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    fontWeight: '600'
+                  }}
+                >
+                  <Settings size={12} />
+                  <span>{showIpConfig ? '▲ Hide Settings' : 'Change IP / Troubleshooting'}</span>
+                </button>
+
+                {showIpConfig && (
+                  <div className="fade-in" style={{
+                    background: 'var(--bg-surface-elevated)',
+                    padding: '12px 14px',
+                    borderRadius: '14px',
+                    border: '1px solid var(--border-glass)',
+                    marginTop: '10px',
+                    width: '100%',
+                    textAlign: 'left'
+                  }}>
+                    <label style={{ fontSize: '10px', fontWeight: '700', color: 'var(--text-secondary)', textTransform: 'uppercase', display: 'block', marginBottom: '6px' }}>
+                      Custom IP / Host:
+                    </label>
+                    <input
+                      type="text"
+                      value={customHost}
+                      placeholder={lanIp || '192.168.1.14'}
+                      onChange={(e) => setCustomHost(e.target.value)}
+                      style={{
+                        width: '100%',
+                        padding: '7px 10px',
+                        borderRadius: '8px',
+                        border: '1px solid var(--border-glass)',
+                        fontSize: '12px',
+                        marginBottom: '6px',
+                        fontFamily: 'var(--font-sans)',
+                        background: '#ffffff',
+                        color: 'var(--text-primary)'
+                      }}
+                    />
+                    <p style={{ fontSize: '10px', color: 'var(--text-muted)', lineHeight: '1.3' }}>
+                      💡 Set Wi-Fi to <strong>Private Network</strong> in Windows if phone cannot connect.
+                    </p>
+                  </div>
+                )}
               </div>
+            </div>
+
+            {/* Right Column: Artisanal Ramen Artwork Showcase */}
+            <div className="kiosk-ramen-showcase">
+              <img
+                src="/ramen-art.png"
+                alt="Umami Artisanal Ramen"
+                className="kiosk-ramen-img"
+              />
             </div>
           </div>
         )}
@@ -439,7 +579,7 @@ function KioskView({ onOpenKitchen }) {
                     style={{ padding: '24px', display: 'flex', flexDirection: 'column', height: '100%', position: 'relative', overflow: 'hidden' }}
                   >
                     {hasMatch && (
-                      <div style={{ position: 'absolute', top: '0', right: '0', background: 'var(--accent-gradient)', padding: '4px 12px', borderBottomLeftRadius: '12px', fontSize: '11px', fontWeight: '700', color: '#ffffff', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                      <div style={{ position: 'absolute', top: '0', right: '0', background: 'var(--brand-gradient)', padding: '4px 12px', borderBottomLeftRadius: '12px', fontSize: '11px', fontWeight: '700', color: '#ffffff', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                         ★ Recommended Match (+{matchCount})
                       </div>
                     )}
@@ -541,7 +681,7 @@ function KioskView({ onOpenKitchen }) {
               {/* Total Row */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '8px', fontSize: '18px', fontWeight: '800' }}>
                 <span>Total Amount:</span>
-                <span style={{ color: 'var(--accent-red)' }}>
+                <span style={{ color: 'var(--brand-primary)' }}>
                   ₱{(orderReceipt?.totalPrice || orderedItem?.price || 0).toFixed(2)}
                 </span>
               </div>
@@ -580,12 +720,27 @@ function KioskView({ onOpenKitchen }) {
       </main>
 
       {/* Footer */}
-      <footer style={{ borderTop: '1px solid var(--border-glass)', paddingTop: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px', color: 'var(--text-muted)' }}>
-        <p>© 2026 Synapse Cuisine. All rights reserved.</p>
-        <div style={{ display: 'flex', gap: '20px' }}>
-          <span>Privacy Enforced (No Logs)</span>
-          <span>•</span>
-          <span>WebSockets Local Link</span>
+      <footer className="kiosk-footer">
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span style={{ fontSize: '16px' }}>🌿</span>
+          <span style={{ fontWeight: '500' }}>© 2026 Synapse Cuisine. All rights reserved.</span>
+        </div>
+
+        <div style={{ flex: 1, height: '1px', background: 'rgba(226, 214, 200, 0.6)', margin: '0 28px' }}></div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '24px', fontSize: '11px', fontWeight: '700', letterSpacing: '0.06em', color: '#8A7D73' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <span>🍜</span>
+            <span>FRESH INGREDIENTS</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <span>🍃</span>
+            <span>BOLD FLAVORS</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <span>👥</span>
+            <span>A SMARTER DINING EXPERIENCE</span>
+          </div>
         </div>
       </footer>
     </div>
