@@ -336,6 +336,121 @@ button {
   border-bottom: 1px solid rgba(226, 214, 200, 0.6);
   position: relative;
   z-index: 10;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.kiosk-header-top-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.kiosk-header-brand {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.kiosk-brand-logo {
+  width: 46px;
+  height: 46px;
+  border-radius: 14px;
+  box-shadow: 0 4px 14px rgba(228, 87, 41, 0.25);
+  border: 1px solid rgba(228, 87, 41, 0.3);
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.kiosk-brand-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.kiosk-brand-title {
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+  line-height: 1.2;
+  margin: 0;
+}
+
+.kiosk-brand-subtitle {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.kiosk-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.kiosk-pill-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+  box-shadow: var(--shadow-sm);
+  transition: all var(--transition-fast);
+  box-sizing: border-box;
+  text-decoration: none;
+}
+
+.kiosk-pill-kitchen {
+  background: rgba(228, 87, 41, 0.08);
+  color: #C24522;
+  border: 1px solid rgba(228, 87, 41, 0.22);
+  cursor: pointer;
+}
+
+.kiosk-pill-kitchen:hover {
+  background: rgba(228, 87, 41, 0.15);
+  border-color: #C24522;
+}
+
+.kiosk-pill-port {
+  background: #ffffff;
+  color: #2D2620;
+  border: 1px solid rgba(226, 214, 200, 0.9);
+}
+
+.kiosk-pill-id {
+  background: rgba(16, 185, 129, 0.08);
+  color: #059669;
+  border: 1px solid rgba(16, 185, 129, 0.25);
+}
+
+.kiosk-pill-settings {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 1px solid rgba(226, 214, 200, 0.9);
+  display: none; /* hidden in top-row on desktop */
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #5C5248;
+  box-shadow: var(--shadow-sm);
+  flex-shrink: 0;
+  transition: all var(--transition-fast);
+}
+
+.kiosk-pill-settings:hover {
+  background: #F5EDE0;
+  color: #1C1917;
+}
+
+.kiosk-pill-settings-desktop {
+  display: flex;
 }
 
 /* Main Standby Grid Layout */
@@ -4271,6 +4386,14 @@ button {
   font-weight: 500;
 }
 
+.dmt-active-prefix-full {
+  display: inline;
+}
+
+.dmt-active-prefix-short {
+  display: none;
+}
+
 .dmt-auto-badge {
   font-size: 10px;
   font-weight: 700;
@@ -4346,6 +4469,14 @@ button {
   background: #F5EDE0;
   color: #1C1917;
   border-color: #C24522;
+}
+
+.dmt-rotate-full {
+  display: inline;
+}
+
+.dmt-rotate-short {
+  display: none;
 }
 
 /* ── Mockup Stage ── */
@@ -5083,4 +5214,575 @@ button {
   max-width: 100% !important;
   box-sizing: border-box !important;
 }
+
+/* ==========================================================================
+   MOBILE RESPONSIVE — Professional Phone Layout (≤ 768px)
+   Fix: No horizontal overflow, contained navbar, readable content
+   ========================================================================== */
+
+@media (max-width: 768px) {
+
+  /* ── Base ────────────────────────────────────────────── */
+  html, body {
+    overflow-x: hidden;
+    width: 100%;
+  }
+
+  .app-container {
+    overflow-x: hidden;
+    width: 100%;
+  }
+
+  /* ── NavBar: Collapse to compact mobile header ────────── */
+  .fp-navbar {
+    padding: 8px 12px;
+    gap: 8px;
+    flex-wrap: nowrap;
+    overflow: hidden;
+    min-height: 54px;
+  }
+
+  /* Hide brand name text on mobile — show logo only */
+  .fp-brand-info {
+    display: none;
+  }
+
+  .fp-logo-badge {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    flex-shrink: 0;
+  }
+
+  /* Nav tabs: horizontal scroll strip */
+  .fp-nav-tabs {
+    flex: 1;
+    min-width: 0;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    gap: 4px;
+    padding: 4px;
+    border-radius: 12px;
+  }
+
+  .fp-nav-tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Compact pill labels */
+  .fp-nav-pill {
+    padding: 6px 10px;
+    font-size: 11px;
+    gap: 4px;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .fp-nav-pill span {
+    display: none; /* hide text, show icon only on very small screens */
+  }
+
+  /* Hide the live-sync status badge on mobile */
+  .fp-nav-status-badge {
+    display: none;
+  }
+
+  /* Keep the lock button compact */
+  .staff-relock-btn span {
+    display: none;
+  }
+
+  .staff-relock-btn {
+    padding: 6px 10px;
+    min-width: 32px;
+    flex-shrink: 0;
+  }
+
+  /* Staff locked trigger pin stays top-left */
+  .staff-locked-trigger-container {
+    top: 8px;
+    left: 8px;
+  }
+
+  /* ── Mobile Wrapper: Full-bleed on phone ──────────────── */
+  .mobile-wrapper {
+    max-width: 100%;
+    width: 100%;
+    min-height: calc(100vh - 54px);
+    border-left: none;
+    border-right: none;
+    padding: 16px;
+    box-shadow: none;
+    margin: 0;
+  }
+
+  /* ── Kiosk View: Stack layout on mobile ──────────────── */
+  .kiosk-container {
+    padding: 16px;
+    overflow-x: hidden;
+  }
+
+  .kiosk-hero-layout {
+    grid-template-columns: 1fr !important;
+    gap: 20px;
+    padding: 16px 0;
+  }
+
+  /* ── Kiosk Header: Professional Mobile Flow ────────────── */
+  .kiosk-header {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 12px !important;
+    padding-bottom: 12px !important;
+    border-bottom: 1px solid rgba(226, 214, 200, 0.5) !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .kiosk-header-top-row {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    width: 100% !important;
+    gap: 10px !important;
+  }
+
+  .kiosk-header-brand {
+    display: flex !important;
+    align-items: center !important;
+    gap: 10px !important;
+    min-width: 0 !important;
+  }
+
+  .kiosk-brand-logo {
+    width: 38px !important;
+    height: 38px !important;
+    border-radius: 11px !important;
+  }
+
+  .kiosk-brand-text {
+    min-width: 0 !important;
+  }
+
+  .kiosk-brand-title {
+    font-size: 16px !important;
+    line-height: 1.15 !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+
+  .kiosk-brand-subtitle {
+    font-size: 9.5px !important;
+    letter-spacing: 0.05em !important;
+    white-space: nowrap !important;
+  }
+
+  .kiosk-header-top-row .kiosk-pill-settings {
+    display: flex !important;
+    width: 34px !important;
+    height: 34px !important;
+  }
+
+  .kiosk-pill-settings-desktop {
+    display: none !important;
+  }
+
+  .kiosk-header-actions {
+    display: flex !important;
+    align-items: center !important;
+    width: 100% !important;
+    gap: 6px !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    scrollbar-width: none !important;
+    padding-bottom: 2px !important;
+  }
+
+  .kiosk-header-actions::-webkit-scrollbar {
+    display: none !important;
+  }
+
+  .kiosk-pill-btn {
+    padding: 6px 11px !important;
+    font-size: 11.5px !important;
+    gap: 5px !important;
+    border-radius: 999px !important;
+    white-space: nowrap !important;
+    flex-shrink: 0 !important;
+  }
+
+  .kiosk-pill-icon {
+    width: 13px !important;
+    height: 13px !important;
+  }
+
+  .kiosk-pill-chevron {
+    width: 12px !important;
+    height: 12px !important;
+  }
+
+  .kiosk-feature-row {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+    max-width: 100%;
+  }
+
+  .kiosk-sim-card {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+    max-width: 100%;
+    padding: 14px 16px;
+  }
+
+  .kiosk-qr-card {
+    max-width: 100%;
+    padding: 20px 16px 16px;
+    border-radius: 20px;
+  }
+
+  .kiosk-ramen-showcase {
+    display: none !important;
+  }
+
+  /* ── Cart Drawer: Full-width on mobile ───────────────── */
+  .cart-drawer-content {
+    max-width: 100%;
+    border-radius: 20px 20px 0 0;
+    padding: 20px 16px;
+  }
+
+  /* ── Restaurant Operations View ──────────────────────── */
+  .ops-page-clean {
+    overflow-x: hidden;
+  }
+
+  .ops-main-clean {
+    padding: 12px;
+  }
+
+  .ops-header-card {
+    flex-direction: column;
+    gap: 10px;
+    padding: 14px 16px;
+    align-items: flex-start;
+  }
+
+  .ops-title {
+    font-size: 13px !important;
+  }
+
+  .ops-kpi-row {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 10px;
+  }
+
+  .ops-kpi-card {
+    padding: 12px !important;
+  }
+
+  .ops-kpi-value {
+    font-size: 20px !important;
+  }
+
+  .ops-dual-panel-grid {
+    grid-template-columns: 1fr !important;
+    gap: 14px;
+  }
+
+  .ops-tabs-nav {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    padding-bottom: 2px;
+  }
+
+  .ops-tabs-nav::-webkit-scrollbar {
+    display: none;
+  }
+
+  .ops-tabs-group {
+    flex-wrap: nowrap;
+    gap: 6px;
+    min-width: max-content;
+  }
+
+  .ops-tab-pill {
+    white-space: nowrap;
+    font-size: 12px !important;
+    padding: 7px 14px !important;
+  }
+
+  .ops-glance-grid {
+    grid-template-columns: 1fr !important;
+    gap: 10px;
+  }
+
+  /* ── Kitchen View ─────────────────────────────────────── */
+  .kitchen-view-container {
+    padding: 16px;
+  }
+
+  .kitchen-header {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .kitchen-orders-grid {
+    grid-template-columns: 1fr !important;
+    gap: 14px;
+  }
+
+  /* ── Busser / Food Runner View ───────────────────────── */
+  .busser-dashboard {
+    padding: 16px;
+  }
+
+  /* ── Order Tracker (Mobile View) ─────────────────────── */
+  .fp-tracking-card {
+    padding: 16px;
+  }
+
+  .fp-step-item {
+    width: 60px;
+  }
+
+  .fp-step-circle {
+    width: 36px;
+    height: 36px;
+    font-size: 15px;
+  }
+
+  .fp-step-label {
+    font-size: 9px;
+    margin-top: 5px;
+  }
+
+  /* ── Floor Table Grid ─────────────────────────────────── */
+  .floor-tables-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 10px;
+  }
+
+  /* ── Stock Items ──────────────────────────────────────── */
+  .stock-item-row {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  /* ── mvault (onboarding) ─────────────────────────────── */
+  .mvault-root {
+    padding: 16px;
+  }
+
+  .mvault-title {
+    font-size: 20px !important;
+  }
+
+  /* ── Responsive Device Mockup Toolbar on Mobile ────────── */
+  .device-mockup-wrapper {
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 0 4px !important;
+    box-sizing: border-box !important;
+    gap: 12px !important;
+  }
+
+  .device-mockup-toolbar {
+    display: grid !important;
+    grid-template-columns: 1fr auto !important;
+    grid-template-areas:
+      "status action"
+      "modes  modes" !important;
+    width: 100% !important;
+    max-width: 440px !important;
+    margin: 0 auto !important;
+    padding: 9px 12px !important;
+    border-radius: 16px !important; /* Balanced modern card instead of distorted 9999px oval */
+    row-gap: 8px !important;
+    column-gap: 8px !important;
+    box-sizing: border-box !important;
+    box-shadow: 0 4px 18px rgba(44, 26, 17, 0.08), 0 1px 3px rgba(44, 26, 17, 0.04) !important;
+    background: rgba(255, 255, 255, 0.95) !important;
+    backdrop-filter: blur(16px) !important;
+    -webkit-backdrop-filter: blur(16px) !important;
+    border: 1px solid rgba(214, 196, 175, 0.8) !important;
+  }
+
+  .dmt-left {
+    grid-area: status !important;
+    min-width: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    overflow: hidden !important;
+  }
+
+  .dmt-indicator {
+    display: flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    min-width: 0 !important;
+    font-size: 11.5px !important;
+  }
+
+  .dmt-active-text {
+    font-size: 11.5px !important;
+    white-space: nowrap !important;
+    color: #3F2E23 !important;
+  }
+
+  .dmt-active-prefix-full {
+    display: none !important;
+  }
+
+  .dmt-active-prefix-short {
+    display: inline !important;
+    color: #786456 !important;
+  }
+
+  .dmt-auto-badge {
+    font-size: 9px !important;
+    padding: 2px 6px !important;
+    letter-spacing: 0.03em !important;
+    white-space: nowrap !important;
+    flex-shrink: 0 !important;
+  }
+
+  .dmt-right {
+    grid-area: action !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-end !important;
+  }
+
+  .dmt-rotate-btn {
+    padding: 4px 10px !important;
+    font-size: 11px !important;
+    gap: 4px !important;
+    border-radius: 9999px !important;
+    white-space: nowrap !important;
+    border: 1px solid rgba(214, 196, 175, 0.85) !important;
+    background: #FAF6F0 !important;
+    color: #4A3B32 !important;
+  }
+
+  .dmt-rotate-btn:hover {
+    background: #F3EAE0 !important;
+    color: #C24522 !important;
+  }
+
+  .dmt-rotate-full {
+    display: none !important;
+  }
+
+  .dmt-rotate-short {
+    display: inline !important;
+  }
+
+  .dmt-center {
+    grid-area: modes !important;
+    width: 100% !important;
+  }
+
+  .dmt-segmented-control {
+    width: 100% !important;
+    display: grid !important;
+    grid-template-columns: repeat(4, 1fr) !important;
+    gap: 3px !important;
+    padding: 3px !important;
+    border-radius: 12px !important;
+    background: rgba(0, 0, 0, 0.05) !important;
+    box-sizing: border-box !important;
+  }
+
+  .dmt-seg-btn {
+    width: 100% !important;
+    justify-content: center !important;
+    padding: 6px 2px !important;
+    font-size: 11px !important;
+    font-weight: 600 !important;
+    border-radius: 9px !important;
+    gap: 4px !important;
+    text-align: center !important;
+    box-sizing: border-box !important;
+  }
+
+  .dmt-seg-btn.active {
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12) !important;
+  }
+
+  /* ── Mobile Phone Chassis within DeviceMockup ── */
+  .mockup-smartphone-unit.phone-portrait {
+    width: 100% !important;
+    max-width: 420px !important;
+  }
+
+  .mockup-smartphone-unit.phone-landscape {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  .phone-chassis {
+    border-width: 6px !important;
+    border-radius: 32px !important;
+  }
+}
+
+/* Extra-small phones (≤ 430px): Fine-tune toolbar and chassis */
+@media (max-width: 430px) {
+  .fp-nav-pill {
+    padding: 5px 8px;
+    font-size: 10px;
+  }
+
+  /* On tiny screens still hide text labels in nav */
+  .fp-nav-pill span {
+    display: none;
+  }
+
+  .dmt-active-prefix-short {
+    display: none !important;
+  }
+
+  .dmt-seg-btn {
+    font-size: 10.5px !important;
+    gap: 3px !important;
+    padding: 5px 1px !important;
+  }
+
+  .phone-chassis {
+    border-width: 4px !important;
+    border-radius: 26px !important;
+  }
+
+  .kiosk-brand-title {
+    font-size: 14.5px !important;
+  }
+
+  .kiosk-brand-subtitle {
+    font-size: 8.5px !important;
+  }
+
+  .kiosk-pill-btn {
+    padding: 5px 9px !important;
+    font-size: 10.5px !important;
+    gap: 4px !important;
+  }
+}
+
+/* Medium mobile (431px – 768px): Show short labels */
+@media (min-width: 431px) and (max-width: 768px) {
+  .fp-nav-pill span {
+    display: inline; /* show on mid-size phones */
+  }
+
+  .fp-nav-pill {
+    font-size: 11px;
+    padding: 6px 10px;
+  }
+}
+
 

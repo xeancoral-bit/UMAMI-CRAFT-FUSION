@@ -40,7 +40,7 @@ function KioskView({ onOpenKitchen }) {
   const [showIpConfig, setShowIpConfig] = useState(false);
   const [restaurantInfo, setRestaurantInfo] = useState({
     id: 'umami',
-    name: 'Synapse Cuisine',
+    name: 'Umami Craft Fusion',
     cuisine: 'Zero-Retention Smart Menu Terminal',
     tagline: 'A dining experience tailored to your profile.',
     backendPort: 3001,
@@ -237,86 +237,63 @@ function KioskView({ onOpenKitchen }) {
     <div className="kiosk-container fade-in">
       {/* Kiosk Header */}
       <header className="kiosk-header">
-        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-          <img
-            src="/brand-logo.png"
-            alt="Umami Craft Fusion"
-            style={{
-              width: '46px',
-              height: '46px',
-              borderRadius: '14px',
-              boxShadow: '0 4px 14px rgba(228, 87, 41, 0.25)',
-              border: '1px solid rgba(228, 87, 41, 0.3)',
-              objectFit: 'cover'
-            }}
-          />
-          <div>
-            <h1 style={{ fontSize: '22px', fontWeight: '800', letterSpacing: '-0.02em', color: 'var(--text-primary)', lineHeight: '1.2' }}>
-              {restaurantInfo.name.toUpperCase()}
-            </h1>
-            <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: '700', letterSpacing: '0.08em' }}>
-              {restaurantInfo.cuisine.toUpperCase()} • SMART TERMINAL
-            </span>
-          </div>
-        </div>
-        
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          {onOpenKitchen && (
-            <button
-              onClick={onOpenKitchen}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '8px',
-                padding: '8px 18px',
-                borderRadius: '999px',
-                fontSize: '13px',
-                fontWeight: '700',
-                cursor: 'pointer',
-                background: 'rgba(228, 87, 41, 0.08)',
-                color: '#C24522',
-                border: '1px solid rgba(228, 87, 41, 0.22)',
-                boxShadow: 'var(--shadow-sm)',
-                transition: 'all var(--transition-fast)'
-              }}
-              title="Open Kitchen Display System"
-            >
-              <Store size={15} color="#C24522" />
-              <span>Kitchen Display</span>
-              <ChevronRight size={14} color="#C24522" />
-            </button>
-          )}
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#ffffff', padding: '8px 16px', borderRadius: '999px', border: '1px solid rgba(226, 214, 200, 0.9)', boxShadow: 'var(--shadow-sm)' }}>
-            <div className={`pulse-indicator ${socketConnected ? 'active' : 'disconnected'}`}></div>
-            <span style={{ fontSize: '13px', fontWeight: '700', color: '#2D2620' }}>
-              {socketConnected ? `Port : ${currentBackendPort}` : 'Connecting Server...'}
-            </span>
-          </div>
-          
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(16, 185, 129, 0.08)', padding: '8px 16px', borderRadius: '999px', border: '1px solid rgba(16, 185, 129, 0.25)', boxShadow: 'var(--shadow-sm)' }}>
-            <Monitor size={15} color="#059669" />
-            <span style={{ fontSize: '13px', fontWeight: '700', color: '#059669' }}>
-              Kiosk #{kioskId}
-            </span>
-            <ChevronRight size={14} color="#059669" />
+        <div className="kiosk-header-top-row">
+          <div className="kiosk-header-brand">
+            <img
+              src="/brand-logo.png"
+              alt="Umami Craft Fusion"
+              className="kiosk-brand-logo"
+            />
+            <div className="kiosk-brand-text">
+              <h1 className="kiosk-brand-title">
+                {restaurantInfo.name.toUpperCase()}
+              </h1>
+              <span className="kiosk-brand-subtitle">
+                {restaurantInfo.cuisine.toUpperCase()} • SMART TERMINAL
+              </span>
+            </div>
           </div>
 
           <button
             onClick={() => setShowIpConfig(prev => !prev)}
-            style={{
-              width: '38px',
-              height: '38px',
-              borderRadius: '50%',
-              background: '#ffffff',
-              border: '1px solid rgba(226, 214, 200, 0.9)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer',
-              color: '#5C5248',
-              boxShadow: 'var(--shadow-sm)'
-            }}
+            className="kiosk-pill-settings"
+            title="Kiosk Settings & Network Configuration"
+          >
+            <Settings size={16} />
+          </button>
+        </div>
+        
+        <div className="kiosk-header-actions">
+          {onOpenKitchen && (
+            <button
+              onClick={onOpenKitchen}
+              className="kiosk-pill-btn kiosk-pill-kitchen"
+              title="Open Kitchen Display System"
+            >
+              <Store size={14} color="#C24522" className="kiosk-pill-icon" />
+              <span className="kiosk-pill-label">Kitchen Display</span>
+              <ChevronRight size={13} color="#C24522" className="kiosk-pill-chevron" />
+            </button>
+          )}
+
+          <div className="kiosk-pill-btn kiosk-pill-port">
+            <div className={`pulse-indicator ${socketConnected ? 'active' : 'disconnected'}`}></div>
+            <span className="kiosk-pill-label">
+              {socketConnected ? `Port : ${currentBackendPort}` : 'Connecting Server...'}
+            </span>
+          </div>
+          
+          <div className="kiosk-pill-btn kiosk-pill-id">
+            <Monitor size={14} color="#059669" className="kiosk-pill-icon" />
+            <span className="kiosk-pill-label">
+              Kiosk #{kioskId}
+            </span>
+            <ChevronRight size={13} color="#059669" className="kiosk-pill-chevron" />
+          </div>
+
+          <button
+            onClick={() => setShowIpConfig(prev => !prev)}
+            className="kiosk-pill-settings kiosk-pill-settings-desktop"
             title="Kiosk Settings & Network Configuration"
           >
             <Settings size={16} />
@@ -723,7 +700,7 @@ function KioskView({ onOpenKitchen }) {
       <footer className="kiosk-footer">
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <span style={{ fontSize: '16px' }}>🌿</span>
-          <span style={{ fontWeight: '500' }}>© 2026 Synapse Cuisine. All rights reserved.</span>
+          <span style={{ fontWeight: '500' }}>© 2026 Umami Craft Fusion. All rights reserved.</span>
         </div>
 
         <div style={{ flex: 1, height: '1px', background: 'rgba(226, 214, 200, 0.6)', margin: '0 28px' }}></div>

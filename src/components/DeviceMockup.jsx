@@ -92,7 +92,9 @@ export default function DeviceMockup({
             <div className="dmt-indicator">
               <span className="dmt-pulse" />
               <span className="dmt-active-text">
-                Active Display: <strong>{activeDevice.toUpperCase()}</strong>
+                <span className="dmt-active-prefix-full">Active Display: </span>
+                <span className="dmt-active-prefix-short">Display: </span>
+                <strong>{activeDevice.toUpperCase()}</strong>
               </span>
               {selectedDevice === 'auto' && (
                 <span className="dmt-auto-badge">Auto-Detected</span>
@@ -150,7 +152,12 @@ export default function DeviceMockup({
                 title={`Switch to ${orientation === 'portrait' ? 'Landscape' : 'Portrait'} mode`}
               >
                 <RotateCcw size={13} />
-                <span>{orientation === 'portrait' ? 'Rotate Landscape' : 'Rotate Portrait'}</span>
+                <span className="dmt-rotate-full">
+                  {orientation === 'portrait' ? 'Rotate Landscape' : 'Rotate Portrait'}
+                </span>
+                <span className="dmt-rotate-short">
+                  {orientation === 'portrait' ? 'Landscape' : 'Portrait'}
+                </span>
               </button>
             )}
           </div>
