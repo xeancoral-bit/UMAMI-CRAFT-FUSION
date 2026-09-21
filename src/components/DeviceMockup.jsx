@@ -14,6 +14,7 @@ export default function DeviceMockup({
   children,
   defaultDevice = 'auto',
   showToolbar = true,
+  isBuzzing = false,
   title = 'System Interface Preview'
 }) {
   const [detectedMode, setDetectedMode] = useState('laptop');
@@ -171,13 +172,18 @@ export default function DeviceMockup({
             1. LAPTOP MOCKUP
             ═══════════════════════════════════════ */}
         {activeDevice === 'laptop' && (
-          <div className="mockup-laptop-unit">
+          <div className={`mockup-laptop-unit ${isBuzzing ? 'gadget-buzzing' : ''}`} style={{ position: 'relative' }}>
+            {isBuzzing && (
+              <div className="gadget-buzzer-beacon">
+                <span>🚨 LAPTOP BUZZING — ORDER READY!</span>
+              </div>
+            )}
             {/* Top Display Lid */}
             <div className="laptop-display-lid">
               {/* Webcam & Sensor */}
               <div className="laptop-webcam-bar">
                 <span className="laptop-webcam-lens" />
-                <span className="laptop-webcam-indicator" />
+                <span className="laptop-webcam-indicator" style={isBuzzing ? { background: '#ef4444', boxShadow: '0 0 10px #ef4444' } : {}} />
               </div>
 
               {/* Inner Screen Bezel & Content */}
@@ -201,11 +207,16 @@ export default function DeviceMockup({
             2. TABLET MOCKUP
             ═══════════════════════════════════════ */}
         {activeDevice === 'tablet' && (
-          <div className={`mockup-tablet-unit tablet-${orientation}`}>
+          <div className={`mockup-tablet-unit tablet-${orientation} ${isBuzzing ? 'gadget-buzzing' : ''}`} style={{ position: 'relative' }}>
+            {isBuzzing && (
+              <div className="gadget-buzzer-beacon">
+                <span>🚨 TABLET BUZZING — ORDER READY!</span>
+              </div>
+            )}
             <div className="tablet-frame">
               {/* Front Camera */}
               <div className="tablet-camera-notch">
-                <span className="tablet-camera-dot" />
+                <span className="tablet-camera-dot" style={isBuzzing ? { background: '#ef4444', boxShadow: '0 0 10px #ef4444' } : {}} />
               </div>
 
               {/* Screen Viewport */}
@@ -227,13 +238,18 @@ export default function DeviceMockup({
             3. SMARTPHONE MOCKUP
             ═══════════════════════════════════════ */}
         {activeDevice === 'smartphone' && (
-          <div className={`mockup-smartphone-unit phone-${orientation}`}>
+          <div className={`mockup-smartphone-unit phone-${orientation} ${isBuzzing ? 'gadget-buzzing' : ''}`} style={{ position: 'relative' }}>
+            {isBuzzing && (
+              <div className="gadget-buzzer-beacon">
+                <span>🚨 PHONE BUZZING — ORDER READY!</span>
+              </div>
+            )}
             <div className="phone-chassis">
               {/* Dynamic Island / Speaker Pill */}
               <div className="phone-dynamic-island">
                 <div className="phone-island-pill">
                   <span className="phone-island-camera" />
-                  <span className="phone-island-sensor" />
+                  <span className="phone-island-sensor" style={isBuzzing ? { background: '#ef4444', boxShadow: '0 0 10px #ef4444' } : {}} />
                 </div>
               </div>
 

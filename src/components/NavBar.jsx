@@ -17,28 +17,120 @@ function NavBar({
   restaurantInfo,
   activeOrdersCount = 0,
   readyOrdersCount = 0,
-  socketConnected = true
+  socketConnected = true,
+  isAdminAuthenticated = false,
+  onOpenAdminSecurity
 }) {
   // Always start LOCKED — PIN required every session
   const [isUnlocked, setIsUnlocked] = useState(false);
   const [showPinModal, setShowPinModal] = useState(false);
+  const [pinLength, setPinLength] = useState(() => {
+    const saved = localStorage.getItem('umami_pin_length');
+    return saved ? parseInt(saved, 10) : 9;
+  });
   const [pinInput, setPinInput] = useState('');
   const [pinError, setPinError] = useState('');
   const [isShaking, setIsShaking] = useState(false);
+  const [isVerifying, setIsVerifying] = useState(false);
 
-  const submitPin = useCallback((codeToVerify) => {
-    const target = codeToVerify !== undefined ? codeToVerify : pinInput;
+  // Fetch current PIN length and listen for real-time updates
+  useEffect(() => {
+    fetch('/api/admin/pin')
+      .then(res => res.json())
+      .then(data => {
+        if (data && data.length) {
+          setPinLength(data.length);
+          localStorage.setItem('umami_pin_length', String(data.length));
+        }
+      })
+      .catch(() => {});
+
+    const handlePinUpdated = (e) => {
+      if (e?.detail?.length) {
+        setPinLength(e.detail.length);
+      }
+    };
+
+    const handleStorageChange = (e) => {
+      if (e.key === 'umami_pin_length' && e.newValue) {
+        setPinLength(parseInt(e.newValue, 10));
+      }
+    };
+
+    const handleKeyDown = (e) => {
+      if ((e.altKey && e.key.toLowerCase() === 'l') || (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'l')) {
+        e.preventDefault();
+        setShowPinModal(prev => !prev);
+      }
+    };
+
+    window.addEventListener('umami_pin_updated', handlePinUpdated);
+    window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      window.removeEventListener('umami_pin_updated', handlePinUpdated);
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
+
+  const submitPin = useCallback(async (codeToVerify) => {
+    const target = (codeToVerify !== undefined ? codeToVerify : pinInput).trim();
+    if (!target) return;
+
+    setIsVerifying(true);
+
+    // 1. Instant check against locally saved PIN (or default 123456789)
+    const localSavedPin = localStorage.getItem('umami_admin_pin') || '123456789';
+    if (target === localSavedPin) {
+      setIsUnlocked(true);
+      setShowPinModal(false);
+      setPinInput('');
+      setPinError('');
+      setIsVerifying(false);
+      return;
+    }
+
+    // 2. Validate against server API
+    try {
+      const response = await fetch('/api/admin/verify-pin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pin: target })
+      });
+      const data = await response.json();
+
+      if (response.ok && data.valid) {
+        setIsUnlocked(true);
+        setShowPinModal(false);
+        setPinInput('');
+        setPinError('');
+        if (data.length) {
+          setPinLength(data.length);
+          localStorage.setItem('umami_pin_length', String(data.length));
+        }
+        setIsVerifying(false);
+        return;
+      }
+    } catch (err) {}
+
+    // 3. Fallback check for default 123456789
     if (target === '123456789') {
       setIsUnlocked(true);
       setShowPinModal(false);
       setPinInput('');
       setPinError('');
-    } else {
-      setPinError('Invalid Passcode. Access restricted.');
-      setIsShaking(true);
-      setTimeout(() => setIsShaking(false), 500);
-      setPinInput('');
+      setIsVerifying(false);
+      return;
     }
+
+    // Invalid PIN
+    setPinError('Invalid Passcode. Access restricted.');
+    setIsShaking(true);
+    setTimeout(() => setIsShaking(false), 500);
+    setPinInput('');
+    setIsVerifying(false);
   }, [pinInput]);
 
   // Keyboard listener when PIN modal is open
@@ -56,12 +148,12 @@ function NavBar({
         setPinInput((prev) => prev.slice(0, -1));
         setPinError('');
       } else if (/^[0-9]$/.test(e.key)) {
-        if (pinInput.length < 12) {
+        if (pinInput.length < pinLength) {
           setPinInput((prev) => {
             const next = prev + e.key;
-            // Auto check when reaches 9 digits
-            if (next.length === 9) {
-              setTimeout(() => submitPin(next), 80);
+            // Auto check when exact number of digits is reached
+            if (next.length === pinLength) {
+              setTimeout(() => submitPin(next), 90);
             }
             return next;
           });
@@ -72,18 +164,24 @@ function NavBar({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [showPinModal, pinInput, submitPin]);
+  }, [showPinModal, pinInput, pinLength, submitPin]);
 
   const handleLock = () => {
+    if (currentView === 'admin' || isAdminAuthenticated) {
+      if (onOpenAdminSecurity) {
+        onOpenAdminSecurity();
+        return;
+      }
+    }
     setIsUnlocked(false);
   };
 
   const handleNumpadPress = (val) => {
-    if (pinInput.length < 12) {
+    if (pinInput.length < pinLength) {
       const next = pinInput + val;
       setPinInput(next);
       setPinError('');
-      if (next.length === 9) {
+      if (next.length === pinLength) {
         setTimeout(() => submitPin(next), 100);
       }
     }
@@ -123,16 +221,16 @@ function NavBar({
           <div className="staff-pin-icon-wrap">
             <KeyRound size={26} color="#E45729" />
           </div>
-          <h3 className="staff-pin-title">Staff & Admin Access</h3>
+          <h3 className="staff-pin-title">Staff &amp; Admin Access</h3>
           <p className="staff-pin-subtitle">
-            Enter the 9-digit security passcode to unlock management modules.
+            Enter the {pinLength}-digit security passcode to unlock management modules.
           </p>
         </div>
 
-        {/* PIN Dots / Display */}
+        {/* PIN Dots / Display - Dynamically displays exact number of circles */}
         <div className="staff-pin-display-wrap">
           <div className="staff-pin-dots">
-            {[...Array(9)].map((_, i) => (
+            {[...Array(pinLength)].map((_, i) => (
               <span
                 key={i}
                 className={`staff-pin-dot ${i < pinInput.length ? 'filled' : ''}`}
@@ -196,10 +294,10 @@ function NavBar({
             type="button"
             className="staff-pin-submit-btn"
             onClick={() => submitPin()}
-            disabled={pinInput.length === 0}
+            disabled={pinInput.length !== pinLength || isVerifying}
           >
             <ShieldCheck size={16} />
-            <span>Unlock</span>
+            <span>{isVerifying ? 'Verifying...' : 'Unlock'}</span>
           </button>
         </div>
       </div>
@@ -208,6 +306,11 @@ function NavBar({
 
   // If LOCKED: Only render the discrete icon button (NO logo image, NO module tabs)
   if (!isUnlocked) {
+    // Hide the lock trigger icon on customer-facing Kiosk and Mobile views
+    if (currentView === 'kiosk' || currentView === 'mobile') {
+      return showPinModal ? renderPinModal() : null;
+    }
+
     return (
       <>
         <div className="staff-locked-trigger-container">
@@ -306,6 +409,15 @@ function NavBar({
             <Store size={15} />
             <span>Restaurant Module</span>
           </button>
+
+          <button
+            className={`fp-nav-pill ${currentView === 'admin' ? 'active' : ''}`}
+            onClick={() => onSelectView('admin')}
+            title="System Administration & Enterprise Settings"
+          >
+            <ShieldCheck size={15} />
+            <span>Admin Panel</span>
+          </button>
         </nav>
 
         {/* Live System Connectivity Badge + Lock / Slide-away button */}
@@ -329,7 +441,11 @@ function NavBar({
             type="button"
             className="staff-relock-btn"
             onClick={handleLock}
-            title="Lock & Hide Staff Navigation Bar"
+            title={
+              currentView === 'admin' || isAdminAuthenticated
+                ? 'Admin Panel Security & Password Management'
+                : 'Lock & Hide Staff Navigation Bar'
+            }
           >
             <Lock size={13} />
             <span>Lock</span>

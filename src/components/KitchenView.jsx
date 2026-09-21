@@ -53,9 +53,16 @@ function playChime(type = 'new-order') {
   }
 }
 
+function normalizeKitchenStatus(status) {
+  if (!status) return 'New';
+  if (status === 'Order Received') return 'New';
+  if (status === 'Order Ready' || status === 'Ready') return 'Ready for Pickup';
+  return status;
+}
+
 function KitchenView({ onReturnToKiosk }) {
   const [orders, setOrders] = useState([]);
-  const [filter, setFilter] = useState('active'); // 'active' | 'received' | 'cooking' | 'ready' | 'all'
+  const [filter, setFilter] = useState('active'); // 'active' | 'received' | 'preparing' | 'cooking' | 'ready' | 'all'
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [restaurantInfo, setRestaurantInfo] = useState({
@@ -81,13 +88,59 @@ function KitchenView({ onReturnToKiosk }) {
       })
       .catch(err => console.error("Error loading restaurant info:", err));
 
-    // Load existing orders
-    fetch('/api/orders')
-      .then(res => res.json())
-      .then(data => {
-        if (Array.isArray(data)) setOrders(data);
-      })
-      .catch(err => console.error("Error loading kitchen orders:", err));
+    // Load existing orders from API and localStorage
+    const loadAllOrders = () => {
+      let localOrders = [];
+      try {
+        const stored = localStorage.getItem('umami_orders');
+        if (stored) localOrders = JSON.parse(stored);
+        const active = localStorage.getItem('synapse_active_order');
+        if (active) {
+          const parsedActive = JSON.parse(active);
+          if (parsedActive && !localOrders.some(o => (o.orderId || o.id) === (parsedActive.orderId || parsedActive.id))) {
+            localOrders.unshift(parsedActive);
+          }
+        }
+      } catch (e) {}
+
+      fetch('/api/orders')
+        .then(res => res.json())
+        .then(data => {
+          const apiOrders = Array.isArray(data) ? data : [];
+          // Deduplicate and merge API and local orders
+          const merged = [...apiOrders];
+          localOrders.forEach(lo => {
+            const loId = lo.orderId || lo.id;
+            const idx = merged.findIndex(m => (m.orderId || m.id) === loId);
+            if (idx >= 0) {
+              merged[idx] = { ...merged[idx], ...lo };
+            } else {
+              merged.push(lo);
+            }
+          });
+          setOrders(merged);
+        })
+        .catch(err => {
+          console.error("Error loading kitchen orders:", err);
+          if (localOrders.length > 0) setOrders(localOrders);
+        });
+    };
+
+    loadAllOrders();
+
+    const handleWindowOrderEvent = (e) => {
+      console.log("[Kitchen] Received new order event:", e.detail);
+      loadAllOrders();
+      if (soundEnabled) playChime('new-order');
+    };
+
+    window.addEventListener('storage', loadAllOrders);
+    window.addEventListener('umami_new_order', handleWindowOrderEvent);
+
+    return () => {
+      window.removeEventListener('storage', loadAllOrders);
+      window.removeEventListener('umami_new_order', handleWindowOrderEvent);
+    };
   }, []);
 
   // Initialize Socket.io Connection as kitchen role
@@ -109,9 +162,10 @@ function KitchenView({ onReturnToKiosk }) {
 
     socket.on('new-kitchen-order', (newOrder) => {
       console.log("[Kitchen] Received new incoming order:", newOrder);
+      const newId = newOrder.orderId || newOrder.id;
       setOrders(prev => {
-        const exists = prev.some(o => o.orderId === newOrder.orderId);
-        if (exists) return prev;
+        const exists = prev.some(o => (o.orderId || o.id) === newId);
+        if (exists) return prev.map(o => (o.orderId || o.id) === newId ? { ...o, ...newOrder } : o);
         return [newOrder, ...prev];
       });
       if (soundEnabled) {
@@ -119,10 +173,24 @@ function KitchenView({ onReturnToKiosk }) {
       }
     });
 
-    socket.on('order-status-updated', ({ orderId, status, updatedAt }) => {
-      console.log(`[Kitchen] Order ${orderId} updated to ${status}`);
+    socket.on('order-status-updated', (payload) => {
+      const orderId = payload.orderId || payload.id;
+      const newStatus = payload.status;
+      console.log(`[Kitchen] Order ${orderId} updated to ${newStatus}`);
       setOrders(prev =>
-        prev.map(o => (o.orderId === orderId ? { ...o, status, updatedAt } : o))
+        prev.map(o => {
+          if ((o.orderId || o.id) === orderId) {
+            return {
+              ...o,
+              status: newStatus,
+              nextStatus: payload.nextStatus || o.nextStatus,
+              stripeColor: payload.stripeColor || o.stripeColor,
+              busserName: payload.busserName !== undefined ? payload.busserName : o.busserName,
+              updatedAt: payload.updatedAt || new Date().toISOString()
+            };
+          }
+          return o;
+        })
       );
     });
 
@@ -136,28 +204,62 @@ function KitchenView({ onReturnToKiosk }) {
     };
   }, [soundEnabled]);
 
+  const handleBuzzGadget = (orderId) => {
+    if (soundEnabled) playChime('ready');
+    try {
+      localStorage.setItem('synapse_gadget_buzz', JSON.stringify({ orderId, timestamp: Date.now() }));
+      const active = JSON.parse(localStorage.getItem('synapse_active_order') || 'null');
+      if (active && ((active.orderId || active.id) === orderId || !orderId)) {
+        localStorage.setItem('synapse_active_order', JSON.stringify({ ...active, status: 'Ready for Pickup', isBuzzing: true }));
+      }
+      window.dispatchEvent(new CustomEvent('synapse_buzzer_alert', { detail: { orderId } }));
+    } catch (e) {}
+
+    if (socketRef.current && socketConnected) {
+      socketRef.current.emit('update-order-status', { orderId, status: 'Ready for Pickup', updatedBy: 'Kitchen Staff' });
+    }
+  };
+
   const handleUpdateStatus = (orderId, newStatus) => {
     // 1. Optimistic UI update
     setOrders(prev =>
       prev.map(o =>
-        o.orderId === orderId ? { ...o, status: newStatus, updatedAt: new Date().toISOString() } : o
+        (o.orderId || o.id) === orderId ? { ...o, status: newStatus, updatedAt: new Date().toISOString() } : o
       )
     );
 
-    if (newStatus === 'Order Ready' && soundEnabled) {
+    // 2. Sync to localStorage for instant cross-tab communication
+    try {
+      const stored = JSON.parse(localStorage.getItem('umami_orders') || '[]');
+      const updatedList = stored.map(o => (o.orderId || o.id) === orderId ? { ...o, status: newStatus, updatedAt: new Date().toISOString() } : o);
+      localStorage.setItem('umami_orders', JSON.stringify(updatedList));
+
+      const active = JSON.parse(localStorage.getItem('synapse_active_order') || 'null');
+      if (active && (active.orderId || active.id) === orderId) {
+        const updatedActive = { ...active, status: newStatus, isBuzzing: newStatus === 'Ready for Pickup' };
+        localStorage.setItem('synapse_active_order', JSON.stringify(updatedActive));
+      }
+
+      if (newStatus === 'Ready for Pickup') {
+        localStorage.setItem('synapse_gadget_buzz', JSON.stringify({ orderId, timestamp: Date.now() }));
+        window.dispatchEvent(new CustomEvent('synapse_buzzer_alert', { detail: { orderId } }));
+      }
+    } catch (e) {}
+
+    if (newStatus === 'Ready for Pickup' && soundEnabled) {
       playChime('ready');
     }
 
-    // 2. Emit via socket
+    // 3. Emit via socket
     if (socketRef.current && socketConnected) {
-      socketRef.current.emit('update-order-status', { orderId, status: newStatus });
+      socketRef.current.emit('update-order-status', { orderId, status: newStatus, updatedBy: 'Kitchen Staff' });
     }
 
-    // 3. Resilient REST API fallback
+    // 4. Resilient REST API fallback
     fetch(`/api/orders/${orderId}/status`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status: newStatus })
+      body: JSON.stringify({ status: newStatus, updatedBy: 'Kitchen Staff' })
     }).catch(err => console.error("Error updating order status via API:", err));
   };
 
@@ -168,17 +270,24 @@ function KitchenView({ onReturnToKiosk }) {
     return Math.max(0, Math.floor(diffMs / 60000));
   };
 
+  const getNorm = (order) => normalizeKitchenStatus(order.status);
+
   // Filtered orders list
   const filteredOrders = orders.filter(order => {
-    if (filter === 'active') return order.status === 'Order Received' || order.status === 'Cooking';
-    if (filter === 'received') return order.status === 'Order Received';
-    if (filter === 'cooking') return order.status === 'Cooking';
-    if (filter === 'ready') return order.status === 'Order Ready';
+    const s = getNorm(order);
+    if (filter === 'active') return ['New', 'Preparing', 'Cooking', 'Ready for Pickup', 'Out for Delivery'].includes(s);
+    if (filter === 'received') return s === 'New';
+    if (filter === 'preparing') return s === 'Preparing';
+    if (filter === 'cooking') return s === 'Cooking';
+    if (filter === 'ready') return s === 'Ready for Pickup';
     return true; // 'all'
   });
 
-  const activeCount = orders.filter(o => o.status === 'Order Received' || o.status === 'Cooking').length;
-  const readyCount = orders.filter(o => o.status === 'Order Ready').length;
+  const activeCount = orders.filter(o => ['New', 'Preparing', 'Cooking', 'Ready for Pickup', 'Out for Delivery'].includes(getNorm(o))).length;
+  const receivedCount = orders.filter(o => getNorm(o) === 'New').length;
+  const preparingCount = orders.filter(o => getNorm(o) === 'Preparing').length;
+  const cookingCount = orders.filter(o => getNorm(o) === 'Cooking').length;
+  const readyCount = orders.filter(o => getNorm(o) === 'Ready for Pickup').length;
 
   return (
     <div className="kitchen-view-container fade-in">
@@ -229,7 +338,7 @@ function KitchenView({ onReturnToKiosk }) {
 
           <div className="kitchen-socket-badge">
             <div className={`pulse-indicator ${socketConnected ? 'active' : 'disconnected'}`}></div>
-            <span>{socketConnected ? 'KDS Connected' : 'Offline'}</span>
+            <span>{socketConnected ? 'KDS Connected • Database Live Sync' : 'Offline / Reconnecting'}</span>
           </div>
         </div>
       </header>
@@ -249,18 +358,21 @@ function KitchenView({ onReturnToKiosk }) {
             onClick={() => setFilter('received')}
           >
             📋 Received
-            <span className="tab-pill">
-              {orders.filter(o => o.status === 'Order Received').length}
-            </span>
+            {receivedCount > 0 && <span className="tab-pill">{receivedCount}</span>}
+          </button>
+          <button
+            className={`kitchen-tab ${filter === 'preparing' ? 'active' : ''}`}
+            onClick={() => setFilter('preparing')}
+          >
+            👨‍🍳 Preparing
+            {preparingCount > 0 && <span className="tab-pill tab-pill-warning">{preparingCount}</span>}
           </button>
           <button
             className={`kitchen-tab ${filter === 'cooking' ? 'active' : ''}`}
             onClick={() => setFilter('cooking')}
           >
             🍳 Cooking
-            <span className="tab-pill">
-              {orders.filter(o => o.status === 'Cooking').length}
-            </span>
+            {cookingCount > 0 && <span className="tab-pill">{cookingCount}</span>}
           </button>
           <button
             className={`kitchen-tab ${filter === 'ready' ? 'active' : ''}`}
@@ -286,39 +398,60 @@ function KitchenView({ onReturnToKiosk }) {
       <main className="kitchen-tickets-grid">
         {filteredOrders.length > 0 ? (
           filteredOrders.map(order => {
+            const ordId = order.orderId || order.id;
+            const normStatus = getNorm(order);
             const elapsed = getElapsedMinutes(order.createdAt);
-            const isLate = elapsed >= 10 && order.status !== 'Order Ready' && order.status !== 'Completed';
+            const isLate = elapsed >= 10 && normStatus !== 'Ready for Pickup' && normStatus !== 'Completed';
             const items = order.items || (order.item ? [order.item] : []);
 
             return (
               <div
-                key={order.orderId}
-                className={`kitchen-ticket-card status-${order.status ? order.status.toLowerCase().replace(/\s+/g, '-') : 'received'} ${isLate ? 'ticket-late' : ''}`}
+                key={ordId}
+                className={`kitchen-ticket-card status-${normStatus.toLowerCase().replace(/\s+/g, '-')} ${isLate ? 'ticket-late' : ''}`}
               >
                 {/* Ticket Top Header */}
                 <div className="ticket-header">
                   <div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span className="ticket-id">{order.orderId}</span>
+                      <span className="ticket-id">{ordId}</span>
                       <span className="ticket-kiosk">
-                        {order.kioskId && order.kioskId.startsWith('K-') ? `Kiosk #${order.kioskId}` : `Table #${order.kioskId}`}
+                        {order.location || (order.tableNumber ? `Table #${order.tableNumber}` : (order.kioskId && order.kioskId.startsWith('K-') ? `Kiosk #${order.kioskId}` : `Table #${order.kioskId}` || 'Counter'))}
                       </span>
+                      {order.orderType && (
+                        <span style={{
+                          fontSize: '10px',
+                          fontWeight: 700,
+                          padding: '1px 6px',
+                          borderRadius: '4px',
+                          background: order.orderType === 'Dine-In' ? 'rgba(234, 88, 12, 0.15)' : 'rgba(37, 99, 235, 0.15)',
+                          color: order.orderType === 'Dine-In' ? '#ea580c' : '#2563eb',
+                          border: order.orderType === 'Dine-In' ? '1px solid rgba(234, 88, 12, 0.3)' : '1px solid rgba(37, 99, 235, 0.3)'
+                        }}>
+                          {order.orderType}
+                        </span>
+                      )}
                     </div>
                     <div className="ticket-time-row">
                       <Clock size={12} />
-                      <span>{elapsed === 0 ? 'Just now' : `${elapsed}m ago`}</span>
+                      <span style={{ color: isLate ? '#ef4444' : 'inherit', fontWeight: isLate ? 800 : 500 }}>
+                        {elapsed === 0 ? 'Just now' : `${elapsed}m ago`} {isLate ? '⚠️ LATE' : ''}
+                      </span>
+                      <span>•</span>
+                      <span>{order.customer || 'Guest'}</span>
                       <span>•</span>
                       <span>{new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                     </div>
                   </div>
 
                   {/* Status Badge */}
-                  <span className={`ticket-status-badge badge-${order.status ? order.status.toLowerCase().replace(/\s+/g, '-') : 'received'}`}>
-                    {order.status === 'Order Received' && '📋 Received'}
-                    {order.status === 'Cooking' && '🍳 Cooking'}
-                    {order.status === 'Order Ready' && '🔔 Ready for Busser'}
-                    {order.status === 'Out for Delivery' && `🏃 Runner: ${order.busserName || 'Dispatched'}`}
-                    {order.status === 'Completed' && '✓ Completed'}
+                  <span className={`ticket-status-badge badge-${normStatus.toLowerCase().replace(/\s+/g, '-')}`}>
+                    {normStatus === 'New' && '📋 Received'}
+                    {normStatus === 'Preparing' && '👨‍🍳 Preparing'}
+                    {normStatus === 'Cooking' && '🍳 Cooking'}
+                    {normStatus === 'Ready for Pickup' && '🔔 Ready for Pickup'}
+                    {normStatus === 'Out for Delivery' && `🏃 Runner: ${order.busserName || 'Dispatched'}`}
+                    {normStatus === 'Completed' && '✓ Completed'}
+                    {normStatus === 'Cancelled' && '✕ Cancelled'}
                   </span>
                 </div>
 
@@ -349,15 +482,36 @@ function KitchenView({ onReturnToKiosk }) {
                   </div>
                 )}
 
+                {/* Special customer note */}
+                {order.note && (
+                  <div style={{
+                    margin: '8px 12px 0',
+                    padding: '6px 10px',
+                    borderRadius: '6px',
+                    background: order.isAllergy ? 'rgba(239, 68, 68, 0.1)' : 'rgba(255, 255, 255, 0.05)',
+                    border: order.isAllergy ? '1px solid rgba(239, 68, 68, 0.3)' : '1px solid rgba(255, 255, 255, 0.1)',
+                    fontSize: '11px',
+                    color: order.isAllergy ? '#ef4444' : 'var(--text-muted)',
+                    fontWeight: 600
+                  }}>
+                    💬 Note: {order.note}
+                  </div>
+                )}
+
                 {/* Itemized Order List */}
                 <div className="ticket-items-list">
                   {items.map((item, idx) => (
                     <div key={idx} className="ticket-item-row">
                       <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <span className="ticket-item-qty">{item.quantity || 1}x</span>
+                        <span className="ticket-item-qty">{item.quantity || item.qty || 1}x</span>
                         <span style={{ fontSize: '18px' }}>{item.emoji || '🍽️'}</span>
                         <div>
                           <div className="ticket-item-name">{item.name}</div>
+                          {item.customizations && item.customizations.length > 0 && (
+                            <div style={{ fontSize: '10.5px', color: '#f59e0b', fontWeight: 600 }}>
+                              {item.customizations.join(' • ')}
+                            </div>
+                          )}
                           {item.tags && item.tags.length > 0 && (
                             <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
                               {item.tags.join(', ')}
@@ -366,7 +520,7 @@ function KitchenView({ onReturnToKiosk }) {
                         </div>
                       </div>
                       <span className="ticket-item-price">
-                        ${((item.price || 0) * (item.quantity || 1)).toFixed(2)}
+                        ${((item.price || 0) * (item.quantity || item.qty || 1)).toFixed(2)}
                       </span>
                     </div>
                   ))}
@@ -376,88 +530,129 @@ function KitchenView({ onReturnToKiosk }) {
                 <div className="ticket-footer">
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
                     <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                      Total Items: <strong>{order.itemCount || items.reduce((s, i) => s + (i.quantity || 1), 0)}</strong>
+                      Items: <strong>{order.itemCount || items.reduce((s, i) => s + (i.quantity || i.qty || 1), 0)}</strong>
+                      {order.payment && <span style={{ marginLeft: '8px', padding: '2px 6px', background: 'rgba(255,255,255,0.06)', borderRadius: '4px', fontSize: '11px' }}>💳 {order.payment}</span>}
                     </span>
                     <span style={{ fontSize: '15px', fontWeight: '800', color: 'var(--text-primary)' }}>
-                      ${(order.totalPrice || 0).toFixed(2)}
+                      ${(order.totalPrice || order.total || 0).toFixed(2)}
                     </span>
                   </div>
 
-                  {/* Stage Action Buttons */}
-                  <div className="ticket-actions">
-                    {order.status === 'Order Received' && (
+                  {/* Interactive Next Stage Action Buttons */}
+                  <div className="ticket-actions" style={{ marginTop: '4px', width: '100%' }}>
+                    {(normStatus === 'New' || normStatus === 'Received') && (
                       <button
-                        onClick={() => handleUpdateStatus(order.orderId, 'Cooking')}
+                        type="button"
+                        onClick={() => handleUpdateStatus(order.orderId || order.id, 'Preparing')}
                         className="ticket-btn btn-start-cooking"
+                        style={{
+                          width: '100%',
+                          background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+                          boxShadow: '0 4px 12px rgba(37, 99, 235, 0.3)'
+                        }}
                       >
-                        <Flame size={15} />
-                        <span>Start Cooking 🍳</span>
+                        <ChefHat size={15} />
+                        <span>Start Preparing 👨‍🍳</span>
                       </button>
                     )}
 
-                    {order.status === 'Cooking' && (
+                    {normStatus === 'Preparing' && (
                       <div style={{ display: 'flex', gap: '8px', width: '100%' }}>
                         <button
-                          onClick={() => handleUpdateStatus(order.orderId, 'Order Received')}
+                          type="button"
+                          onClick={() => handleUpdateStatus(order.orderId || order.id, 'New')}
                           className="ticket-btn btn-back"
                           title="Return to Received"
                         >
                           ↩
                         </button>
                         <button
-                          onClick={() => handleUpdateStatus(order.orderId, 'Order Ready')}
+                          type="button"
+                          onClick={() => handleUpdateStatus(order.orderId || order.id, 'Cooking')}
+                          className="ticket-btn btn-start-cooking"
+                          style={{ flex: 1 }}
+                        >
+                          <Flame size={15} />
+                          <span>Start Cooking 🍳</span>
+                        </button>
+                      </div>
+                    )}
+
+                    {normStatus === 'Cooking' && (
+                      <div style={{ display: 'flex', gap: '8px', width: '100%' }}>
+                        <button
+                          type="button"
+                          onClick={() => handleUpdateStatus(order.orderId || order.id, 'Preparing')}
+                          className="ticket-btn btn-back"
+                          title="Return to Preparing"
+                        >
+                          ↩
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleUpdateStatus(order.orderId || order.id, 'Ready for Pickup')}
                           className="ticket-btn btn-mark-ready"
-                          style={{ flex: 1, background: 'var(--panda-pink)' }}
+                          style={{ flex: 1 }}
                         >
                           <BellRing size={15} />
-                          <span>Order Ready (Call Busser) 🔔</span>
+                          <span>Mark Ready 🔔</span>
                         </button>
                       </div>
                     )}
 
-                    {order.status === 'Order Ready' && (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%' }}>
-                        <div style={{ fontSize: '12px', color: 'var(--panda-pink)', fontWeight: 700, textAlign: 'center' }}>
-                          🔔 Awaiting Busser / Runner Pickup
-                        </div>
-                        <div style={{ display: 'flex', gap: '8px' }}>
-                          <button
-                            onClick={() => handleUpdateStatus(order.orderId, 'Cooking')}
-                            className="ticket-btn btn-back"
-                            title="Back to Cooking"
-                          >
-                            ↩
-                          </button>
-                          <button
-                            onClick={() => handleUpdateStatus(order.orderId, 'Completed')}
-                            className="ticket-btn btn-complete"
-                            style={{ flex: 1 }}
-                          >
-                            <Check size={15} />
-                            <span>Direct Pickup / Complete ✓</span>
-                          </button>
-                        </div>
-                      </div>
-                    )}
-
-                    {order.status === 'Out for Delivery' && (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%' }}>
-                        <div style={{ fontSize: '12px', color: 'var(--accent-blue)', fontWeight: 700, textAlign: 'center' }}>
-                          🏃 In Transit with Busser ({order.busserName || 'Runner'})
-                        </div>
+                    {normStatus === 'Ready for Pickup' && (
+                      <div style={{ display: 'flex', gap: '8px', width: '100%' }}>
                         <button
-                          onClick={() => handleUpdateStatus(order.orderId, 'Completed')}
-                          className="ticket-btn btn-complete"
+                          type="button"
+                          onClick={() => handleBuzzGadget(order.orderId || order.id)}
+                          className="ticket-btn btn-back"
+                          title="Trigger Customer Pager Alert & Buzzer"
+                          style={{ color: '#f59e0b', borderColor: 'rgba(245, 158, 11, 0.4)', gap: '6px' }}
+                        >
+                          <BellRing size={14} />
+                          <span>Buzz</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleUpdateStatus(order.orderId || order.id, 'Completed')}
+                          className="ticket-btn btn-mark-ready"
+                          style={{ flex: 1, background: 'linear-gradient(135deg, #059669 0%, #047857 100%)' }}
                         >
                           <Check size={15} />
-                          <span>Confirm Delivered ✓</span>
+                          <span>Complete Order ✓</span>
                         </button>
                       </div>
                     )}
 
-                    {order.status === 'Completed' && (
-                      <div style={{ textAlign: 'center', padding: '6px', fontSize: '11px', color: 'var(--accent-green)', fontWeight: 700 }}>
-                        ✓ Order delivered & completed
+                    {normStatus === 'Completed' && (
+                      <div style={{
+                        width: '100%',
+                        textAlign: 'center',
+                        padding: '10px 14px',
+                        borderRadius: '10px',
+                        background: 'rgba(16, 185, 129, 0.1)',
+                        border: '1px solid rgba(16, 185, 129, 0.25)',
+                        color: '#10b981',
+                        fontSize: '12.5px',
+                        fontWeight: 700
+                      }}>
+                        ✓ Order Completed & Served
+                      </div>
+                    )}
+
+                    {normStatus === 'Cancelled' && (
+                      <div style={{
+                        width: '100%',
+                        textAlign: 'center',
+                        padding: '10px 14px',
+                        borderRadius: '10px',
+                        background: 'rgba(239, 68, 68, 0.1)',
+                        border: '1px solid rgba(239, 68, 68, 0.25)',
+                        color: '#ef4444',
+                        fontSize: '12.5px',
+                        fontWeight: 700
+                      }}>
+                        ✕ Order Cancelled
                       </div>
                     )}
                   </div>

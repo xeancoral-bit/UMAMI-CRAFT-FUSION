@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { io } from 'socket.io-client';
 import { QRCodeSVG } from 'qrcode.react';
+import PesoReceipt from './PesoReceipt';
 import { 
   Monitor, 
   Smartphone, 
@@ -14,7 +15,9 @@ import {
   Settings,
   ChevronRight,
   Play,
-  Store
+  Store,
+  Sparkles,
+  Tag
 } from 'lucide-react';
 
 function generateKioskId() {
@@ -46,6 +49,32 @@ function KioskView({ onOpenKitchen }) {
     backendPort: 3001,
     frontendPort: 3000
   });
+
+  // Active Promotions for Kiosk Terminal Display
+  const [promos, setPromos] = useState([]);
+  const [activePromoIndex, setActivePromoIndex] = useState(0);
+
+  useEffect(() => {
+    fetch('/api/promos')
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data)) setPromos(data);
+      })
+      .catch(() => {});
+  }, []);
+
+  const activePromos = useMemo(() => {
+    return (promos || []).filter(p => p.status === 'active' && (p.bannerImage || p.imageUrl || p.image));
+  }, [promos]);
+
+  // 5-second smooth promo cycling timer
+  useEffect(() => {
+    if (activePromos.length <= 1) return;
+    const t = setInterval(() => {
+      setActivePromoIndex(prev => (prev + 1) % activePromos.length);
+    }, 5000);
+    return () => clearInterval(t);
+  }, [activePromos.length]);
 
   // Load restaurant metadata and menu
   useEffect(() => {
@@ -99,6 +128,10 @@ function KioskView({ onOpenKitchen }) {
     socket.on('disconnect', () => {
       setSocketConnected(false);
       console.log("[Kiosk] Disconnected from socket server");
+    });
+
+    socket.on('promos-updated', (data) => {
+      if (Array.isArray(data)) setPromos(data);
     });
 
     // Listen for client handshake (preference projection)
@@ -264,17 +297,7 @@ function KioskView({ onOpenKitchen }) {
         </div>
         
         <div className="kiosk-header-actions">
-          {onOpenKitchen && (
-            <button
-              onClick={onOpenKitchen}
-              className="kiosk-pill-btn kiosk-pill-kitchen"
-              title="Open Kitchen Display System"
-            >
-              <Store size={14} color="#C24522" className="kiosk-pill-icon" />
-              <span className="kiosk-pill-label">Kitchen Display</span>
-              <ChevronRight size={13} color="#C24522" className="kiosk-pill-chevron" />
-            </button>
-          )}
+
 
           <div className="kiosk-pill-btn kiosk-pill-port">
             <div className={`pulse-indicator ${socketConnected ? 'active' : 'disconnected'}`}></div>
@@ -380,6 +403,97 @@ function KioskView({ onOpenKitchen }) {
                   </div>
                 </div>
               </div>
+
+              {/* 5-Second Auto-Cycling Promotional Banner on Kiosk Terminal */}
+              {activePromos.length > 0 && (() => {
+                const currentPromo = activePromos[activePromoIndex % activePromos.length];
+                if (!currentPromo) return null;
+                const discountBadge = currentPromo.discountType === 'percent'
+                  ? `${currentPromo.discountValue}% OFF`
+                  : `₱${currentPromo.discountValue} OFF`;
+                const bannerImg = currentPromo.bannerImage || currentPromo.imageUrl || currentPromo.image || '/ramen_promo_banner.png';
+
+                return (
+                  <div
+                    style={{
+                      borderRadius: '20px',
+                      overflow: 'hidden',
+                      marginBottom: '20px',
+                      boxShadow: '0 8px 24px rgba(44, 26, 17, 0.08)',
+                      border: '1.5px solid rgba(194, 69, 34, 0.25)',
+                      background: currentPromo.bannerBg || '#1c1917',
+                      position: 'relative'
+                    }}
+                  >
+                    <div style={{ position: 'relative', height: '140px', width: '100%', overflow: 'hidden' }}>
+                      <img
+                        src={bannerImg}
+                        alt={currentPromo.name}
+                        style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                        onError={(e) => {
+                          e.target.onerror = null;
+                          e.target.src = '/ramen_promo_banner.png';
+                        }}
+                      />
+                      <div
+                        style={{
+                          position: 'absolute',
+                          inset: 0,
+                          background: 'linear-gradient(180deg, rgba(28,25,23,0.3) 0%, rgba(28,25,23,0.7) 45%, rgba(28,25,23,0.96) 100%)'
+                        }}
+                      />
+
+                      {/* Header Badge */}
+                      <div style={{ position: 'absolute', top: '10px', left: '12px', right: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(6px)', border: '1px solid rgba(255,255,255,0.2)', padding: '3px 10px', borderRadius: '999px', fontSize: '11px', fontWeight: 800, color: '#fff' }}>
+                          🔥 SPECIAL OFFERS • 5S AUTO-ROTATE
+                        </span>
+                        <span style={{ background: 'linear-gradient(135deg, #f97316, #dc2626)', color: '#fff', padding: '4px 10px', borderRadius: '8px', fontSize: '12px', fontWeight: 900, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <Sparkles size={11} />
+                          {discountBadge}
+                        </span>
+                      </div>
+
+                      {/* Title & Code */}
+                      <div style={{ position: 'absolute', bottom: '10px', left: '12px', right: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+                        <div>
+                          <div style={{ color: '#fff', fontSize: '15px', fontWeight: 800 }}>
+                            {currentPromo.bannerTitle || currentPromo.name}
+                          </div>
+                          <div style={{ color: 'rgba(255,255,255,0.85)', fontSize: '11px', marginTop: '2px' }}>
+                            {currentPromo.applyToAll ? 'Applies storewide to all menu items' : `Applies to: ${(currentPromo.applicableItems || []).join(', ')}`}
+                          </div>
+                        </div>
+                        <div style={{ background: '#ffffff', color: '#C24522', padding: '5px 12px', borderRadius: '8px', fontWeight: 800, fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
+                          <Tag size={12} />
+                          <span>CODE: {currentPromo.code}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Indicator Dots */}
+                    {activePromos.length > 1 && (
+                      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '6px', padding: '5px 0', background: 'rgba(28,25,23,0.98)' }}>
+                        {activePromos.map((p, idx) => {
+                          const isActive = (activePromoIndex % activePromos.length) === idx;
+                          return (
+                            <div
+                              key={p.id || idx}
+                              style={{
+                                height: '4px',
+                                width: isActive ? '18px' : '6px',
+                                borderRadius: '999px',
+                                background: isActive ? '#f97316' : 'rgba(255,255,255,0.25)',
+                                transition: 'all 0.3s ease'
+                              }}
+                            />
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
 
               {/* Single-Screen Simulation Tool Card */}
               <div className="kiosk-sim-card">
@@ -618,7 +732,7 @@ function KioskView({ onOpenKitchen }) {
             <div className="kiosk-receipt-card">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <Receipt size={18} color="var(--accent-red)" />
+                  <PesoReceipt size={18} color="var(--accent-red)" />
                   <span style={{ fontWeight: '800', letterSpacing: '0.05em', textTransform: 'uppercase', fontSize: '13px' }}>
                     Order Summary
                   </span>

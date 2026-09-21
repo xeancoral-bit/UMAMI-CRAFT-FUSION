@@ -113,6 +113,11 @@ function RestaurantView({ onReturnToKiosk }) {
       if (existing) setItemAvailability(existing);
     });
 
+    // Real-time sync when Admin updates menu/inventory
+    socket.on('menu-updated', (updatedMenu) => {
+      if (Array.isArray(updatedMenu)) setMenuItems(updatedMenu);
+    });
+
     socket.on('new-kitchen-order', (newOrder) => {
       setOrders(prev => [newOrder, ...prev.filter(o => o.orderId !== newOrder.orderId)]);
     });
@@ -133,8 +138,16 @@ function RestaurantView({ onReturnToKiosk }) {
       );
     });
 
-    socket.on('item-availability-updated', ({ itemName, isAvailable }) => {
-      setItemAvailability(prev => ({ ...prev, [itemName]: isAvailable }));
+    socket.on('item-availability-updated', ({ itemId, itemName, isAvailable }) => {
+      // Update both the legacy availability map AND the menuItems array
+      if (itemName) setItemAvailability(prev => ({ ...prev, [itemName]: isAvailable }));
+      if (itemId) {
+        setMenuItems(prev => prev.map(m =>
+          String(m.id) === String(itemId)
+            ? { ...m, available: isAvailable, status: isAvailable ? 'Available' : 'Unavailable' }
+            : m
+        ));
+      }
     });
 
     socket.on('disconnect', () => setSocketConnected(false));
@@ -142,22 +155,33 @@ function RestaurantView({ onReturnToKiosk }) {
     return () => socket.disconnect();
   }, []);
 
-  // Toggle item 86 / stock availability
-  const handleToggleStock = (itemName) => {
-    const currentStatus = itemAvailability[itemName] !== false;
-    const newStatus = !currentStatus;
+  // Toggle item 86 / stock availability — uses same Admin endpoint PATCH /api/menu/:id/availability
+  const handleToggleStock = (item) => {
+    const currentAvailable = item.available !== undefined ? item.available : (itemAvailability[item.name] !== false);
+    const newStatus = !currentAvailable;
 
-    setItemAvailability(prev => ({ ...prev, [itemName]: newStatus }));
+    // Optimistic update in menuItems array (same source as admin)
+    setMenuItems(prev => prev.map(m =>
+      String(m.id) === String(item.id)
+        ? { ...m, available: newStatus, status: newStatus ? 'Available' : 'Unavailable' }
+        : m
+    ));
+    setItemAvailability(prev => ({ ...prev, [item.name]: newStatus }));
 
-    if (socketRef.current && socketConnected) {
-      socketRef.current.emit('toggle-item-availability', { itemName, isAvailable: newStatus });
-    }
-
-    fetch('/api/availability', {
-      method: 'POST',
+    // Call same endpoint as AdminView
+    fetch(`/api/menu/${item.id}/availability`, {
+      method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ itemName, isAvailable: newStatus })
-    }).catch(err => console.error("Error toggling stock:", err));
+      body: JSON.stringify({ available: newStatus })
+    }).catch(err => {
+      console.error('Error toggling stock:', err);
+      // Rollback on error
+      setMenuItems(prev => prev.map(m =>
+        String(m.id) === String(item.id)
+          ? { ...m, available: currentAvailable, status: currentAvailable ? 'Available' : 'Unavailable' }
+          : m
+      ));
+    });
   };
 
   // Change Table Status
@@ -584,9 +608,6 @@ function RestaurantView({ onReturnToKiosk }) {
                     <span style={{ fontSize: '16px', fontWeight: 800, color: '#2C2218' }}>
                       Table {table.tableNumber}
                     </span>
-                    <span style={{ fontSize: '11px', fontWeight: 700, color: '#7B6C5E' }}>
-                      {table.capacity} Guests
-                    </span>
                   </div>
 
                   <div style={{ fontSize: '13px', fontWeight: 700, color: '#5C4E40', marginBottom: '12px' }}>
@@ -647,87 +668,193 @@ function RestaurantView({ onReturnToKiosk }) {
                     </button>
                   </div>
                 </div>
-              ))}
-            </div>
+              ))}</div>
           </div>
         )}
 
         {/* ── SUB-VIEW 3: MENU INVENTORY & 86'd ITEMS ── */}
-        {activeTab === 'menu' && (
-          <div className="ops-panel-card" style={{ padding: '28px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '14px' }}>
+        {activeTab === 'menu' && (() => {
+          // Derive availability from menuItems (same source as Admin)
+          const inventoryItems = filteredMenuItems.filter(item =>
+            item.status !== 'Draft' && item.status !== 'Archived'
+          );
+          return (
+            <div className="ops-panel-card" style={{ padding: '28px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '14px' }}>
+                <div>
+                  <h2 style={{ fontSize: '18px', fontWeight: 800, color: '#2C2218', margin: 0 }}>
+                    Menu Stock & 86 Availability Manager
+                  </h2>
+                  <p style={{ fontSize: '13px', color: '#7B6C5E', margin: '4px 0 0' }}>
+                    Synced with Admin inventory. Toggle 86 or restock — changes propagate live to Kiosk and Mobile apps.
+                  </p>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                  <div style={{ fontSize: '12px', color: '#7B6C5E', display: 'flex', gap: '12px' }}>
+                    <span style={{ color: '#059669', fontWeight: 700 }}>● {inventoryItems.filter(i => i.available !== false).length} In Stock</span>
+                    <span style={{ color: '#EF4444', fontWeight: 700 }}>● {inventoryItems.filter(i => i.available === false).length} 86'd</span>
+                    <span style={{ color: '#D97706', fontWeight: 700 }}>● {inventoryItems.filter(i => typeof i.stock === 'number' && i.stock <= (i.reorderLevel || 5)).length} Low Stock</span>
+                  </div>
+                  <div style={{ position: 'relative', minWidth: '240px' }}>
+                    <Search size={15} color="#7B6C5E" style={{ position: 'absolute', left: '12px', top: '10px' }} />
+                    <input
+                      type="text"
+                      placeholder="Search dish name or category..."
+                      value={searchFilter}
+                      onChange={(e) => setSearchFilter(e.target.value)}
+                      style={{
+                        width: '100%',
+                        padding: '8px 14px 8px 36px',
+                        borderRadius: '9999px',
+                        border: '1px solid rgba(226, 215, 200, 0.8)',
+                        fontSize: '13px',
+                        background: '#FFFFFF',
+                        color: '#2C2218',
+                        outline: 'none'
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Table-like header */}
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: '2fr 1fr 1.5fr auto',
+                gap: '12px',
+                padding: '8px 18px',
+                fontSize: '11px',
+                fontWeight: 800,
+                color: '#9B8B7E',
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em',
+                borderBottom: '1px solid rgba(226, 215, 200, 0.8)',
+                marginBottom: '8px'
+              }}>
+                <span>Product</span>
+                <span>Category & SKU</span>
+                <span>Stock Level</span>
+                <span style={{ textAlign: 'right' }}>Status</span>
+              </div>
+
               <div>
-                <h2 style={{ fontSize: '18px', fontWeight: 800, color: '#2C2218', margin: 0 }}>
-                  Menu Stock & 86 Availability Manager
-                </h2>
-                <p style={{ fontSize: '13px', color: '#7B6C5E', margin: '4px 0 0' }}>
-                  Instantly toggle dishes as In Stock or 86'd (Sold Out). Changes propagate live to Kiosk and Mobile apps.
-                </p>
-              </div>
+                {inventoryItems.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '40px 0', color: '#9B8B7E', fontSize: '14px' }}>
+                    No menu items match your search.
+                  </div>
+                ) : inventoryItems.map(item => {
+                  const inStock = item.available !== false;
+                  const stock = typeof item.stock === 'number' ? item.stock : null;
+                  const reorderLvl = item.reorderLevel || 5;
+                  const maxStock = Math.max(stock || 0, reorderLvl * 4, 100);
+                  const stockPct = stock !== null ? Math.min(100, Math.round((stock / maxStock) * 100)) : null;
+                  const isLow = stock !== null && stock <= reorderLvl;
+                  const isOut = stock !== null && stock === 0;
 
-              <div style={{ position: 'relative', minWidth: '260px' }}>
-                <Search size={16} color="#7B6C5E" style={{ position: 'absolute', left: '14px', top: '11px' }} />
-                <input
-                  type="text"
-                  placeholder="Search dish name..."
-                  value={searchFilter}
-                  onChange={(e) => setSearchFilter(e.target.value)}
-                  style={{
-                    width: '100%',
-                    padding: '9px 14px 9px 38px',
-                    borderRadius: '9999px',
-                    border: '1px solid rgba(226, 215, 200, 0.8)',
-                    fontSize: '13px',
-                    background: '#FFFFFF',
-                    color: '#2C2218',
-                    outline: 'none'
-                  }}
-                />
-              </div>
-            </div>
-
-            <div>
-              {filteredMenuItems.map(item => {
-                const inStock = itemAvailability[item.name] !== false;
-
-                return (
-                  <div
-                    key={item.id || item.name}
-                    className="stock-item-row"
-                    style={{
-                      background: '#FFFFFF',
-                      border: '1px solid rgba(226, 215, 200, 0.7)',
-                      borderRadius: '14px',
-                      padding: '14px 18px',
-                      marginBottom: '10px'
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-                      <span style={{ fontSize: '24px' }}>{item.emoji || '🍽️'}</span>
-                      <div>
-                        <div style={{ fontSize: '15px', fontWeight: 800, color: '#2C2218' }}>
-                          {item.name}
+                  return (
+                    <div
+                      key={item.id || item.name}
+                      style={{
+                        display: 'grid',
+                        gridTemplateColumns: '2fr 1fr 1.5fr auto',
+                        gap: '12px',
+                        alignItems: 'center',
+                        background: '#FFFFFF',
+                        border: `1px solid ${isOut ? 'rgba(239,68,68,0.25)' : isLow ? 'rgba(217,119,6,0.25)' : 'rgba(226, 215, 200, 0.7)'}`,
+                        borderRadius: '14px',
+                        padding: '12px 18px',
+                        marginBottom: '8px',
+                        transition: 'box-shadow 0.15s'
+                      }}
+                    >
+                      {/* Product image + name */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0 }}>
+                        <div style={{
+                          width: '48px',
+                          height: '48px',
+                          borderRadius: '10px',
+                          overflow: 'hidden',
+                          flexShrink: 0,
+                          background: '#F5EFE8',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center'
+                        }}>
+                          {item.image ? (
+                            <img
+                              src={item.image}
+                              alt={item.name}
+                              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                              onError={e => { e.currentTarget.style.display = 'none'; e.currentTarget.nextSibling.style.display = 'flex'; }}
+                            />
+                          ) : null}
+                          <span style={{ fontSize: '22px', display: item.image ? 'none' : 'flex' }}>{item.emoji || '🍽️'}</span>
                         </div>
-                        <div style={{ fontSize: '12px', color: '#7B6C5E', marginTop: '2px' }}>
-                          {item.category || 'Main'} • ${item.price?.toFixed(2)}
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ fontSize: '14px', fontWeight: 800, color: '#2C2218', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {item.name}
+                          </div>
+                          <div style={{ fontSize: '11.5px', color: '#7B6C5E', marginTop: '2px' }}>
+                            ₱{item.promoPrice ? (
+                              <><s style={{ opacity: 0.5, marginRight: '4px' }}>{item.price?.toFixed(2)}</s><span style={{ color: '#E45729', fontWeight: 700 }}>{Number(item.promoPrice).toFixed(2)}</span></>
+                            ) : item.price?.toFixed(2)}
+                          </div>
                         </div>
                       </div>
-                    </div>
 
-                    <button
-                      className={`stock-toggle-switch ${inStock ? 'in-stock' : 'sold-out'}`}
-                      onClick={() => handleToggleStock(item.name)}
-                      title={inStock ? 'Click to 86 (Mark Sold Out)' : 'Click to Restock'}
-                    >
-                      {inStock ? <ToggleRight size={20} color="#059669" /> : <ToggleLeft size={20} color="#EF4444" />}
-                      <span>{inStock ? 'IN STOCK' : '86’D / SOLD OUT'}</span>
-                    </button>
-                  </div>
-                );
-              })}
+                      {/* Category & SKU */}
+                      <div>
+                        <div style={{ fontSize: '12px', fontWeight: 700, color: '#5C4E40' }}>{item.category || '—'}</div>
+                        {item.sku && <div style={{ fontSize: '10.5px', color: '#9B8B7E', marginTop: '2px', fontFamily: 'monospace' }}>SKU: {item.sku}</div>}
+                      </div>
+
+                      {/* Stock level */}
+                      <div>
+                        {stock !== null ? (
+                          <>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', fontWeight: 700, color: isOut ? '#EF4444' : isLow ? '#D97706' : '#2C2218', marginBottom: '4px' }}>
+                              <span>{stock} units</span>
+                              <span style={{ color: '#9B8B7E', fontWeight: 500 }}>min {reorderLvl}</span>
+                            </div>
+                            <div style={{ height: '6px', borderRadius: '9999px', background: '#F0E8DF', overflow: 'hidden' }}>
+                              <div style={{
+                                height: '100%',
+                                width: `${stockPct}%`,
+                                borderRadius: '9999px',
+                                background: isOut ? '#EF4444' : isLow ? '#D97706' : '#059669',
+                                transition: 'width 0.4s ease'
+                              }} />
+                            </div>
+                            {isLow && !isOut && (
+                              <div style={{ fontSize: '10px', color: '#D97706', fontWeight: 700, marginTop: '3px' }}>⚠ Low — reorder soon</div>
+                            )}
+                            {isOut && (
+                              <div style={{ fontSize: '10px', color: '#EF4444', fontWeight: 700, marginTop: '3px' }}>✕ Out of stock</div>
+                            )}
+                          </>
+                        ) : (
+                          <span style={{ fontSize: '12px', color: '#9B8B7E' }}>—</span>
+                        )}
+                      </div>
+
+                      {/* Toggle button */}
+                      <button
+                        className={`stock-toggle-switch ${inStock ? 'in-stock' : 'sold-out'}`}
+                        onClick={() => handleToggleStock(item)}
+                        title={inStock ? 'Click to 86 (Mark Sold Out)' : 'Click to Restock'}
+                        style={{ whiteSpace: 'nowrap', flexShrink: 0 }}
+                      >
+                        {inStock ? <ToggleRight size={18} color="#059669" /> : <ToggleLeft size={18} color="#EF4444" />}
+                        <span style={{ fontSize: '12px' }}>{inStock ? 'IN STOCK' : '86\'D'}</span>
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
       </main>
     </div>
   );

@@ -5,6 +5,10 @@ import MobileView from './components/MobileView';
 import KitchenView from './components/KitchenView';
 import BusserView from './components/BusserView';
 import RestaurantView from './components/RestaurantView';
+import AdminView from './components/AdminView';
+import AdminLoginModal from './components/AdminLoginModal';
+import AdminSecurityModal from './components/AdminSecurityModal';
+import AccessDeniedView from './components/AccessDeniedView';
 import NavBar from './components/NavBar';
 
 function App() {
@@ -22,6 +26,9 @@ function App() {
   const [activeOrdersCount, setActiveOrdersCount] = useState(0);
   const [readyOrdersCount, setReadyOrdersCount] = useState(0);
   const [socketConnected, setSocketConnected] = useState(false);
+  const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
+  const [showAdminLoginModal, setShowAdminLoginModal] = useState(false);
+  const [showAdminSecurityModal, setShowAdminSecurityModal] = useState(false);
   const socketRef = useRef(null);
 
   // Load restaurant metadata
@@ -68,6 +75,19 @@ function App() {
       }).catch(() => {});
     });
 
+    // Invalidate admin session across tabs/devices if credentials were updated or locked
+    socket.on('admin-session-invalidated', (data) => {
+      setIsAdminAuthenticated(false);
+      setShowAdminSecurityModal(false);
+      const url = new URL(window.location.href);
+      url.searchParams.set('view', 'kiosk');
+      window.history.pushState({}, '', url.toString());
+      setCurrentView('kiosk');
+      if (data?.message) {
+        alert(data.message);
+      }
+    });
+
     return () => socket.disconnect();
   }, []);
 
@@ -80,6 +100,9 @@ function App() {
       setKioskId(id);
       if (viewParam) {
         setCurrentView(viewParam);
+        if (viewParam === 'admin' && !isAdminAuthenticated) {
+          setShowAdminLoginModal(true);
+        }
       } else if (id) {
         setCurrentView('mobile');
       }
@@ -88,7 +111,7 @@ function App() {
     handleUrlCheck();
     window.addEventListener('popstate', handleUrlCheck);
     return () => window.removeEventListener('popstate', handleUrlCheck);
-  }, []);
+  }, [isAdminAuthenticated]);
 
   const handleResetSession = () => {
     window.history.pushState({}, document.title, window.location.pathname);
@@ -96,15 +119,44 @@ function App() {
   };
 
   const handleSelectView = (view) => {
+    if (view === 'admin' && !isAdminAuthenticated) {
+      setShowAdminLoginModal(true);
+      return;
+    }
+
     const url = new URL(window.location.href);
     url.searchParams.set('view', view);
     // Clear kioskId when switching to staff views
-    if (['kitchen', 'busser', 'restaurant'].includes(view)) {
+    if (['kitchen', 'busser', 'restaurant', 'admin'].includes(view)) {
       url.searchParams.delete('kioskId');
       setKioskId(null);
     }
     window.history.pushState({}, '', url.toString());
     setCurrentView(view);
+  };
+
+  const handleAdminAuthSuccess = (user) => {
+    setIsAdminAuthenticated(true);
+    setShowAdminLoginModal(false);
+    const url = new URL(window.location.href);
+    url.searchParams.set('view', 'admin');
+    window.history.pushState({}, '', url.toString());
+    setCurrentView('admin');
+  };
+
+  const handleAdminLogout = () => {
+    setIsAdminAuthenticated(false);
+    setShowAdminSecurityModal(false);
+    handleSelectView('kiosk');
+  };
+
+  const handleAdminLock = () => {
+    setIsAdminAuthenticated(false);
+    setShowAdminSecurityModal(false);
+    const url = new URL(window.location.href);
+    url.searchParams.set('view', 'kiosk');
+    window.history.pushState({}, '', url.toString());
+    setCurrentView('kiosk');
   };
 
   return (
@@ -116,6 +168,21 @@ function App() {
         activeOrdersCount={activeOrdersCount}
         readyOrdersCount={readyOrdersCount}
         socketConnected={socketConnected}
+        isAdminAuthenticated={isAdminAuthenticated}
+        onOpenAdminSecurity={() => setShowAdminSecurityModal(true)}
+      />
+
+      <AdminLoginModal
+        isOpen={showAdminLoginModal}
+        onClose={() => setShowAdminLoginModal(false)}
+        onLoginSuccess={handleAdminAuthSuccess}
+      />
+
+      <AdminSecurityModal
+        isOpen={showAdminSecurityModal}
+        onClose={() => setShowAdminSecurityModal(false)}
+        onLockSession={handleAdminLock}
+        onPasswordChanged={() => {}}
       />
 
       {currentView === 'mobile' && (
@@ -136,6 +203,23 @@ function App() {
 
       {currentView === 'restaurant' && (
         <RestaurantView onReturnToKiosk={() => handleSelectView('kiosk')} />
+      )}
+
+      {currentView === 'admin' && (
+        isAdminAuthenticated ? (
+          <AdminView
+            onLogout={handleAdminLogout}
+            onOpenSecurity={() => setShowAdminSecurityModal(true)}
+            onReturnToKiosk={() => handleSelectView('kiosk')}
+            socketConnected={socketConnected}
+            socket={socketRef.current}
+          />
+        ) : (
+          <AccessDeniedView
+            onReturn={() => handleSelectView('kiosk')}
+            onRequestLogin={() => setShowAdminLoginModal(true)}
+          />
+        )
       )}
     </div>
   );

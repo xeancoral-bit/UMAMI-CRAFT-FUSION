@@ -1,5 +1,7 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { io } from 'socket.io-client';
+import { getAllergens, getFlavorPreferences, subscribePreferences } from '../utils/preferencesService';
+import PesoReceipt from './PesoReceipt';
 import {
   Shield,
   CheckCircle,
@@ -16,7 +18,20 @@ import {
   ChevronUp,
   Receipt,
   Bell,
-  BellRing
+  BellRing,
+  Settings,
+  ExternalLink,
+  Volume2,
+  VolumeX,
+  Coffee,
+  Sparkles,
+  Package,
+  Shuffle,
+  ChefHat,
+  Search,
+  Tag,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import DeviceMockup from './DeviceMockup';
 
@@ -84,7 +99,202 @@ const PREFERENCE_OPTIONS = [
   { id: 'healthy', label: 'Healthy', emoji: '💚', icon: <HeartPulse size={14} style={{ marginRight: '4px' }} /> }
 ];
 
+// Default Drinks Catalog (used if none in localStorage)
+const DEFAULT_DRINKS = [
+  {
+    id: 'DRK-001',
+    name: 'Matcha Boba Milk Tea',
+    category: 'Drinks & Boba',
+    price: 140,
+    description: 'Ceremonial grade Uji matcha with brown sugar boba pearls and fresh organic milk.',
+    allergens: ['dairy'],
+    tags: ['sweet', 'drinks'],
+    emoji: '🧋',
+    image: 'https://images.unsplash.com/photo-1558857563-b37cf53f7c19?auto=format&fit=crop&w=600&q=80'
+  },
+  {
+    id: 'DRK-002',
+    name: 'Iced Taro Milk Tea',
+    category: 'Drinks & Boba',
+    price: 135,
+    description: 'Creamy purple taro with silky whole milk and slow-cooked chewy tapioca pearls.',
+    allergens: ['dairy'],
+    tags: ['sweet', 'drinks'],
+    emoji: '🧋',
+    image: 'https://images.unsplash.com/photo-1572490122747-3968b75cc699?auto=format&fit=crop&w=600&q=80'
+  },
+  {
+    id: 'DRK-003',
+    name: 'Thai Iced Tea',
+    category: 'Drinks & Boba',
+    price: 130,
+    description: 'Traditional spiced Ceylon black tea infused with star anise and sweet condensed milk.',
+    allergens: ['dairy'],
+    tags: ['sweet', 'drinks'],
+    emoji: '🧋',
+    image: 'https://images.unsplash.com/photo-1595981267035-7b04ca84a82d?auto=format&fit=crop&w=600&q=80'
+  },
+  {
+    id: 'DRK-004',
+    name: 'Fresh Mango Shake',
+    category: 'Drinks & Boba',
+    price: 120,
+    description: 'Fresh ripe Philippine mangoes blended smoothly with crushed crystal ice.',
+    allergens: [],
+    tags: ['vegan', 'sweet', 'healthy', 'drinks'],
+    emoji: '🥭',
+    image: 'https://images.unsplash.com/photo-1623065422902-30a2d299bbe4?auto=format&fit=crop&w=600&q=80'
+  },
+  {
+    id: 'DRK-005',
+    name: 'Calamansi Iced Tea',
+    category: 'Drinks & Boba',
+    price: 95,
+    description: 'House-brewed Ceylon tea with freshly squeezed calamansi citrus and wild honey.',
+    allergens: [],
+    tags: ['vegan', 'healthy', 'drinks'],
+    emoji: '🍋',
+    image: 'https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?auto=format&fit=crop&w=600&q=80'
+  },
+  {
+    id: 'DRK-006',
+    name: 'Bottled Mineral Water',
+    category: 'Drinks & Boba',
+    price: 35,
+    description: 'Pure chilled drinking mineral water (500ml).',
+    allergens: [],
+    tags: ['healthy', 'drinks'],
+    emoji: '💧',
+    image: 'https://images.unsplash.com/photo-1548839140-29a749e1bc4e?auto=format&fit=crop&w=600&q=80'
+  }
+];
+
+// Default Combos & Value Meals Catalog
+const DEFAULT_COMBOS = [
+  {
+    id: 'CMB-101',
+    name: 'Ultimate Teriyaki Feast Combo',
+    main: 'Chicken Teriyaki Rice Bowl',
+    side: 'Pork & Chive Gyoza',
+    drink: 'Matcha Boba Milk Tea',
+    originalPrice: 480,
+    promoPrice: 399,
+    description: 'Chicken Teriyaki Rice Bowl + Pork & Chive Gyoza + Matcha Boba Milk Tea',
+    allergens: ['gluten', 'dairy'],
+    tags: ['savory', 'combo'],
+    emoji: '🍱',
+    image: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=600&q=80'
+  },
+  {
+    id: 'CMB-102',
+    name: 'Szechuan Dumpling Duo',
+    main: 'Spicy Szechuan Dumplings',
+    side: 'Egg Fried Rice',
+    drink: 'Thai Iced Milk Tea',
+    originalPrice: 450,
+    promoPrice: 349,
+    description: 'Spicy Szechuan Dumplings + Egg Fried Rice + Thai Iced Milk Tea',
+    allergens: ['gluten', 'dairy', 'soy'],
+    tags: ['spicy', 'combo'],
+    emoji: '🍱',
+    image: 'https://images.unsplash.com/photo-1563245372-f21724e3856d?auto=format&fit=crop&w=600&q=80'
+  },
+  {
+    id: 'CMB-103',
+    name: 'Thai Curry Comfort Set',
+    main: 'Thai Green Curry Bowl',
+    side: 'Jasmine Rice',
+    drink: 'Calamansi Iced Tea',
+    originalPrice: 420,
+    promoPrice: 349,
+    description: 'Thai Green Curry Bowl + Jasmine Rice + Calamansi Iced Tea',
+    allergens: [],
+    tags: ['vegan', 'spicy', 'combo'],
+    emoji: '🍛',
+    image: 'https://images.unsplash.com/photo-1455619452474-d2be8b1e70cd?auto=format&fit=crop&w=600&q=80'
+  },
+  {
+    id: 'CMB-104',
+    name: 'Mango Dessert Treat',
+    main: 'Mango Sticky Rice',
+    side: 'Crispy Tofu Bites',
+    drink: 'Fresh Mango Shake',
+    originalPrice: 320,
+    promoPrice: 249,
+    description: 'Mango Sticky Rice + Crispy Tofu Bites + Fresh Mango Shake',
+    allergens: ['soy'],
+    tags: ['sweet', 'vegan', 'combo'],
+    emoji: '🥭',
+    image: 'https://images.unsplash.com/photo-1562440499-64c9a111f713?auto=format&fit=crop&w=600&q=80'
+  }
+];
+
+// Default Mix & Match Deals
+const DEFAULT_MIX_MATCH = [
+  {
+    id: 'MIX-01',
+    name: 'Craft Bowl + Side + Drink Deal',
+    description: 'Pick any Rice Bowl/Noodles + 1 Crispy Dimsum + 1 Cold Beverage',
+    price: 429.00,
+    originalPrice: 560.00,
+    badge: 'Save ₱131',
+    allergens: [],
+    tags: ['mixmatch', 'popular', 'savory'],
+    emoji: '🥢',
+    image: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=600&q=80'
+  },
+  {
+    id: 'MIX-02',
+    name: 'Artisan Ramen & Gyoza Pair Set',
+    description: 'Hand-pulled noodle specialty paired with crispy dumplings and dipping sauce.',
+    price: 389.00,
+    originalPrice: 490.00,
+    badge: 'Save ₱101',
+    allergens: ['gluten'],
+    tags: ['mixmatch', 'spicy'],
+    emoji: '🍜',
+    image: 'https://images.unsplash.com/photo-1569718212165-3a8278d5f624?auto=format&fit=crop&w=600&q=80'
+  },
+  {
+    id: 'MIX-03',
+    name: 'Twin Boba & Dessert Feast',
+    description: 'Any 2 specialty iced milk teas or fruit shakes + Mango Sticky Rice dessert.',
+    price: 319.00,
+    originalPrice: 420.00,
+    badge: 'Save ₱101',
+    allergens: [],
+    tags: ['mixmatch', 'sweet'],
+    emoji: '🍧',
+    image: 'https://images.unsplash.com/photo-1562440499-64c9a111f713?auto=format&fit=crop&w=600&q=80'
+  }
+];
+
+
 function MobileView({ kioskId, onResetSession }) {
+  // --- Dynamic Allergen & Flavor Preferences from Admin ---
+  const [dynamicAllergens, setDynamicAllergens] = useState(() => getAllergens());
+  const [dynamicFlavors, setDynamicFlavors] = useState(() => getFlavorPreferences());
+
+  useEffect(() => {
+    const unsub = subscribePreferences(({ allergens: newAllergens, flavors: newFlavors }) => {
+      if (newAllergens) setDynamicAllergens(newAllergens);
+      if (newFlavors) setDynamicFlavors(newFlavors);
+    }, socketRef.current);
+    return () => unsub();
+  }, []);
+
+  const activeAllergenOptions = useMemo(() => {
+    return (dynamicAllergens || [])
+      .filter(item => item.active !== false)
+      .sort((a, b) => (a.order || 0) - (b.order || 0));
+  }, [dynamicAllergens]);
+
+  const activePreferenceOptions = useMemo(() => {
+    return (dynamicFlavors || [])
+      .filter(item => item.active !== false)
+      .sort((a, b) => (a.order || 0) - (b.order || 0));
+  }, [dynamicFlavors]);
+
   // --- Load localStorage values ---
   const [allergens, setAllergens] = useState(() => {
     const saved = localStorage.getItem('synapse_allergens');
@@ -103,6 +313,98 @@ function MobileView({ kioskId, onResetSession }) {
 
   const [cart, setCart] = useState({}); // { [itemId]: quantity }
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [promoCode, setPromoCode] = useState('');
+  const [promoApplied, setPromoApplied] = useState(null); // { code, discountType, discountValue, applicableItems, applyToAll }
+  const [promoMsg, setPromoMsg] = useState({ text: '', ok: false });
+
+  // Live Promotions & 5-Second Auto-Rotating Banner State
+  const [promos, setPromos] = useState(() => {
+    try {
+      const saved = localStorage.getItem('umami_promos');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (_) {}
+    return [];
+  });
+  const [activePromoIndex, setActivePromoIndex] = useState(0);
+  const [isPromoPaused, setIsPromoPaused] = useState(false);
+  const [promoToast, setPromoToast] = useState(null);
+
+  const activePromos = useMemo(() => {
+    return (promos || []).filter(p => p.status === 'active' && (p.bannerImage || p.imageUrl || p.image));
+  }, [promos]);
+
+  // Automatically advance to the next active promotion every 5 seconds
+  useEffect(() => {
+    if (activePromos.length <= 1 || isPromoPaused) return;
+    const timer = setInterval(() => {
+      setActivePromoIndex(prev => (prev + 1) % activePromos.length);
+    }, 5000);
+    return () => clearInterval(timer);
+  }, [activePromos.length, isPromoPaused]);
+
+  // Handle customer tapping on the promo banner or code pill
+  const handleBannerPromoClick = (promo) => {
+    if (!promo) return;
+    setPromoCode(promo.code);
+    if (navigator.clipboard) {
+      try { navigator.clipboard.writeText(promo.code); } catch (_) {}
+    }
+    setPromoToast(`Promo code "${promo.code}" applied!`);
+    setTimeout(() => setPromoToast(null), 3000);
+
+    const cartCount = Object.values(cart).reduce((sum, v) => sum + (typeof v === 'object' ? (v?.quantity || 1) : (v || 0)), 0);
+    if (cartCount > 0) {
+      setIsCartOpen(true);
+      try {
+        let source = promos;
+        if (!source || source.length === 0) {
+          source = JSON.parse(localStorage.getItem('umami_promos') || '[]');
+        }
+        const match = source.find(p => p.code?.toUpperCase() === promo.code.toUpperCase());
+        if (match && match.status === 'active') {
+          const currentCartList = Object.entries(cart).map(([id, val]) => {
+            if (typeof val === 'object' && val !== null) return val;
+            const it = allCatalogItems.find(m => String(m.id) === String(id));
+            return it ? { ...it, quantity: val } : null;
+          }).filter(Boolean);
+
+          if (!match.applyToAll) {
+            const applicable = match.applicableItems || [];
+            const hasEligibleItem = currentCartList.some(ci => {
+              return applicable.some(appItem => {
+                const cName = (ci.name || '').toLowerCase();
+                const aName = (appItem || '').toLowerCase();
+                return cName === aName || cName.startsWith(aName) || aName.startsWith(cName.split(' (')[0]);
+              });
+            });
+            if (!hasEligibleItem) {
+              setPromoMsg({
+                text: `❌ Promo applies to: ${applicable.join(', ')}. Add an eligible item to your cart!`,
+                ok: false
+              });
+              return;
+            }
+          }
+          setPromoApplied(match);
+          const rate = match.discountType === 'percent' ? `${match.discountValue}%` : `₱${match.discountValue}`;
+          setPromoMsg({ text: `✅ "${match.name}" applied (${rate} off)!`, ok: true });
+        }
+      } catch (err) {
+        console.warn('Auto apply promo error:', err);
+      }
+    } else if (promo.applicableItems && promo.applicableItems.length > 0) {
+      const firstItem = promo.applicableItems[0];
+      const isDrink = drinks.some(d => d.name.toLowerCase() === firstItem.toLowerCase());
+      if (isDrink) {
+        setSelectedCategory('drinks');
+      } else {
+        setSelectedCategory('all');
+      }
+    }
+  };
 
   const [socketConnected, setSocketConnected] = useState(false);
   const [isOnboarded, setIsOnboarded] = useState(() => {
@@ -126,13 +428,35 @@ function MobileView({ kioskId, onResetSession }) {
     return saved ? JSON.parse(saved) : null;
   });
   const [showReadyCelebration, setShowReadyCelebration] = useState(false);
+  const [isBuzzing, setIsBuzzing] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState('all');
   const [notifPermission, setNotifPermission] = useState(
     'Notification' in window ? Notification.permission : 'unavailable'
   );
   const vibReminderRef = useRef(null);
+  const buzzerCtxRef = useRef(null);
+  const buzzerTimerRef = useRef(null);
 
   const socketRef = useRef(null);
-  const [menuItems, setMenuItems] = useState([]);
+  const [menuItems, setMenuItems] = useState(() => {
+    try {
+      const saved = localStorage.getItem('umami_admin_menu');
+      if (saved) return JSON.parse(saved);
+    } catch (_) {}
+    return [];
+  });
+  const [drinks, setDrinks] = useState(() => {
+    try {
+      const saved = localStorage.getItem('umami_drinks');
+      if (saved) return JSON.parse(saved);
+    } catch (_) {}
+    return DEFAULT_DRINKS;
+  });
+  const [catalogSearch, setCatalogSearch] = useState('');
+  const [selectedDrinkForModal, setSelectedDrinkForModal] = useState(null);
+  const [modalSizeIndex, setModalSizeIndex] = useState(0);
+  const [modalSelectedAddons, setModalSelectedAddons] = useState([]);
+  const [modalQty, setModalQty] = useState(1);
   const [restaurantMeta, setRestaurantMeta] = useState(null);
   const [captiveParams, setCaptiveParams] = useState(null);
 
@@ -165,62 +489,141 @@ function MobileView({ kioskId, onResetSession }) {
     }
   }, []);
 
-  // Full-strength ORDER READY alert: chime + vibration + browser notification + repeat reminder
+  // Continuous restaurant pager buzzer synthesizer (Web Audio API) + Hardware Vibration
+  const startContinuousBuzzer = useCallback(() => {
+    setIsBuzzing(true);
+    setShowReadyCelebration(true);
+    doVibrate([500, 150, 500, 150, 500, 200, 800]);
+
+    if (buzzerTimerRef.current) clearInterval(buzzerTimerRef.current);
+
+    const playBeepBurst = () => {
+      // Repeat hardware vibration pattern with each alert cycle
+      doVibrate([350, 100, 350]);
+
+      try {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtx) return;
+        if (!buzzerCtxRef.current || buzzerCtxRef.current.state === 'closed') {
+          buzzerCtxRef.current = new AudioCtx();
+        }
+        const ctx = buzzerCtxRef.current;
+        if (ctx.state === 'suspended') {
+          ctx.resume();
+        }
+        const now = ctx.currentTime;
+        // Two high-pitch aggressive buzzer beeps (pager alert tone)
+        [0, 0.16, 0.32].forEach(offset => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(920, now + offset);
+          osc.frequency.linearRampToValueAtTime(1260, now + offset + 0.08);
+          gain.gain.setValueAtTime(0.38, now + offset);
+          gain.gain.exponentialRampToValueAtTime(0.01, now + offset + 0.11);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(now + offset);
+          osc.stop(now + offset + 0.12);
+        });
+      } catch (e) {
+        console.warn('Buzzer audio failed:', e);
+      }
+    };
+
+    playBeepBurst();
+    buzzerTimerRef.current = setInterval(playBeepBurst, 950);
+  }, []);
+
+  const stopContinuousBuzzer = useCallback(() => {
+    setIsBuzzing(false);
+    if (buzzerTimerRef.current) {
+      clearInterval(buzzerTimerRef.current);
+      buzzerTimerRef.current = null;
+    }
+    if (buzzerCtxRef.current) {
+      try { buzzerCtxRef.current.close(); } catch (e) {}
+      buzzerCtxRef.current = null;
+    }
+    if (navigator.vibrate) {
+      try { navigator.vibrate(0); } catch (e) {}
+    }
+    stopVibReminder();
+  }, [stopVibReminder]);
+
+  // Full-strength ORDER READY alert: buzzer + chime + vibration + browser notification
   const triggerReadyAlert = useCallback((order) => {
-    // 1. Rich audio fanfare
+    startContinuousBuzzer();
     playReadyChime();
 
-    // 2. Strong haptic burst
-    doVibrate(VIBRATE_READY);
-
-    // 3. Browser push notification (works even when tab is backgrounded)
+    // Browser push notification
     if ('Notification' in window && Notification.permission === 'granted') {
       try {
         const n = new Notification('🔔 Your Order is Ready for Pickup!', {
-          body: `Order #${order.orderId || ''} at ${restaurantMeta ? restaurantMeta.name : 'the restaurant'} is freshly prepared and waiting for you.`,
+          body: `Order #${order.orderId || ''} at ${restaurantMeta ? restaurantMeta.name : 'Umami Craft Fusion'} is freshly prepared and waiting for you.`,
           icon: '/favicon.svg',
           badge: '/favicon.svg',
-          tag: `order-ready-${order.orderId}`,  // replaces previous duplicate notifications
+          tag: `order-ready-${order.orderId}`,
           renotify: true,
-          requireInteraction: true,              // stays on screen until dismissed
+          requireInteraction: true,
           silent: false
         });
-        // Bring app into focus when notification tapped
         n.onclick = () => { window.focus(); n.close(); };
       } catch (e) {
         console.warn('Notification error:', e);
       }
     }
 
-    // 4. Screen wake lock — keep display on so customer sees the alert
     if ('wakeLock' in navigator) {
       navigator.wakeLock.request('screen').catch(() => {});
     }
+  }, [restaurantMeta, startContinuousBuzzer]);
 
-    // 5. Repeating vibration reminder every 30 s until acknowledged
-    stopVibReminder();
-    vibReminderRef.current = setInterval(() => {
-      doVibrate(VIBRATE_REMINDER);
-    }, 30_000);
-
-    // 6. Show full-screen celebration overlay
-    setShowReadyCelebration(true);
-  }, [restaurantMeta, stopVibReminder]);
-
-  // Load menu items and restaurant metadata dynamically with resilient fallback
+  // Load menu items, drinks, and restaurant metadata dynamically with resilient fallback
   useEffect(() => {
     const menuEndpoint = backendTargetUrl ? `${backendTargetUrl}/api/menu` : '/api/menu';
+    const drinksEndpoint = backendTargetUrl ? `${backendTargetUrl}/api/drinks` : '/api/drinks';
     const restEndpoint = backendTargetUrl ? `${backendTargetUrl}/api/restaurant` : '/api/restaurant';
 
     fetch(menuEndpoint)
       .then(res => res.json())
-      .then(data => setMenuItems(data))
+      .then(data => {
+        if (Array.isArray(data)) {
+          setMenuItems(data);
+          localStorage.setItem('umami_admin_menu', JSON.stringify(data));
+        }
+      })
       .catch(err => {
         console.warn("Direct menu fetch error, trying relative fallback:", err);
         fetch('/api/menu')
           .then(r => r.json())
-          .then(d => setMenuItems(d))
+          .then(d => {
+            if (Array.isArray(d)) {
+              setMenuItems(d);
+              localStorage.setItem('umami_admin_menu', JSON.stringify(d));
+            }
+          })
           .catch(e => console.error("Fallback menu fetch failed:", e));
+      });
+
+    fetch(drinksEndpoint)
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data)) {
+          setDrinks(data);
+          localStorage.setItem('umami_drinks', JSON.stringify(data));
+        }
+      })
+      .catch(err => {
+        fetch('/api/drinks')
+          .then(r => r.json())
+          .then(d => {
+            if (Array.isArray(d)) {
+              setDrinks(d);
+              localStorage.setItem('umami_drinks', JSON.stringify(d));
+            }
+          })
+          .catch(e => console.error("Fallback drinks fetch failed:", e));
       });
 
     fetch(restEndpoint)
@@ -233,6 +636,46 @@ function MobileView({ kioskId, onResetSession }) {
           .then(d => setRestaurantMeta(d))
           .catch(e => console.error("Fallback restaurant fetch failed:", e));
       });
+
+    const promosEndpoint = backendTargetUrl ? `${backendTargetUrl}/api/promos` : '/api/promos';
+    fetch(promosEndpoint)
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data) && data.length > 0) {
+          setPromos(data);
+          try { localStorage.setItem('umami_promos', JSON.stringify(data)); } catch (_) {}
+        }
+      })
+      .catch(() => {
+        fetch('/api/promos')
+          .then(r => r.json())
+          .then(d => {
+            if (Array.isArray(d) && d.length > 0) {
+              setPromos(d);
+              try { localStorage.setItem('umami_promos', JSON.stringify(d)); } catch (_) {}
+            }
+          })
+          .catch(() => {});
+      });
+
+    const handleCatalogSync = () => {
+      try {
+        const m = localStorage.getItem('umami_admin_menu');
+        if (m) setMenuItems(JSON.parse(m));
+        const d = localStorage.getItem('umami_drinks');
+        if (d) setDrinks(JSON.parse(d));
+        const p = localStorage.getItem('umami_promos');
+        if (p) setPromos(JSON.parse(p));
+      } catch (_) {}
+    };
+
+    window.addEventListener('umami_catalog_updated', handleCatalogSync);
+    window.addEventListener('storage', handleCatalogSync);
+
+    return () => {
+      window.removeEventListener('umami_catalog_updated', handleCatalogSync);
+      window.removeEventListener('storage', handleCatalogSync);
+    };
   }, [backendTargetUrl]);
 
   // Check for OpenNDS captive portal parameters in URL on mount
@@ -274,11 +717,9 @@ function MobileView({ kioskId, onResetSession }) {
   }, [kioskId, activeOrder]);
 
   // Setup WebSocket connection targeting the specific restaurant port
-  const targetKioskId = kioskId || (activeOrder ? activeOrder.kioskId : null);
+  const effectiveKioskId = kioskId || (activeOrder ? activeOrder.kioskId : 'COUNTER_01');
 
   useEffect(() => {
-    if (!targetKioskId) return;
-
     const socket = io(backendTargetUrl || undefined, {
       transports: ['websocket', 'polling']
     });
@@ -286,12 +727,12 @@ function MobileView({ kioskId, onResetSession }) {
 
     socket.on('connect', () => {
       setSocketConnected(true);
-      console.log(`[Mobile] Connected to server (${backendTargetUrl || 'local proxy'}), joining session:`, targetKioskId);
-      socket.emit('join-session', { kioskId: targetKioskId, role: 'mobile' });
+      console.log(`[Mobile] Connected to server (${backendTargetUrl || 'local proxy'}), joining session:`, effectiveKioskId);
+      socket.emit('join-session', { kioskId: effectiveKioskId, role: 'mobile' });
       
       // Push current preferences if onboarded
-      if (isOnboarded && kioskId) {
-        socket.emit('project-preferences', { kioskId: targetKioskId, allergens, preferences });
+      if (isOnboarded && effectiveKioskId) {
+        socket.emit('project-preferences', { kioskId: effectiveKioskId, allergens, preferences });
       }
     });
 
@@ -303,17 +744,35 @@ function MobileView({ kioskId, onResetSession }) {
 
     socket.on('order-status-updated', (data) => {
       console.log("[Mobile] Received order status update:", data);
+      const isReadyStatus = data.status === 'Ready for Pickup' || data.status === 'Order Ready' || data.status === 'Ready';
+      
       setActiveOrder(prev => {
-        if (!prev) return null;
-        if (prev.orderId === data.orderId || prev.kioskId === data.kioskId) {
-          const updated = { ...prev, status: data.status, busserName: data.busserName || prev.busserName, updatedAt: data.updatedAt };
+        if (!prev) {
+          // If no active order in state but this matches what's stored, restore it
+          const stored = JSON.parse(localStorage.getItem('synapse_active_order') || 'null');
+          const matchesStored = stored && ((stored.orderId && (stored.orderId === data.orderId || stored.orderId === data.id)) ||
+                                           (stored.id && (stored.id === data.orderId || stored.id === data.id)));
+          if (matchesStored) {
+            const up = { ...stored, status: data.status, isBuzzing: isReadyStatus, busserName: data.busserName || stored.busserName, updatedAt: data.updatedAt };
+            localStorage.setItem('synapse_active_order', JSON.stringify(up));
+            if (isReadyStatus) triggerReadyAlert(up);
+            return up;
+          }
+          return null;
+        }
+
+        const isMatch = (prev.orderId && (prev.orderId === data.orderId || prev.orderId === data.id)) ||
+                        (prev.id && (prev.id === data.orderId || prev.id === data.id)) ||
+                        (prev.kioskId && prev.kioskId === data.kioskId);
+
+        if (isMatch) {
+          const updated = { ...prev, status: data.status, isBuzzing: isReadyStatus, busserName: data.busserName || prev.busserName, updatedAt: data.updatedAt };
           localStorage.setItem('synapse_active_order', JSON.stringify(updated));
 
-          if (data.status === 'Order Ready') {
+          if (isReadyStatus) {
             triggerReadyAlert(updated);
           }
           if (data.status === 'Out for Delivery') {
-            // Gentle vibration for busser dispatched
             if (navigator.vibrate) {
               try { navigator.vibrate([100, 50, 100]); } catch(e) {}
             }
@@ -322,6 +781,54 @@ function MobileView({ kioskId, onResetSession }) {
         }
         return prev;
       });
+    });
+
+    socket.on('initial-menu', (data) => {
+      if (Array.isArray(data)) {
+        setMenuItems(data);
+        localStorage.setItem('umami_admin_menu', JSON.stringify(data));
+      }
+    });
+
+    socket.on('menu-updated', (data) => {
+      if (Array.isArray(data)) {
+        setMenuItems(data);
+        localStorage.setItem('umami_admin_menu', JSON.stringify(data));
+      }
+    });
+
+    socket.on('initial-drinks', (data) => {
+      if (Array.isArray(data)) {
+        setDrinks(data);
+        localStorage.setItem('umami_drinks', JSON.stringify(data));
+      }
+    });
+
+    socket.on('drinks-updated', (data) => {
+      if (Array.isArray(data)) {
+        setDrinks(data);
+        localStorage.setItem('umami_drinks', JSON.stringify(data));
+      }
+    });
+
+    socket.on('promos-updated', (data) => {
+      if (Array.isArray(data)) {
+        setPromos(data);
+        try { localStorage.setItem('umami_promos', JSON.stringify(data)); } catch (_) {}
+      }
+    });
+
+    socket.on('initial-promos', (data) => {
+      if (Array.isArray(data)) {
+        setPromos(data);
+        try { localStorage.setItem('umami_promos', JSON.stringify(data)); } catch (_) {}
+      }
+    });
+
+    socket.on('item-availability-updated', (data) => {
+      if (data && data.itemId) {
+        setMenuItems(prev => prev.map(m => String(m.id) === String(data.itemId) ? { ...m, available: data.isAvailable, status: data.isAvailable ? 'Available' : 'Unavailable' } : m));
+      }
     });
 
     socket.on('disconnect', () => {
@@ -333,24 +840,64 @@ function MobileView({ kioskId, onResetSession }) {
       socketRef.current = null;
       setSocketConnected(false);
     };
-  }, [targetKioskId, isOnboarded, backendTargetUrl]);
+  }, [effectiveKioskId, isOnboarded, backendTargetUrl, triggerReadyAlert]);
 
-  // Clean up vibration reminder on unmount
+  // Listen for local buzzer alerts and storage events across tabs
   useEffect(() => {
-    return () => stopVibReminder();
-  }, [stopVibReminder]);
+    const handleBuzzerTrigger = (e) => {
+      console.log("[MobileView] Received buzzer alert event:", e.detail);
+      const stored = JSON.parse(localStorage.getItem('synapse_active_order') || 'null') || {};
+      triggerReadyAlert(stored);
+      setActiveOrder(prev => {
+        if (!prev) {
+          return stored ? { ...stored, status: 'Ready for Pickup', isBuzzing: true } : null;
+        }
+        return { ...prev, status: 'Ready for Pickup', isBuzzing: true };
+      });
+    };
+
+    const handleStorageEvent = (e) => {
+      if (e.key === 'synapse_gadget_buzz' || e.key === 'synapse_active_order') {
+        try {
+          const active = JSON.parse(localStorage.getItem('synapse_active_order') || 'null');
+          if (active) {
+            const isReady = active.status === 'Ready for Pickup' || active.status === 'Order Ready' || active.status === 'Ready' || active.isBuzzing;
+            if (isReady) {
+              triggerReadyAlert(active);
+              setActiveOrder(active);
+            }
+          }
+        } catch (_) {}
+      }
+    };
+
+    window.addEventListener('synapse_buzzer_alert', handleBuzzerTrigger);
+    window.addEventListener('storage', handleStorageEvent);
+    return () => {
+      window.removeEventListener('synapse_buzzer_alert', handleBuzzerTrigger);
+      window.removeEventListener('storage', handleStorageEvent);
+    };
+  }, [triggerReadyAlert]);
+
+  // Clean up vibration & buzzer on unmount
+  useEffect(() => {
+    return () => {
+      stopVibReminder();
+      stopContinuousBuzzer();
+    };
+  }, [stopVibReminder, stopContinuousBuzzer]);
 
   // Instantly push preferences to the socket room whenever preferences or allergens change
   useEffect(() => {
-    if (socketRef.current && socketConnected && kioskId && isOnboarded) {
+    if (socketRef.current && socketConnected && effectiveKioskId && isOnboarded) {
       console.log("[Mobile] Live pushing updated preferences to Kiosk:", { allergens, preferences });
       socketRef.current.emit('project-preferences', {
-        kioskId,
+        kioskId: effectiveKioskId,
         allergens,
         preferences
       });
     }
-  }, [allergens, preferences, socketConnected, kioskId, isOnboarded]);
+  }, [allergens, preferences, socketConnected, effectiveKioskId, isOnboarded]);
 
   // Toggle handlers
   const handleAllergenToggle = (id) => {
@@ -365,22 +912,213 @@ function MobileView({ kioskId, onResetSession }) {
     );
   };
 
-  // Cart Helper Methods
-  const handleAddToCart = (item) => {
-    setCart(prev => ({
-      ...prev,
-      [item.id]: (prev[item.id] || 0) + 1
+  // Combined Catalog: Food + Drinks + Combos + Mix & Match Deals
+  const allCatalogItems = useMemo(() => {
+    // 1. Food items (filter out drafts and archived products)
+    const foods = (menuItems || [])
+      .filter(item => !item.archived && item.status !== 'Draft' && item.status !== 'Archived')
+      .map(item => {
+        const isAvail = item.available !== undefined ? item.available : (item.status === 'Available');
+        const stockLevel = item.stock !== undefined ? Number(item.stock) : 25;
+        const allergensList = Array.isArray(item.allergens)
+          ? item.allergens
+          : (typeof item.allergens === 'string' && item.allergens !== 'None'
+              ? item.allergens.toLowerCase().split(',').map(s => s.trim()).filter(Boolean)
+              : []);
+        const tagsList = Array.isArray(item.tags)
+          ? item.tags
+          : (typeof item.tags === 'string'
+              ? item.tags.toLowerCase().split(',').map(s => s.trim()).filter(Boolean)
+              : []);
+
+        return {
+          ...item,
+          id: String(item.id),
+          name: item.name,
+          category: item.category || 'Appetizers',
+          catalogType: 'food',
+          price: Number(item.price) || 0,
+          promoPrice: item.promoPrice && Number(item.promoPrice) > 0 ? Number(item.promoPrice) : null,
+          available: isAvail && stockLevel > 0,
+          isExplicitlyUnavailable: !isAvail,
+          isOutOfStock: stockLevel <= 0,
+          stock: stockLevel,
+          allergens: allergensList,
+          tags: tagsList,
+          image: item.image || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=600&q=80',
+          emoji: item.emoji || '🍽️'
+        };
+      });
+
+    // 2. Drinks from drinks state (filter out drafts/archived)
+    const rawDrinks = (drinks && drinks.length > 0) ? drinks : DEFAULT_DRINKS;
+    const formattedDrinks = rawDrinks
+      .filter(d => !d.archived && d.status !== 'Draft' && d.status !== 'Archived')
+      .map(d => {
+        const sizes = Array.isArray(d.sizes) && d.sizes.length > 0
+          ? d.sizes
+          : [{ name: 'Small', volume: '355 ml', price: d.price || 75, stock: 25 }];
+        const basePrice = sizes[0].price;
+        const isAvail = d.available !== undefined ? d.available : (d.status !== 'Unavailable');
+        const allOutOfStock = sizes.every(s => (s.stock !== undefined && s.stock <= 0));
+        const totalStock = sizes.reduce((sum, s) => sum + (s.stock || 0), 0);
+
+        const allergensList = Array.isArray(d.allergens)
+          ? d.allergens
+          : (d.category === 'Milk Tea' ? ['dairy'] : []);
+        const tagsList = Array.isArray(d.tags)
+          ? d.tags
+          : ['drinks', ...(d.category === 'Milk Tea' ? ['sweet'] : ['healthy'])];
+
+        return {
+          id: String(d.id || `DRK-${d.name.replace(/\s+/g, '')}`),
+          sku: d.sku || d.id,
+          name: d.name,
+          description: d.description || 'Chilled refreshing artisanal beverage.',
+          price: basePrice,
+          promoPrice: d.promoPrice && Number(d.promoPrice) > 0 ? Number(d.promoPrice) : null,
+          available: isAvail && !allOutOfStock,
+          isExplicitlyUnavailable: !isAvail,
+          isOutOfStock: allOutOfStock,
+          stock: totalStock,
+          sizes: sizes,
+          addons: Array.isArray(d.addons) ? d.addons : (typeof d.addons === 'string' && d.addons ? d.addons.split(',').map(s => s.trim()) : []),
+          allergens: allergensList,
+          tags: tagsList,
+          category: 'Drinks & Boba',
+          drinkCategory: d.category || 'Beverage',
+          catalogType: 'drink',
+          emoji: d.emoji || '🧋',
+          image: d.image || 'https://images.unsplash.com/photo-1558857563-b37cf53f7c19?auto=format&fit=crop&w=600&q=80'
+        };
+      });
+
+    // 3. Combos from localStorage 'umami_combos' or default
+    let storedCombos = [];
+    try {
+      const raw = localStorage.getItem('umami_combos');
+      if (raw) storedCombos = JSON.parse(raw);
+    } catch (e) {}
+    if (!storedCombos || storedCombos.length === 0) {
+      storedCombos = DEFAULT_COMBOS;
+    }
+    const formattedCombos = storedCombos.map(c => ({
+      id: c.id || `CMB-${c.name.replace(/\s+/g, '')}`,
+      name: c.name,
+      description: `${c.main || 'Rice Bowl'} + ${c.side || 'Appetizer'} + ${c.drink || 'Drink'}`,
+      price: Number(c.promoPrice) || Number(c.originalPrice) || 349,
+      originalPrice: Number(c.originalPrice) || 450,
+      available: true,
+      allergens: c.allergens || ['gluten'],
+      tags: ['combo', 'savory'],
+      category: 'Combos & Value Meals',
+      catalogType: 'combo',
+      emoji: c.emoji || '🍱',
+      image: c.image || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=600&q=80'
     }));
+
+    // 4. Mix & Match Deals
+    const mixMatchDeals = DEFAULT_MIX_MATCH.map(m => ({
+      ...m,
+      available: true,
+      category: 'Mix & Match Deals',
+      catalogType: 'mixmatch',
+      allergens: m.allergens || [],
+      tags: m.tags || []
+    }));
+
+    return [...foods, ...formattedDrinks, ...formattedCombos, ...mixMatchDeals];
+  }, [menuItems, drinks]);
+
+  // Filter items based on user excluded allergens, chosen category, and search query
+  const safeItems = useMemo(() => {
+    return allCatalogItems.filter(item => {
+      // 1. Exclude if item contains any allergen selected by user
+      const hasExcludedAllergen = item.allergens && item.allergens.some(a => allergens.includes(a));
+      if (hasExcludedAllergen) return false;
+
+      // 2. Filter by category tab
+      if (selectedCategory === 'all') {
+        // all items
+      } else if (selectedCategory === 'mains') {
+        const match = ['Rice Bowls', 'Bowls & Mains', 'Mains', 'Meals', 'Burgers', 'Chicken'].some(c => c.toLowerCase() === (item.category || '').toLowerCase());
+        if (!match) return false;
+      } else if (selectedCategory === 'appetizers') {
+        const match = ['Appetizers', 'Dimsum & Bites', 'Desserts', 'Snacks', 'Add-ons'].some(c => c.toLowerCase() === (item.category || '').toLowerCase());
+        if (!match) return false;
+      } else if (selectedCategory === 'noodles') {
+        const match = ['Noodles', 'Ramen'].some(c => c.toLowerCase() === (item.category || '').toLowerCase());
+        if (!match) return false;
+      } else if (selectedCategory === 'drinks') {
+        if (item.catalogType !== 'drink' && item.category !== 'Drinks & Boba' && item.category !== 'Drinks') return false;
+      } else if (selectedCategory === 'combos') {
+        if (item.catalogType !== 'combo' && item.category !== 'Combos & Value Meals') return false;
+      } else if (selectedCategory === 'mixmatch') {
+        if (item.catalogType !== 'mixmatch' && item.category !== 'Mix & Match Deals') return false;
+      }
+
+      // 3. Search query filter
+      if (catalogSearch && catalogSearch.trim()) {
+        const q = catalogSearch.toLowerCase().trim();
+        const inName = (item.name || '').toLowerCase().includes(q);
+        const inDesc = (item.description || '').toLowerCase().includes(q);
+        const inCat = (item.category || '').toLowerCase().includes(q);
+        const inIng = (item.ingredients || '').toLowerCase().includes(q);
+        if (!inName && !inDesc && !inCat && !inIng) return false;
+      }
+
+      return true;
+    });
+  }, [allCatalogItems, allergens, selectedCategory, catalogSearch]);
+
+  // Cart Helper Methods supporting both standard and customized items
+  const handleAddToCart = (item, customDetails = null) => {
+    if (!item.available && !customDetails) return;
+    if (customDetails) {
+      const cartKey = `${item.id}-${customDetails.sizeName || 'std'}`;
+      setCart(prev => {
+        const existing = prev[cartKey];
+        const newQty = (existing?.quantity || 0) + (customDetails.qty || 1);
+        return {
+          ...prev,
+          [cartKey]: {
+            ...item,
+            id: cartKey,
+            originalId: item.id,
+            name: `${item.name} (${customDetails.sizeName})`,
+            price: customDetails.price,
+            size: customDetails.sizeName,
+            volume: customDetails.volume,
+            addons: customDetails.addons || [],
+            quantity: newQty
+          }
+        };
+      });
+    } else {
+      setCart(prev => {
+        const current = typeof prev[item.id] === 'number' ? prev[item.id] : (prev[item.id]?.quantity || 0);
+        return {
+          ...prev,
+          [item.id]: current + 1
+        };
+      });
+    }
   };
 
   const handleUpdateQuantity = (itemId, delta) => {
     setCart(prev => {
-      const current = prev[itemId] || 0;
+      const current = typeof prev[itemId] === 'number' ? prev[itemId] : (prev[itemId]?.quantity || 0);
       const next = current + delta;
       if (next <= 0) {
         const copy = { ...prev };
         delete copy[itemId];
         return copy;
+      }
+      if (typeof prev[itemId] === 'object') {
+        return {
+          ...prev,
+          [itemId]: { ...prev[itemId], quantity: next }
+        };
       }
       return { ...prev, [itemId]: next };
     });
@@ -396,19 +1134,22 @@ function MobileView({ kioskId, onResetSession }) {
 
   const getCartItems = () => {
     return Object.entries(cart)
-      .map(([id, qty]) => {
-        const item = menuItems.find(m => m.id === parseInt(id, 10));
-        return item ? { ...item, quantity: qty } : null;
+      .map(([id, val]) => {
+        if (typeof val === 'object' && val !== null) {
+          return val;
+        }
+        const item = allCatalogItems.find(m => String(m.id) === String(id));
+        return item ? { ...item, quantity: val } : null;
       })
       .filter(Boolean);
   };
 
   const getCartTotal = () => {
-    return getCartItems().reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    return getCartItems().reduce((sum, item) => sum + (item.price * (item.quantity || 1)), 0);
   };
 
   const getCartCount = () => {
-    return Object.values(cart).reduce((sum, qty) => sum + qty, 0);
+    return getCartItems().reduce((sum, item) => sum + (item.quantity || 1), 0);
   };
 
   // Factory reset: clear all local storage
@@ -436,6 +1177,7 @@ function MobileView({ kioskId, onResetSession }) {
     const newHistory = [...history];
     const allOrderedTags = [];
     let totalPrice = 0;
+    let discountAmount = 0;
 
     cartItems.forEach(cartItem => {
       totalPrice += cartItem.price * cartItem.quantity;
@@ -446,6 +1188,40 @@ function MobileView({ kioskId, onResetSession }) {
         });
       }
     });
+
+    // Apply promo discount
+    if (promoApplied) {
+      const eligibleItems = promoApplied.applyToAll
+        ? cartItems
+        : cartItems.filter(ci => {
+            return (promoApplied.applicableItems || []).some(appItem => {
+              const cName = (ci.name || '').toLowerCase();
+              const aName = (appItem || '').toLowerCase();
+              return cName === aName || cName.startsWith(aName) || aName.startsWith(cName.split(' (')[0]);
+            });
+          });
+      const eligibleSubtotal = eligibleItems.reduce((s, ci) => s + ci.price * ci.quantity, 0);
+      if (promoApplied.discountType === 'percent') {
+        discountAmount = Math.round(eligibleSubtotal * promoApplied.discountValue / 100);
+      } else {
+        discountAmount = Math.min(promoApplied.discountValue, eligibleSubtotal);
+      }
+      totalPrice = Math.max(0, totalPrice - discountAmount);
+
+      // Redeem promo on backend server
+      try {
+        const redeemEndpoint = backendTargetUrl ? `${backendTargetUrl}/api/promos/redeem` : '/api/promos/redeem';
+        fetch(redeemEndpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            promoCode: promoApplied.code,
+            orderId: `ORD-${Date.now().toString().slice(-4)}`,
+            discountAmount: discountAmount || 0
+          })
+        }).catch(err => console.warn('Redeem API fallback:', err));
+      } catch (_) {}
+    }
 
     localStorage.setItem('synapse_order_history', JSON.stringify(newHistory));
     setHistory(newHistory);
@@ -485,23 +1261,39 @@ function MobileView({ kioskId, onResetSession }) {
     const orderId = `ORD-${Math.floor(1000 + Math.random() * 9000)}`;
     const newActiveOrder = {
       orderId,
-      kioskId: kioskId || 'COUNTER',
+      kioskId: kioskId || 'MOBILE_01',
       items: cartItems,
       itemCount: getCartCount(),
       totalPrice,
+      discountAmount: discountAmount || 0,
+      promoCode: promoApplied ? promoApplied.code : null,
       orderedTags: allOrderedTags,
       allergens,
       status: 'Order Received',
+      gadgetType: 'Customer Device',
       createdAt: new Date().toISOString()
     };
 
     setActiveOrder(newActiveOrder);
     localStorage.setItem('synapse_active_order', JSON.stringify(newActiveOrder));
 
+    // Also persist into umami_orders so KitchenView picks it up instantly
+    try {
+      const stored = JSON.parse(localStorage.getItem('umami_orders') || '[]');
+      const updatedList = [newActiveOrder, ...stored.filter(o => o.orderId !== orderId)];
+      localStorage.setItem('umami_orders', JSON.stringify(updatedList));
+      window.dispatchEvent(new CustomEvent('umami_new_order', { detail: newActiveOrder }));
+    } catch (e) {}
+
     // 5. Emit order to backend and kitchen
     if (socketRef.current && socketConnected) {
       socketRef.current.emit('place-order', {
-        kioskId,
+        orderId,
+        kioskId: kioskId || 'MOBILE_01',
+        customer: 'Mobile Diner',
+        diningOption: 'Dine-In',
+        tableNumber: 'Table 4',
+        payment: 'GCash',
         items: cartItems,
         itemCount: getCartCount(),
         totalPrice,
@@ -510,18 +1302,24 @@ function MobileView({ kioskId, onResetSession }) {
       });
     }
 
-    // 6. Clear cart locally
+    // 6. Clear cart and promo locally
     setCart({});
+    setPromoCode('');
+    setPromoApplied(null);
+    setPromoMsg({ text: '', ok: false });
     setIsCartOpen(false);
   };
 
   // Dismiss / complete active order session
   const handleDismissOrder = () => {
+    stopContinuousBuzzer();
     stopVibReminder();            // cancel repeating haptic reminder
     localStorage.removeItem('synapse_active_order');
     setActiveOrder(null);
     setShowReadyCelebration(false);
-    onResetSession();
+    if (typeof onResetSession === 'function') {
+      onResetSession();
+    }
   };
 
   // Repeat Last Order handler
@@ -539,11 +1337,6 @@ function MobileView({ kioskId, onResetSession }) {
     setIsCartOpen(true);
   };
 
-  // Safe foods filtering (Mobile list)
-  const safeItems = menuItems.filter(item => {
-    return !item.allergens.some(a => allergens.includes(a));
-  });
-
   // Simple taste profiling analytics
   const tagCounts = history.reduce((acc, tag) => {
     acc[tag] = (acc[tag] || 0) + 1;
@@ -554,9 +1347,394 @@ function MobileView({ kioskId, onResetSession }) {
   const totalCartCount = getCartCount();
   const totalCartPrice = getCartTotal();
 
+  // 5-Second Cycling Customer-Facing Promotional Banner Carousel Component
+  const renderPromoBannerCarousel = () => {
+    if (!activePromos || activePromos.length === 0) return null;
+    const currentPromo = activePromos[activePromoIndex % activePromos.length];
+    if (!currentPromo) return null;
+
+    const discountBadge = currentPromo.discountType === 'percent'
+      ? `${currentPromo.discountValue}% OFF`
+      : `₱${currentPromo.discountValue} OFF`;
+
+    const bannerImgSrc = currentPromo.bannerImage || currentPromo.imageUrl || currentPromo.image || '/ramen_promo_banner.png';
+
+    return (
+      <div
+        className="customer-promo-carousel"
+        onMouseEnter={() => setIsPromoPaused(true)}
+        onMouseLeave={() => setIsPromoPaused(false)}
+        onTouchStart={() => setIsPromoPaused(true)}
+        onTouchEnd={() => setIsPromoPaused(false)}
+        style={{
+          position: 'relative',
+          borderRadius: '16px',
+          overflow: 'hidden',
+          marginBottom: '14px',
+          boxShadow: '0 8px 24px rgba(0, 0, 0, 0.22)',
+          border: '1px solid rgba(255, 255, 255, 0.12)',
+          background: currentPromo.bannerBg || '#1c1917',
+          transition: 'all 0.4s ease'
+        }}
+      >
+        {/* Background Banner Image with Ambient Depth */}
+        <div style={{ position: 'relative', width: '100%', height: '145px', overflow: 'hidden' }}>
+          <img
+            src={bannerImgSrc}
+            alt={currentPromo.name}
+            style={{
+              width: '100%',
+              height: '100%',
+              objectFit: 'cover',
+              display: 'block',
+              transition: 'transform 0.6s ease'
+            }}
+            onError={(e) => {
+              e.target.onerror = null;
+              e.target.src = '/ramen_promo_banner.png';
+            }}
+          />
+          {/* Deep Multi-layer Gradient Overlay for Razor-Sharp Readability */}
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              background: 'linear-gradient(180deg, rgba(15,23,42,0.3) 0%, rgba(15,23,42,0.7) 50%, rgba(15,23,42,0.96) 100%)'
+            }}
+          />
+
+          {/* Top Row Badges */}
+          <div
+            style={{
+              position: 'absolute',
+              top: '10px',
+              left: '12px',
+              right: '12px',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              zIndex: 2
+            }}
+          >
+            <div
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '5px',
+                background: 'rgba(0, 0, 0, 0.65)',
+                backdropFilter: 'blur(8px)',
+                border: '1px solid rgba(255, 255, 255, 0.2)',
+                padding: '3px 9px',
+                borderRadius: '999px',
+                fontSize: '10px',
+                fontWeight: '800',
+                color: '#fff',
+                letterSpacing: '0.04em'
+              }}
+            >
+              <span
+                style={{
+                  width: '6px',
+                  height: '6px',
+                  borderRadius: '50%',
+                  background: '#f97316',
+                  display: 'inline-block',
+                  boxShadow: '0 0 6px #f97316'
+                }}
+              />
+              <span>SPECIAL PROMO</span>
+            </div>
+
+            <div
+              style={{
+                background: 'linear-gradient(135deg, #f97316 0%, #dc2626 100%)',
+                color: '#ffffff',
+                fontWeight: '900',
+                fontSize: '12px',
+                padding: '4px 10px',
+                borderRadius: '8px',
+                boxShadow: '0 2px 8px rgba(220, 38, 38, 0.4)',
+                letterSpacing: '0.03em',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px'
+              }}
+            >
+              <Sparkles size={11} />
+              <span>{discountBadge}</span>
+            </div>
+          </div>
+
+          {/* Bottom Title & Tap-to-Apply Action */}
+          <div
+            style={{
+              position: 'absolute',
+              bottom: '12px',
+              left: '12px',
+              right: '12px',
+              zIndex: 2
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: '8px' }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <h4
+                  style={{
+                    margin: 0,
+                    fontSize: '15px',
+                    fontWeight: '800',
+                    color: '#ffffff',
+                    lineHeight: '1.2',
+                    textShadow: '0 1px 4px rgba(0,0,0,0.8)',
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis'
+                  }}
+                >
+                  {currentPromo.bannerTitle || currentPromo.name}
+                </h4>
+                <p
+                  style={{
+                    margin: '3px 0 0 0',
+                    fontSize: '11px',
+                    color: 'rgba(255, 255, 255, 0.85)',
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    textShadow: '0 1px 3px rgba(0,0,0,0.8)'
+                  }}
+                >
+                  {currentPromo.applyToAll
+                    ? '✨ Valid on all dishes & drinks'
+                    : `🎯 Applies to: ${(currentPromo.applicableItems || []).join(', ')}`}
+                </p>
+              </div>
+
+              {/* Tap to Apply Promo Code Pill */}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleBannerPromoClick(currentPromo);
+                }}
+                style={{
+                  background: 'rgba(255, 255, 255, 0.95)',
+                  color: '#991b1b',
+                  border: 'none',
+                  borderRadius: '10px',
+                  padding: '6px 12px',
+                  fontSize: '11px',
+                  fontWeight: '800',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '5px',
+                  boxShadow: '0 3px 10px rgba(0,0,0,0.3)',
+                  flexShrink: 0,
+                  transition: 'transform 0.15s ease'
+                }}
+                title={`Apply promo code ${currentPromo.code}`}
+              >
+                <Tag size={12} />
+                <span>{currentPromo.code}</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Navigation Arrows for Multiple Active Promos */}
+          {activePromos.length > 1 && (
+            <>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setActivePromoIndex((prev) => (prev - 1 + activePromos.length) % activePromos.length);
+                }}
+                style={{
+                  position: 'absolute',
+                  left: '6px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  background: 'rgba(0, 0, 0, 0.45)',
+                  border: '1px solid rgba(255, 255, 255, 0.2)',
+                  color: '#fff',
+                  borderRadius: '50%',
+                  width: '26px',
+                  height: '26px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  zIndex: 3,
+                  padding: 0
+                }}
+                aria-label="Previous promotion"
+              >
+                <ChevronLeft size={14} />
+              </button>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setActivePromoIndex((prev) => (prev + 1) % activePromos.length);
+                }}
+                style={{
+                  position: 'absolute',
+                  right: '6px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  background: 'rgba(0, 0, 0, 0.45)',
+                  border: '1px solid rgba(255, 255, 255, 0.2)',
+                  color: '#fff',
+                  borderRadius: '50%',
+                  width: '26px',
+                  height: '26px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  zIndex: 3,
+                  padding: 0
+                }}
+                aria-label="Next promotion"
+              >
+                <ChevronRight size={14} />
+              </button>
+            </>
+          )}
+        </div>
+
+        {/* 5-Second Carousel Indicator Dots */}
+        {activePromos.length > 1 && (
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '6px 0',
+              background: 'rgba(15, 23, 42, 0.95)'
+            }}
+          >
+            {activePromos.map((p, idx) => {
+              const isActive = (activePromoIndex % activePromos.length) === idx;
+              return (
+                <button
+                  key={p.id || idx}
+                  type="button"
+                  onClick={() => setActivePromoIndex(idx)}
+                  style={{
+                    height: '5px',
+                    width: isActive ? '22px' : '6px',
+                    borderRadius: '999px',
+                    background: isActive ? '#f97316' : 'rgba(255, 255, 255, 0.3)',
+                    border: 'none',
+                    padding: 0,
+                    cursor: 'pointer',
+                    transition: 'all 0.3s ease'
+                  }}
+                  title={`Promotion: ${p.name || p.code}`}
+                />
+              );
+            })}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   // The inner phone content (shared between desktop phone frame and plain mobile wrapper)
   const phoneContent = (
     <div className="mobile-wrapper fade-in" style={{ position: 'relative' }}>
+      {/* Toast Notification when Promo is Copied/Applied */}
+      {promoToast && (
+        <div
+          style={{
+            position: 'absolute',
+            top: '12px',
+            left: '16px',
+            right: '16px',
+            zIndex: 9999,
+            background: 'rgba(15, 23, 42, 0.95)',
+            color: '#ffffff',
+            backdropFilter: 'blur(12px)',
+            border: '1px solid rgba(249, 115, 22, 0.5)',
+            boxShadow: '0 8px 24px rgba(0,0,0,0.35)',
+            padding: '10px 16px',
+            borderRadius: '12px',
+            fontSize: '12px',
+            fontWeight: '700',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '8px'
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Sparkles size={16} color="#f97316" />
+            <span>{promoToast}</span>
+          </div>
+          <button
+            onClick={() => setPromoToast(null)}
+            style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.7)', cursor: 'pointer', padding: '2px' }}
+          >
+            <X size={14} />
+          </button>
+        </div>
+      )}
+      {/* Universal Coaster Pager Buzzer Overlay whenever isBuzzing is active */}
+      {isBuzzing && (
+        <div className="coaster-pager-overlay">
+          <div className="coaster-pager-card">
+            <div className="coaster-pager-leds">
+              <span className="pager-led-dot red-blink"></span>
+              <span className="pager-led-dot red-blink"></span>
+              <span className="pager-led-dot red-blink"></span>
+              <span className="pager-led-dot red-blink"></span>
+            </div>
+            
+            <div className="coaster-pager-circle">
+              <span className="coaster-pager-icon">🚨</span>
+              <div className="coaster-pager-num">
+                {activeOrder ? `#${activeOrder.orderId}` : 'ORDER READY'}
+              </div>
+            </div>
+
+            <h3 style={{ fontSize: '18px', fontWeight: '900', color: '#1f2937', margin: '0 0 6px 0' }}>
+              Gadget Buzzer Active!
+            </h3>
+            <p style={{ fontSize: '13px', color: '#6b7280', margin: '0 0 16px 0', lineHeight: 1.5 }}>
+              Your order is ready at the counter! Pick up your food &amp; drinks now.
+            </p>
+
+            <button
+              onClick={() => {
+                stopContinuousBuzzer();
+                setShowReadyCelebration(false);
+              }}
+              style={{
+                width: '100%',
+                padding: '12px 20px',
+                background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
+                color: '#ffffff',
+                border: 'none',
+                borderRadius: '12px',
+                fontSize: '14px',
+                fontWeight: '800',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                boxShadow: '0 4px 14px rgba(239, 68, 68, 0.4)'
+              }}
+            >
+              <VolumeX size={16} />
+              <span>Silence Buzzer &amp; Claim Order</span>
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* App Header — shown only on tracking / menu views, not on onboarding */}
       {(activeOrder || (kioskId && isOnboarded)) && (
         <header style={{ textAlign: 'center', marginBottom: '20px', paddingBottom: '14px', borderBottom: '1px solid var(--border-glass)' }}>
@@ -645,8 +1823,8 @@ function MobileView({ kioskId, onResetSession }) {
               <div className="fp-stepper-line-fill" style={{
                 width:
                   (activeOrder.status === 'Out for Delivery' || activeOrder.status === 'Delivered' || activeOrder.status === 'Completed') ? 'calc(100% - 60px)' :
-                  (activeOrder.status === 'Order Ready') ? 'calc(66% - 20px)' :
-                  (activeOrder.status === 'Cooking') ? 'calc(33% - 20px)' : '0%'
+                  (activeOrder.status === 'Order Ready' || activeOrder.status === 'Ready for Pickup' || activeOrder.status === 'Ready') ? 'calc(66% - 20px)' :
+                  (activeOrder.status === 'Cooking' || activeOrder.status === 'Preparing') ? 'calc(33% - 20px)' : '0%'
               }}></div>
 
               {/* Step 1: Order Placed */}
@@ -655,14 +1833,14 @@ function MobileView({ kioskId, onResetSession }) {
                 <span className="fp-step-label">Order Placed</span>
               </div>
 
-              {/* Step 2: Cooking */}
-              <div className={`fp-step-item ${activeOrder.status === 'Cooking' ? 'active' : (activeOrder.status === 'Order Ready' || activeOrder.status === 'Out for Delivery' || activeOrder.status === 'Completed' ? 'completed' : '')}`}>
+              {/* Step 2: Cooking / Preparing */}
+              <div className={`fp-step-item ${(activeOrder.status === 'Cooking' || activeOrder.status === 'Preparing') ? 'active' : (activeOrder.status === 'Order Ready' || activeOrder.status === 'Ready for Pickup' || activeOrder.status === 'Ready' || activeOrder.status === 'Out for Delivery' || activeOrder.status === 'Completed' ? 'completed' : '')}`}>
                 <div className="fp-step-circle">🍳</div>
                 <span className="fp-step-label">Preparing</span>
               </div>
 
-              {/* Step 3: Order Ready / Busser */}
-              <div className={`fp-step-item ${activeOrder.status === 'Order Ready' ? 'active' : (activeOrder.status === 'Out for Delivery' || activeOrder.status === 'Completed' ? 'completed' : '')}`}>
+              {/* Step 3: Order Ready */}
+              <div className={`fp-step-item ${(activeOrder.status === 'Order Ready' || activeOrder.status === 'Ready for Pickup' || activeOrder.status === 'Ready') ? 'active' : (activeOrder.status === 'Out for Delivery' || activeOrder.status === 'Completed' ? 'completed' : '')}`}>
                 <div className="fp-step-circle">🔔</div>
                 <span className="fp-step-label">Ready</span>
               </div>
@@ -676,7 +1854,7 @@ function MobileView({ kioskId, onResetSession }) {
 
             {/* Dynamic Status Detail */}
             <div className={`order-status-message-box status-${activeOrder.status ? activeOrder.status.toLowerCase().replace(/\s+/g, '-') : 'received'}`} style={{ marginTop: '16px' }}>
-              {activeOrder.status === 'Order Received' && (
+              {(activeOrder.status === 'Order Received' || activeOrder.status === 'New') && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                   <span style={{ fontSize: '24px' }}>📋</span>
                   <div>
@@ -688,7 +1866,7 @@ function MobileView({ kioskId, onResetSession }) {
                 </div>
               )}
 
-              {activeOrder.status === 'Cooking' && (
+              {(activeOrder.status === 'Cooking' || activeOrder.status === 'Preparing') && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                   <span style={{ fontSize: '24px' }}>🍳</span>
                   <div>
@@ -700,13 +1878,13 @@ function MobileView({ kioskId, onResetSession }) {
                 </div>
               )}
 
-              {activeOrder.status === 'Order Ready' && (
+              {(activeOrder.status === 'Order Ready' || activeOrder.status === 'Ready for Pickup' || activeOrder.status === 'Ready') && (
                 <div className="fp-busser-alert-banner">
                   <span style={{ fontSize: '24px' }}>🔔</span>
                   <div>
-                    <div style={{ fontWeight: 800, fontSize: '14px' }}>Order Ready! Busser Being Dispatched</div>
+                    <div style={{ fontWeight: 800, fontSize: '14px' }}>Order Ready for Pickup! 🔔</div>
                     <div style={{ fontSize: '12px', opacity: 0.85, marginTop: '2px' }}>
-                      Your food is ready at the pass. A food runner will bring it to your table shortly.
+                      Your food is freshly prepared and waiting at the counter. Please collect your tray!
                     </div>
                   </div>
                 </div>
@@ -746,7 +1924,7 @@ function MobileView({ kioskId, onResetSession }) {
           <div className="glass-card" style={{ padding: '16px', marginBottom: '16px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', paddingBottom: '8px', borderBottom: '1px solid var(--border-glass)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <Receipt size={16} color="var(--text-muted)" />
+                <PesoReceipt size={16} color="var(--text-muted)" />
                 <span style={{ fontSize: '12px', fontWeight: '700', textTransform: 'uppercase', color: 'var(--text-muted)' }}>
                   Receipt Details
                 </span>
@@ -853,7 +2031,7 @@ function MobileView({ kioskId, onResetSession }) {
           )}
 
           {/* Persistent Ready Banner (visible below modal when not in celebration mode) */}
-          {activeOrder.status === 'Order Ready' && !showReadyCelebration && (
+          {(activeOrder.status === 'Order Ready' || activeOrder.status === 'Ready for Pickup' || activeOrder.status === 'Ready') && !showReadyCelebration && (
             <div
               onClick={() => setShowReadyCelebration(true)}
               style={{
@@ -866,7 +2044,7 @@ function MobileView({ kioskId, onResetSession }) {
             >
               <BellRing size={22} color="white" style={{ flexShrink: 0, animation: 'bell-shake 0.5s ease-in-out infinite' }} />
               <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: 900, fontSize: '14px', color: 'white' }}>Your Order is Ready!</div>
+                <div style={{ fontWeight: 900, fontSize: '14px', color: 'white' }}>Your Order is Ready! 🔔</div>
                 <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.85)', marginTop: '2px' }}>
                   Tap to view — please collect from the counter
                 </div>
@@ -875,9 +2053,35 @@ function MobileView({ kioskId, onResetSession }) {
             </div>
           )}
 
+          {/* Link to Kitchen Module */}
+          <a
+            href="/?view=kitchen"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px',
+              background: 'rgba(228, 87, 41, 0.1)',
+              border: '1px solid rgba(228, 87, 41, 0.35)',
+              borderRadius: '12px',
+              padding: '12px',
+              color: 'var(--accent-red)',
+              fontSize: '13px',
+              fontWeight: '800',
+              textDecoration: 'none',
+              marginTop: '12px'
+            }}
+          >
+            <ChefHat size={16} />
+            <span>Open Kitchen View (http://localhost:3000/?view=kitchen)</span>
+            <ExternalLink size={14} />
+          </a>
+
           {/* Action buttons */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '16px' }}>
-            {activeOrder.status === 'Order Ready' || activeOrder.status === 'Completed' ? (
+            {(activeOrder.status === 'Order Ready' || activeOrder.status === 'Ready for Pickup' || activeOrder.status === 'Ready' || activeOrder.status === 'Completed') ? (
               <button
                 onClick={handleDismissOrder}
                 className="btn-primary"
@@ -896,37 +2100,62 @@ function MobileView({ kioskId, onResetSession }) {
             )}
           </div>
         </div>
-      ) : kioskId && isOnboarded ? (
+      ) : isOnboarded ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', flex: 1 }}>
           <div className="glass-card" style={{ padding: '14px', background: 'rgba(45, 106, 79, 0.04)', borderColor: 'rgba(45, 106, 79, 0.15)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
                 <span style={{ fontSize: '10px', textTransform: 'uppercase', color: 'var(--accent-green)', fontWeight: '700', letterSpacing: '0.05em' }}>
-                  {restaurantMeta ? `${restaurantMeta.cuisine} • Broadcasting` : 'Broadcasting Securely'}
+                  {restaurantMeta ? `${restaurantMeta.cuisine} • Ordering Live` : 'Personalized Dining Live'}
                 </span>
                 <h4 style={{ fontSize: '15px', fontWeight: '700' }}>
-                  {restaurantMeta ? restaurantMeta.name : `Kiosk Session #${kioskId}`}
+                  {restaurantMeta ? restaurantMeta.name : 'Umami Craft Fusion'}
                 </h4>
                 <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
-                  Terminal ID: #{kioskId} {kioskPort && `• Port :${kioskPort}`}
+                  {kioskId ? `Terminal #${kioskId}` : 'Guest Express Ordering • Table 04'}
                 </p>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span className={`pulse-indicator ${socketConnected ? 'active' : 'disconnected'}`}></span>
-                <span style={{ fontSize: '11px', color: socketConnected ? 'var(--text-secondary)' : 'var(--accent-danger)' }}>
-                  {socketConnected ? 'Connected' : 'Offline'}
-                </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <button
+                  onClick={() => setIsOnboarded(false)}
+                  style={{
+                    background: 'rgba(228, 87, 41, 0.1)',
+                    border: '1px solid rgba(228, 87, 41, 0.3)',
+                    color: '#C24522',
+                    padding: '5px 10px',
+                    borderRadius: '8px',
+                    fontSize: '11px',
+                    fontWeight: '700',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px'
+                  }}
+                  title="Adjust Dietary Allergens & Preferences"
+                >
+                  <Settings size={12} />
+                  <span>Edit Diet</span>
+                </button>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <span className={`pulse-indicator ${socketConnected ? 'active' : 'disconnected'}`}></span>
+                  <span style={{ fontSize: '11px', color: socketConnected ? 'var(--text-secondary)' : 'var(--accent-danger)' }}>
+                    {socketConnected ? 'Live' : 'Offline'}
+                  </span>
+                </div>
               </div>
             </div>
           </div>
 
           {/* Quick Edit settings in connected view */}
           <div>
-            <h5 style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '8px', fontWeight: '700' }}>
-              Active Profile Filters (Syncs Live)
-            </h5>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+              <h5 style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: '700' }}>
+                Active Dietary Filters (Syncs Live)
+              </h5>
+              <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Tap to toggle</span>
+            </div>
             <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '8px' }}>
-              {ALLERGEN_OPTIONS.map(opt => {
+              {activeAllergenOptions.map(opt => {
                 const checked = allergens.includes(opt.id);
                 return (
                   <button
@@ -939,9 +2168,17 @@ function MobileView({ kioskId, onResetSession }) {
                       background: checked ? 'rgba(239, 68, 68, 0.15)' : 'var(--bg-surface-elevated)',
                       color: checked ? '#fca5a5' : 'var(--text-secondary)',
                       border: `1px solid ${checked ? 'rgba(239, 68, 68, 0.3)' : 'var(--border-glass)'}`,
-                      fontWeight: '600'
+                      fontWeight: '600',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '5px'
                     }}
                   >
+                    {opt.image ? (
+                      <img src={opt.image} alt={opt.label} style={{ width: '13px', height: '13px', objectFit: 'contain', borderRadius: '3px' }} />
+                    ) : (
+                      <span>{opt.emoji}</span>
+                    )}
                     Excl. {opt.label}
                   </button>
                 );
@@ -949,7 +2186,7 @@ function MobileView({ kioskId, onResetSession }) {
             </div>
 
             <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-              {PREFERENCE_OPTIONS.map(opt => {
+              {activePreferenceOptions.map(opt => {
                 const checked = preferences.includes(opt.id);
                 return (
                   <button
@@ -963,11 +2200,16 @@ function MobileView({ kioskId, onResetSession }) {
                       color: checked ? 'var(--accent-green)' : 'var(--text-secondary)',
                       border: `1px solid ${checked ? 'rgba(45, 106, 79, 0.25)' : 'var(--border-glass)'}`,
                       fontWeight: '600',
-                      display: 'flex',
-                      alignItems: 'center'
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '5px'
                     }}
                   >
-                    {opt.icon}
+                    {opt.image ? (
+                      <img src={opt.image} alt={opt.label} style={{ width: '13px', height: '13px', objectFit: 'contain', borderRadius: '3px' }} />
+                    ) : (
+                      <span>{opt.emoji}</span>
+                    )}
                     {opt.label}
                   </button>
                 );
@@ -975,11 +2217,73 @@ function MobileView({ kioskId, onResetSession }) {
             </div>
           </div>
 
+          {/* 5-Second Auto-Cycling Promotional Banner Carousel */}
+          {renderPromoBannerCarousel()}
+
+          {/* Category Tabs: All, Bowls, Appetizers, Noodles, Drinks, Combos, Mix & Match */}
+          <div className="mv-cat-tabs-scroll">
+            {[
+              { id: 'all', label: '🌟 All Safe Items' },
+              { id: 'mains', label: '🍚 Bowls & Mains' },
+              { id: 'appetizers', label: '🥟 Dimsum & Bites' },
+              { id: 'noodles', label: '🍜 Noodles' },
+              { id: 'drinks', label: '🧋 Drinks & Boba' },
+              { id: 'combos', label: '🍱 Combos' },
+              { id: 'mixmatch', label: '🥢 Mix & Match' }
+            ].map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => setSelectedCategory(tab.id)}
+                className={`mv-cat-tab-btn ${selectedCategory === tab.id ? 'active' : ''}`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
           {/* Ordering Panel */}
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+            {/* Catalog Search & Live Filtering */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              marginBottom: '10px',
+              background: 'var(--bg-surface-elevated)',
+              borderRadius: '10px',
+              padding: '7px 12px',
+              border: '1px solid var(--border-glass)'
+            }}>
+              <Search size={14} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
+              <input
+                type="text"
+                placeholder="Search food, drinks, or ingredients..."
+                value={catalogSearch}
+                onChange={(e) => setCatalogSearch(e.target.value)}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  outline: 'none',
+                  fontSize: '12px',
+                  color: 'var(--text-primary)',
+                  width: '100%'
+                }}
+              />
+              {catalogSearch && (
+                <button
+                  type="button"
+                  onClick={() => setCatalogSearch('')}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: 0 }}
+                  title="Clear search"
+                >
+                  <X size={13} />
+                </button>
+              )}
+            </div>
+
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
               <h5 style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: '700' }}>
-                Safe Menu ({safeItems.length} items)
+                Safe Catalog ({safeItems.length} available)
               </h5>
               {totalCartCount > 0 && (
                 <span style={{ fontSize: '11px', color: 'var(--accent-red)', fontWeight: '700' }}>
@@ -988,11 +2292,15 @@ function MobileView({ kioskId, onResetSession }) {
               )}
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', overflowY: 'auto', maxHeight: '300px', paddingRight: '4px', marginBottom: '12px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', overflowY: 'auto', maxHeight: '420px', paddingRight: '4px', marginBottom: '12px' }}>
               {safeItems.map(item => {
-                const qtyInCart = cart[item.id] || 0;
-                const isMatch = preferences.some(p => item.tags.includes(p));
-                const matchCount = item.tags.filter(p => preferences.includes(p)).length;
+                const qtyInCart = typeof cart[item.id] === 'number' ? cart[item.id] : (cart[item.id]?.quantity || 0);
+                const isMatch = preferences.some(p => item.tags && item.tags.includes(p));
+                const matchCount = item.tags ? item.tags.filter(p => preferences.includes(p)).length : 0;
+                const isUnavailable = !item.available || item.isExplicitlyUnavailable;
+                const isOutOfStock = item.isOutOfStock || (item.stock !== undefined && item.stock <= 0);
+                const isDrink = item.catalogType === 'drink';
+                const hasMultipleSizes = isDrink && item.sizes && item.sizes.length > 0;
 
                 return (
                   <div
@@ -1005,35 +2313,172 @@ function MobileView({ kioskId, onResetSession }) {
                       transition: 'all 0.15s ease',
                       display: 'flex',
                       justifyContent: 'space-between',
-                      alignItems: 'center'
+                      alignItems: 'center',
+                      gap: '12px',
+                      opacity: isUnavailable ? 0.65 : 1
                     }}
                   >
-                    <div style={{ paddingRight: '8px', flex: 1 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <span style={{ fontSize: '18px' }}>{item.emoji || '🍽️'}</span>
-                        <h6 style={{ fontSize: '14px', fontWeight: '700' }}>{item.name}</h6>
-                        {isMatch && (
-                          <span style={{ fontSize: '9px', background: 'var(--accent-gradient)', color: '#ffffff', padding: '1px 5px', borderRadius: '4px', fontWeight: '700' }}>
-                            MATCH (+{matchCount})
-                          </span>
-                        )}
-                      </div>
-                      <p style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '3px' }}>{item.description}</p>
-                      <div style={{ display: 'flex', gap: '4px', marginTop: '6px', flexWrap: 'wrap' }}>
-                        {item.tags.map(tag => (
-                          <span key={tag} className={`badge ${preferences.includes(tag) ? 'badge-recommend' : 'badge-tag'}`} style={{ fontSize: '9px', padding: '2px 6px' }}>
-                            {tag}
-                          </span>
-                        ))}
+                    {/* Left: Product Thumbnail Image + Details */}
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', flex: 1, minWidth: 0 }}>
+                      {item.image ? (
+                        <div style={{ width: '48px', height: '48px', borderRadius: '8px', overflow: 'hidden', flexShrink: 0, border: '1px solid var(--border-glass)', background: 'var(--bg-surface-elevated)' }}>
+                          <img
+                            src={item.image}
+                            alt={item.name}
+                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                            onError={(e) => {
+                              e.target.style.display = 'none';
+                              if (e.target.nextSibling) e.target.nextSibling.style.display = 'flex';
+                            }}
+                          />
+                          <div style={{ display: 'none', width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center', fontSize: '22px' }}>
+                            {item.emoji || '🍽️'}
+                          </div>
+                        </div>
+                      ) : (
+                        <span style={{ fontSize: '24px', flexShrink: 0 }}>{item.emoji || '🍽️'}</span>
+                      )}
+
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                          <h6 style={{ fontSize: '13.5px', fontWeight: '700', margin: 0, color: 'var(--text-primary)' }}>
+                            {item.name}
+                          </h6>
+                          {item.badge && (
+                            <span style={{ fontSize: '9px', background: '#059669', color: '#ffffff', padding: '2px 6px', borderRadius: '4px', fontWeight: '800' }}>
+                              {item.badge}
+                            </span>
+                          )}
+                          {isMatch && (
+                            <span style={{ fontSize: '9px', background: 'var(--accent-gradient)', color: '#ffffff', padding: '2px 6px', borderRadius: '4px', fontWeight: '700' }}>
+                              MATCH (+{matchCount})
+                            </span>
+                          )}
+                          {item.promoPrice && (
+                            <span style={{ fontSize: '9px', background: '#e11d48', color: '#ffffff', padding: '2px 6px', borderRadius: '4px', fontWeight: '800' }}>
+                              PROMO
+                            </span>
+                          )}
+                          {isUnavailable && (
+                            <span style={{ fontSize: '9px', background: '#ef4444', color: '#ffffff', padding: '2px 6px', borderRadius: '4px', fontWeight: '700' }}>
+                              Unavailable
+                            </span>
+                          )}
+                          {!isUnavailable && isOutOfStock && (
+                            <span style={{ fontSize: '9px', background: '#ef4444', color: '#ffffff', padding: '2px 6px', borderRadius: '4px', fontWeight: '700' }}>
+                              Out of Stock
+                            </span>
+                          )}
+                          {!isUnavailable && !isOutOfStock && item.stock !== undefined && item.stock <= 5 && (
+                            <span style={{ fontSize: '9px', background: '#f59e0b', color: '#ffffff', padding: '2px 6px', borderRadius: '4px', fontWeight: '700' }}>
+                              Only {item.stock} left
+                            </span>
+                          )}
+                        </div>
+
+                        <p style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '3px', marginBottom: 0, lineHeight: 1.35 }}>
+                          {item.description}
+                        </p>
+
+                        <div style={{ display: 'flex', gap: '4px', marginTop: '6px', flexWrap: 'wrap' }}>
+                          {item.category && (
+                            <span className="badge" style={{ fontSize: '9px', padding: '2px 6px', background: 'rgba(228,87,41,0.08)', color: 'var(--accent-red)', border: '1px solid rgba(228,87,41,0.2)' }}>
+                              {item.drinkCategory || item.category}
+                            </span>
+                          )}
+                          {item.tags && item.tags.map(tag => (
+                            <span key={tag} className={`badge ${preferences.includes(tag) ? 'badge-recommend' : 'badge-tag'}`} style={{ fontSize: '9px', padding: '2px 6px' }}>
+                              {tag}
+                            </span>
+                          ))}
+                        </div>
                       </div>
                     </div>
 
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px', minWidth: '90px' }}>
-                      <div style={{ fontWeight: '800', fontSize: '14px' }}>
-                        ₱{item.price.toFixed(2)}
+                    {/* Right: Price + Add Button / Controls */}
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px', minWidth: '95px', flexShrink: 0 }}>
+                      <div style={{ textAlign: 'right' }}>
+                        {item.promoPrice ? (
+                          <>
+                            <div style={{ fontSize: '11px', color: 'var(--text-muted)', textDecoration: 'line-through' }}>
+                              ₱{item.price.toFixed(2)}
+                            </div>
+                            <div style={{ fontWeight: '800', fontSize: '14px', color: '#e11d48' }}>
+                              ₱{item.promoPrice.toFixed(2)}
+                            </div>
+                          </>
+                        ) : (
+                          <div style={{ fontWeight: '800', fontSize: '14px', color: 'inherit' }}>
+                            ₱{item.price.toFixed(2)}
+                          </div>
+                        )}
+                        {hasMultipleSizes && (
+                          <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '1px' }}>
+                            {item.sizes.length} sizes
+                          </div>
+                        )}
                       </div>
 
-                      {qtyInCart > 0 ? (
+                      {/* Add Button Logic */}
+                      {isUnavailable ? (
+                        <button
+                          disabled
+                          style={{
+                            background: 'rgba(148, 163, 184, 0.12)',
+                            color: '#94a3b8',
+                            border: '1px solid rgba(148, 163, 184, 0.3)',
+                            borderRadius: '8px',
+                            padding: '6px 12px',
+                            fontSize: '11px',
+                            fontWeight: '700',
+                            cursor: 'not-allowed',
+                            opacity: 0.65
+                          }}
+                        >
+                          Unavailable
+                        </button>
+                      ) : isOutOfStock ? (
+                        <button
+                          disabled
+                          style={{
+                            background: 'rgba(239, 68, 68, 0.08)',
+                            color: '#ef4444',
+                            border: '1px solid rgba(239, 68, 68, 0.25)',
+                            borderRadius: '8px',
+                            padding: '6px 12px',
+                            fontSize: '11px',
+                            fontWeight: '700',
+                            cursor: 'not-allowed',
+                            opacity: 0.65
+                          }}
+                        >
+                          Out of Stock
+                        </button>
+                      ) : hasMultipleSizes ? (
+                        <button
+                          onClick={() => {
+                            setSelectedDrinkForModal(item);
+                            setModalSizeIndex(0);
+                            setModalSelectedAddons([]);
+                            setModalQty(1);
+                          }}
+                          style={{
+                            background: 'var(--bg-surface-elevated)',
+                            color: 'var(--text-primary)',
+                            border: '1px solid var(--border-glass)',
+                            borderRadius: '8px',
+                            padding: '6px 12px',
+                            fontSize: '11px',
+                            fontWeight: '700',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          <Plus size={12} /> Add
+                        </button>
+                      ) : qtyInCart > 0 ? (
                         <div className="qty-stepper">
                           <button
                             className="qty-btn"
@@ -1059,12 +2504,13 @@ function MobileView({ kioskId, onResetSession }) {
                             color: 'var(--text-primary)',
                             border: '1px solid var(--border-glass)',
                             borderRadius: '8px',
-                            padding: '5px 10px',
+                            padding: '6px 12px',
                             fontSize: '11px',
                             fontWeight: '700',
                             display: 'flex',
                             alignItems: 'center',
-                            gap: '4px'
+                            gap: '4px',
+                            cursor: 'pointer'
                           }}
                         >
                           <Plus size={12} /> Add
@@ -1076,8 +2522,8 @@ function MobileView({ kioskId, onResetSession }) {
               })}
 
               {safeItems.length === 0 && (
-                <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>
-                  No meals match your active allergen safety filters.
+                <div style={{ padding: '28px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>
+                  No items found matching your active filter criteria.
                 </div>
               )}
             </div>
@@ -1127,7 +2573,11 @@ function MobileView({ kioskId, onResetSession }) {
               </button>
 
               <button
-                onClick={onResetSession}
+                onClick={() => {
+                  localStorage.removeItem('synapse_onboarded');
+                  setIsOnboarded(false);
+                  if (typeof onResetSession === 'function') onResetSession();
+                }}
                 className="btn-secondary"
                 style={{ width: '100%', padding: '8px', marginTop: '8px', fontSize: '12px', borderRadius: '10px' }}
               >
@@ -1191,33 +2641,10 @@ function MobileView({ kioskId, onResetSession }) {
             </div>
           )}
 
-          {/* ── Quick Repeat Last Order ── */}
-          {lastOrder && (
-            <div className="glass-card" style={{ padding: '12px 14px', background: 'rgba(245,166,35,0.04)', borderColor: 'rgba(245,166,35,0.25)', borderRadius: '14px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '4px' }}>
-                <div>
-                  <span style={{ fontSize: '9px', background: 'rgba(245,166,35,0.15)', color: '#B45309', padding: '2px 6px', borderRadius: '4px', fontWeight: '800', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
-                    🔄 Repeat Last Order
-                  </span>
-                  <h5 style={{ fontSize: '13px', fontWeight: '700', marginTop: '4px' }}>
-                    {lastOrder.primaryName || (lastOrder.items ? `${lastOrder.items.length} items` : lastOrder.name)}
-                  </h5>
-                </div>
-                <span style={{ fontSize: '13px', fontWeight: '800' }}>
-                  ₱{(lastOrder.totalPrice || lastOrder.price || 0).toFixed(2)}
-                </span>
-              </div>
-              {kioskId && (
-                <button
-                  onClick={() => { handleRepeatLastOrder(); localStorage.setItem('synapse_onboarded', 'true'); setIsOnboarded(true); }}
-                  className="btn-primary"
-                  style={{ width: '100%', padding: '8px', marginTop: '8px', fontSize: '12px', borderRadius: '10px', fontWeight: '600' }}
-                >
-                  Load Past Order &amp; Pair
-                </button>
-              )}
-            </div>
-          )}
+          {/* ── Quick Repeat Last Order (Hidden per user request) ── */}
+
+          {/* 5-Second Auto-Cycling Promotional Banner Carousel */}
+          {renderPromoBannerCarousel()}
 
           {/* ══ RESPONSIVE SECTIONS GRID: Allergens & Preferences ══ */}
           <div className="mvault-sections-container">
@@ -1231,14 +2658,20 @@ function MobileView({ kioskId, onResetSession }) {
                 </div>
               </div>
               <div className="mvault-checklist">
-                {ALLERGEN_OPTIONS.map(opt => {
+                {activeAllergenOptions.map(opt => {
                   const checked = allergens.includes(opt.id);
                   return (
                     <label key={opt.id} className={`mvault-check-row${checked ? ' checked' : ''}`}>
                       <input type="checkbox" checked={checked} onChange={() => handleAllergenToggle(opt.id)} />
                       <span className="mvault-check-box" aria-hidden="true" />
-                      <span className="mvault-check-emoji">{opt.emoji}</span>
-                      <span className="mvault-check-label">{opt.label}</span>
+                      {(opt.image_url || opt.image) ? (
+                        <span className="mvault-check-emoji mvault-check-img-wrap">
+                          <img src={opt.image_url || opt.image} alt={opt.name || opt.label} className="mvault-custom-icon-img" />
+                        </span>
+                      ) : (
+                        <span className="mvault-check-emoji">{opt.emoji || '🥜'}</span>
+                      )}
+                      <span className="mvault-check-label">{opt.name || opt.label}</span>
                     </label>
                   );
                 })}
@@ -1255,14 +2688,20 @@ function MobileView({ kioskId, onResetSession }) {
                 </div>
               </div>
               <div className="mvault-checklist">
-                {PREFERENCE_OPTIONS.map(opt => {
+                {activePreferenceOptions.map(opt => {
                   const checked = preferences.includes(opt.id);
                   return (
                     <label key={opt.id} className={`mvault-check-row${checked ? ' checked' : ''}`}>
                       <input type="checkbox" checked={checked} onChange={() => handlePreferenceToggle(opt.id)} />
                       <span className="mvault-check-box" aria-hidden="true" />
-                      <span className="mvault-check-emoji">{opt.emoji}</span>
-                      <span className="mvault-check-label">{opt.label}</span>
+                      {(opt.image_url || opt.image) ? (
+                        <span className="mvault-check-emoji mvault-check-img-wrap">
+                          <img src={opt.image_url || opt.image} alt={opt.name || opt.label} className="mvault-custom-icon-img" />
+                        </span>
+                      ) : (
+                        <span className="mvault-check-emoji">{opt.emoji || '🔥'}</span>
+                      )}
+                      <span className="mvault-check-label">{opt.name || opt.label}</span>
                     </label>
                   );
                 })}
@@ -1326,7 +2765,14 @@ function MobileView({ kioskId, onResetSession }) {
                 <span className="mvault-save-arrow">›</span>
               </button>
             )}
-            <button onClick={onResetSession} className="mvault-later-btn">
+            <button
+              onClick={() => {
+                localStorage.setItem('synapse_onboarded', 'true');
+                setIsOnboarded(true);
+                if (typeof onResetSession === 'function') onResetSession();
+              }}
+              className="mvault-later-btn"
+            >
               Maybe Later
             </button>
           </div>
@@ -1406,10 +2852,206 @@ function MobileView({ kioskId, onResetSession }) {
                     <span>Total Items:</span>
                     <span>{totalCartCount} items</span>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px', fontSize: '18px', fontWeight: '800' }}>
-                    <span>Order Total:</span>
-                    <span style={{ color: 'var(--accent-red)' }}>₱{totalCartPrice.toFixed(2)}</span>
+
+                  {/* Promo Code Input & Verification */}
+                  <div style={{ marginBottom: '12px' }}>
+                    <div style={{ display: 'flex', gap: '6px' }}>
+                      <input
+                        type="text"
+                        placeholder="Enter promo code (e.g. GRAND15)"
+                        value={promoCode}
+                        onChange={e => {
+                          setPromoCode(e.target.value.toUpperCase().replace(/\s/g, ''));
+                          if (promoApplied) { setPromoApplied(null); setPromoMsg({ text: '', ok: false }); }
+                        }}
+                        style={{
+                          flex: 1, padding: '9px 12px', borderRadius: '10px',
+                          border: promoMsg.ok ? '1.5px solid #059669' : promoMsg.text ? '1.5px solid #dc2626' : '1.5px solid var(--border-glass)',
+                          background: 'var(--bg-surface-elevated)', color: 'var(--text-primary)',
+                          fontSize: '13px', fontFamily: 'monospace', fontWeight: '700', letterSpacing: '1px',
+                          outline: 'none'
+                        }}
+                        disabled={!!promoApplied}
+                      />
+                      {promoApplied ? (
+                        <button
+                          onClick={() => { setPromoApplied(null); setPromoCode(''); setPromoMsg({ text: '', ok: false }); }}
+                          style={{ padding: '9px 14px', borderRadius: '10px', background: 'rgba(239,68,68,0.1)', color: '#dc2626', border: '1.5px solid rgba(239,68,68,0.25)', fontSize: '12px', fontWeight: '700', cursor: 'pointer', flexShrink: 0 }}
+                        >Remove</button>
+                      ) : (
+                        <button
+                          onClick={() => {
+                            const codeToTry = promoCode.trim().toUpperCase();
+                            if (!codeToTry) return;
+                            try {
+                              let source = promos;
+                              if (!source || source.length === 0) {
+                                source = JSON.parse(localStorage.getItem('umami_promos') || '[]');
+                              }
+                              const match = source.find(p => p.code?.toUpperCase() === codeToTry);
+                              if (!match) {
+                                setPromoMsg({ text: `❌ Invalid promo code "${codeToTry}". Please check the code.`, ok: false });
+                                return;
+                              }
+
+                              // 1. Status verification
+                              if (match.status !== 'active') {
+                                setPromoMsg({ text: `❌ Promotion "${match.name}" is currently ${match.status}.`, ok: false });
+                                return;
+                              }
+
+                              // 2. Validity period verification
+                              if (match.dateRange) {
+                                const parts = match.dateRange.split(/–|-|to/i);
+                                if (parts.length === 2) {
+                                  const start = new Date(parts[0].trim());
+                                  const end = new Date(parts[1].trim());
+                                  const now = new Date();
+                                  if (!isNaN(start.getTime()) && now < start) {
+                                    setPromoMsg({ text: `❌ Promotion starts on ${parts[0].trim()}.`, ok: false });
+                                    return;
+                                  }
+                                  if (!isNaN(end.getTime())) {
+                                    end.setHours(23, 59, 59, 999);
+                                    if (now > end) {
+                                      setPromoMsg({ text: `❌ Promotion expired on ${parts[1].trim()}.`, ok: false });
+                                      return;
+                                    }
+                                  }
+                                }
+                              }
+
+                              // 3. Redemption & usage limits
+                              const maxRed = Number(match.maxRedemptions) || 500;
+                              const currentRed = Number(match.currentRedemptions) || Number(match.timesRedeemed) || 0;
+                              if (currentRed >= maxRed) {
+                                setPromoMsg({ text: `❌ Promotion has reached its maximum redemption limit (${maxRed}).`, ok: false });
+                                return;
+                              }
+
+                              // 4. Eligible items verification (food & drinks with size variations)
+                              if (!match.applyToAll) {
+                                const applicable = match.applicableItems || [];
+                                const hasEligibleItem = cartItemsList.some(ci => {
+                                  return applicable.some(appItem => {
+                                    const cName = (ci.name || '').toLowerCase();
+                                    const aName = (appItem || '').toLowerCase();
+                                    return cName === aName || cName.startsWith(aName) || aName.startsWith(cName.split(' (')[0]);
+                                  });
+                                });
+
+                                if (!hasEligibleItem) {
+                                  setPromoMsg({
+                                    text: `❌ Promo only applies to: ${applicable.join(', ')}. Add an eligible item to your cart!`,
+                                    ok: false
+                                  });
+                                  return;
+                                }
+                              }
+
+                              setPromoApplied(match);
+                              setPromoCode(match.code);
+                              const rate = match.discountType === 'percent' ? `${match.discountValue}%` : `₱${match.discountValue}`;
+                              setPromoMsg({ text: `✅ "${match.name}" applied (${rate} off)!`, ok: true });
+                            } catch (_) {
+                              setPromoMsg({ text: '❌ Could not validate promo code.', ok: false });
+                            }
+                          }}
+                          style={{ padding: '9px 14px', borderRadius: '10px', background: 'var(--brand-gradient)', color: '#fff', border: 'none', fontSize: '12px', fontWeight: '700', cursor: 'pointer', flexShrink: 0 }}
+                        >Apply</button>
+                      )}
+                    </div>
+                    {promoMsg.text && (
+                      <p style={{ fontSize: '11px', marginTop: '5px', color: promoMsg.ok ? '#059669' : '#dc2626', fontWeight: '700', lineHeight: 1.3 }}>
+                        {promoMsg.text}
+                      </p>
+                    )}
                   </div>
+
+                  {/* ══ FINANCIAL SUMMARY BREAKDOWN ══ */}
+                  {(() => {
+                    let disc = 0;
+                    if (promoApplied) {
+                      const eligibleItems = promoApplied.applyToAll
+                        ? cartItemsList
+                        : cartItemsList.filter(ci => {
+                            return (promoApplied.applicableItems || []).some(appItem => {
+                              const cName = (ci.name || '').toLowerCase();
+                              const aName = (appItem || '').toLowerCase();
+                              return cName === aName || cName.startsWith(aName) || aName.startsWith(cName.split(' (')[0]);
+                            });
+                          });
+                      const eligibleSubtotal = eligibleItems.reduce((s, ci) => s + ci.price * ci.quantity, 0);
+                      disc = promoApplied.discountType === 'percent'
+                        ? Math.round(eligibleSubtotal * promoApplied.discountValue / 100)
+                        : Math.min(promoApplied.discountValue, eligibleSubtotal);
+                    }
+                    const finalPayable = Math.max(0, totalCartPrice - disc);
+
+                    return (
+                      <div style={{ background: 'var(--bg-surface-elevated)', borderRadius: '12px', padding: '12px 14px', marginBottom: '14px', border: '1px solid var(--border-glass)' }}>
+                        {/* Subtotal */}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                          <span>Subtotal:</span>
+                          <span style={{ fontWeight: '700', color: 'var(--text-primary)' }}>₱{totalCartPrice.toFixed(2)}</span>
+                        </div>
+
+                        {/* Promo Discount line */}
+                        {promoApplied && (
+                          <div style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            fontSize: '12.5px',
+                            color: '#059669',
+                            fontWeight: '700',
+                            marginBottom: '6px',
+                            background: 'rgba(5, 150, 105, 0.08)',
+                            padding: '6px 10px',
+                            borderRadius: '8px',
+                            alignItems: 'center'
+                          }}>
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                              <span>🏷️</span>
+                              <span>Promo ({promoApplied.code}):</span>
+                              <span style={{ fontSize: '10.5px', background: 'rgba(5, 150, 105, 0.15)', padding: '1px 6px', borderRadius: '4px' }}>
+                                {promoApplied.discountType === 'percent' ? `-${promoApplied.discountValue}%` : `-₱${promoApplied.discountValue}`}
+                              </span>
+                            </span>
+                            <span>−₱{disc.toFixed(2)}</span>
+                          </div>
+                        )}
+
+                        {/* Order Total / Final Amount to Pay */}
+                        <div style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          paddingTop: '8px',
+                          borderTop: '1px dashed var(--border-glass)',
+                          marginTop: '4px'
+                        }}>
+                          <div>
+                            <span style={{ fontSize: '15px', fontWeight: '800', color: 'var(--text-primary)' }}>Final Amount to Pay:</span>
+                            {promoApplied && (
+                              <div style={{ fontSize: '10.5px', color: '#059669', fontWeight: '700' }}>
+                                You saved ₱{disc.toFixed(2)}!
+                              </div>
+                            )}
+                          </div>
+                          <div style={{ textAlign: 'right' }}>
+                            {promoApplied && (
+                              <div style={{ color: '#9ca3af', fontSize: '12px', fontWeight: '600', textDecoration: 'line-through' }}>
+                                ₱{totalCartPrice.toFixed(2)}
+                              </div>
+                            )}
+                            <div style={{ color: 'var(--accent-red)', fontSize: '20px', fontWeight: '900', lineHeight: 1.1 }}>
+                              ₱{finalPayable.toFixed(2)}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
 
                   <button
                     onClick={handlePlaceOrder}
@@ -1426,8 +3068,8 @@ function MobileView({ kioskId, onResetSession }) {
                       gap: '8px'
                     }}
                   >
-                    <Receipt size={18} />
-                    Confirm & Place Order
+                    <PesoReceipt size={18} />
+                    Confirm &amp; Place Order
                   </button>
                 </div>
               </>
@@ -1444,6 +3086,218 @@ function MobileView({ kioskId, onResetSession }) {
                 </button>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Drink Size Selection & Customization Modal */}
+      {selectedDrinkForModal && (
+        <div
+          className="drink-size-modal-backdrop"
+          onClick={() => setSelectedDrinkForModal(null)}
+          style={{
+            position: 'absolute',
+            inset: 0,
+            background: 'rgba(0, 0, 0, 0.65)',
+            backdropFilter: 'blur(4px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1050,
+            padding: '16px'
+          }}
+        >
+          <div
+            className="drink-size-modal-card"
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: 'var(--bg-surface)',
+              border: '1px solid var(--border-glass)',
+              borderRadius: '16px',
+              width: '100%',
+              maxWidth: '380px',
+              maxHeight: '90%',
+              overflowY: 'auto',
+              boxShadow: '0 20px 40px rgba(0,0,0,0.3)',
+              display: 'flex',
+              flexDirection: 'column'
+            }}
+          >
+            <div style={{
+              padding: '14px 18px',
+              borderBottom: '1px solid var(--border-glass)',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ fontSize: '22px' }}>{selectedDrinkForModal.emoji || '🧋'}</span>
+                <div>
+                  <h4 style={{ margin: 0, fontSize: '15px', fontWeight: 800 }}>{selectedDrinkForModal.name}</h4>
+                  <span style={{ fontSize: '10px', color: 'var(--accent-red)', fontWeight: 700, textTransform: 'uppercase' }}>
+                    {selectedDrinkForModal.drinkCategory || 'Beverage'}
+                  </span>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedDrinkForModal(null)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: '4px' }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div style={{ padding: '16px 18px' }}>
+              {selectedDrinkForModal.image && (
+                <div style={{ width: '100%', height: '130px', borderRadius: '10px', overflow: 'hidden', marginBottom: '12px' }}>
+                  <img
+                    src={selectedDrinkForModal.image}
+                    alt={selectedDrinkForModal.name}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  />
+                </div>
+              )}
+              <p style={{ fontSize: '11.5px', color: 'var(--text-secondary)', marginBottom: '14px', lineHeight: 1.4 }}>
+                {selectedDrinkForModal.description}
+              </p>
+
+              <div style={{ marginBottom: '14px' }}>
+                <div style={{ fontSize: '11px', fontWeight: 800, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '8px', letterSpacing: '0.04em' }}>
+                  Choose Your Size *
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {(selectedDrinkForModal.sizes || []).map((sz, idx) => {
+                    const isSelected = modalSizeIndex === idx;
+                    const isOut = (sz.stock !== undefined && sz.stock <= 0);
+                    return (
+                      <div
+                        key={sz.name}
+                        onClick={() => !isOut && setModalSizeIndex(idx)}
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          padding: '10px 14px',
+                          borderRadius: '10px',
+                          border: `1.5px solid ${isSelected ? 'var(--accent-red)' : 'var(--border-glass)'}`,
+                          background: isSelected ? 'rgba(228, 87, 41, 0.08)' : 'var(--bg-surface-elevated)',
+                          cursor: isOut ? 'not-allowed' : 'pointer',
+                          opacity: isOut ? 0.45 : 1,
+                          transition: 'all 0.15s ease'
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          <input
+                            type="radio"
+                            name="drinkSize"
+                            checked={isSelected}
+                            disabled={isOut}
+                            onChange={() => setModalSizeIndex(idx)}
+                            style={{ accentColor: 'var(--accent-red)', cursor: isOut ? 'not-allowed' : 'pointer' }}
+                          />
+                          <div>
+                            <div style={{ fontSize: '13px', fontWeight: 700 }}>
+                              {sz.name} <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 500 }}>({sz.volume})</span>
+                            </div>
+                            <div style={{ fontSize: '10px', color: isOut ? '#ef4444' : ((sz.stock ?? 20) <= 5 ? '#f59e0b' : '#10b981'), fontWeight: 600 }}>
+                              {isOut ? 'Out of Stock' : ((sz.stock ?? 20) <= 5 ? `Low Stock (${sz.stock} left)` : 'In Stock')}
+                            </div>
+                          </div>
+                        </div>
+                        <div style={{ fontSize: '14px', fontWeight: 800, color: isSelected ? 'var(--accent-red)' : 'inherit' }}>
+                          ₱{Number(sz.price).toFixed(2)}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {selectedDrinkForModal.addons && selectedDrinkForModal.addons.length > 0 && (
+                <div style={{ marginBottom: '14px' }}>
+                  <div style={{ fontSize: '11px', fontWeight: 800, textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '8px', letterSpacing: '0.04em' }}>
+                    Customizations &amp; Add-ons
+                  </div>
+                  <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                    {selectedDrinkForModal.addons.map(addon => {
+                      const checked = modalSelectedAddons.includes(addon);
+                      return (
+                        <button
+                          key={addon}
+                          type="button"
+                          onClick={() => {
+                            setModalSelectedAddons(prev => prev.includes(addon) ? prev.filter(a => a !== addon) : [...prev, addon]);
+                          }}
+                          style={{
+                            fontSize: '11px',
+                            padding: '6px 12px',
+                            borderRadius: '8px',
+                            border: `1px solid ${checked ? 'var(--accent-red)' : 'var(--border-glass)'}`,
+                            background: checked ? 'rgba(228, 87, 41, 0.12)' : 'var(--bg-surface-elevated)',
+                            color: checked ? 'var(--accent-red)' : 'var(--text-secondary)',
+                            fontWeight: 600,
+                            cursor: 'pointer'
+                          }}
+                        >
+                          {checked ? '✓ ' : '+ '}{addon}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Quantity Stepper + Add to Cart CTA */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '16px', paddingTop: '12px', borderTop: '1px solid var(--border-glass)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <button
+                    type="button"
+                    onClick={() => setModalQty(q => Math.max(1, q - 1))}
+                    style={{ width: '30px', height: '30px', borderRadius: '8px', border: '1px solid var(--border-glass)', background: 'var(--bg-surface-elevated)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                  >
+                    <Minus size={12} />
+                  </button>
+                  <span style={{ fontWeight: 800, fontSize: '14px', minWidth: '22px', textAlign: 'center' }}>{modalQty}</span>
+                  <button
+                    type="button"
+                    onClick={() => setModalQty(q => q + 1)}
+                    style={{ width: '30px', height: '30px', borderRadius: '8px', border: '1px solid var(--border-glass)', background: 'var(--bg-surface-elevated)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                  >
+                    <Plus size={12} />
+                  </button>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    const sizesList = selectedDrinkForModal.sizes || [];
+                    const sz = sizesList[modalSizeIndex] || sizesList[0] || { name: 'Standard', volume: '500 ml', price: selectedDrinkForModal.price };
+                    handleAddToCart(selectedDrinkForModal, {
+                      sizeName: sz.name,
+                      volume: sz.volume,
+                      price: Number(sz.price),
+                      addons: modalSelectedAddons,
+                      qty: modalQty
+                    });
+                    setSelectedDrinkForModal(null);
+                  }}
+                  style={{
+                    padding: '10px 18px',
+                    background: 'var(--accent-red)',
+                    color: '#ffffff',
+                    border: 'none',
+                    borderRadius: '10px',
+                    fontSize: '13px',
+                    fontWeight: 800,
+                    cursor: 'pointer',
+                    boxShadow: '0 4px 12px rgba(228,87,41,0.3)'
+                  }}
+                >
+                  Add to Order • ₱{(((selectedDrinkForModal.sizes || [])[modalSizeIndex]?.price || selectedDrinkForModal.price) * modalQty).toFixed(2)}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
@@ -1502,6 +3356,7 @@ function MobileView({ kioskId, onResetSession }) {
         <DeviceMockup
           defaultDevice="auto"
           showToolbar={!kioskId}
+          isBuzzing={isBuzzing}
           title={kioskId ? `Umami Craft Fusion • Kiosk #${kioskId}` : "Umami Craft Fusion Local Dietary Vault"}
         >
           {phoneContent}

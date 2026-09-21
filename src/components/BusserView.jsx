@@ -110,7 +110,7 @@ function BusserView({ onReturnToHome: _onReturnToHome }) {
         )
       );
 
-      if (payload.status === 'Order Ready' && soundEnabled) {
+      if ((payload.status === 'Ready for Pickup' || payload.status === 'Order Ready') && soundEnabled) {
         playBusserAlert();
       }
     });
@@ -192,8 +192,8 @@ function BusserView({ onReturnToHome: _onReturnToHome }) {
     }).catch(err => console.error("Error updating table status:", err));
   };
 
-  // Filter orders
-  const readyOrders = orders.filter(o => o.status === 'Order Ready');
+  // Filter orders — server normalizes 'Order Ready' → 'Ready for Pickup'
+  const readyOrders = orders.filter(o => o.status === 'Ready for Pickup' || o.status === 'Order Ready');
   const myTransitOrders = orders.filter(o => o.status === 'Out for Delivery' && o.busserName === busserName);
   const tablesNeedingBussing = tables.filter(t => t.status === 'Needs Bussing');
 

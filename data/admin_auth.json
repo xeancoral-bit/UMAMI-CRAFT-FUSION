@@ -1,0 +1,9 @@
+{
+  "email": "admin@umamicraft.com",
+  "name": "Chief Administrator",
+  "role": "Super Admin",
+  "salt": "42f41003b5c7c718d8b8ff284e5bde4a",
+  "hash": "9263a4bf70515ad8423237fb56d93308287296d2ad3b1a6e2ff8c968075afd4e09b4290f2c62f00722e58b5e91abdc861b96678b2aabdf3aa86586eb4279e885",
+  "session_token": "a1b2c3d4e5f6789012345678abcdef01",
+  "updated_at": "2026-09-20T14:00:00.000Z"
+}
