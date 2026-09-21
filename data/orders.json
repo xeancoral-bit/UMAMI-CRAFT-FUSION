@@ -119,9 +119,9 @@
     "totalPrice": 1044,
     "payment": "GCash",
     "paymentStatus": "Paid Online",
-    "status": "Ready for Pickup",
-    "nextStatus": "Mark as Completed",
-    "stripeColor": "#15803d",
+    "status": "Completed",
+    "nextStatus": "Completed",
+    "stripeColor": "#059669",
     "priority": "Normal",
     "isWaitAlert": false,
     "waitTime": "0 min",
@@ -146,7 +146,7 @@
     "isAllergy": true,
     "busserName": null,
     "createdAt": "2026-09-21T15:14:27.282Z",
-    "updatedAt": "2026-09-21T15:15:31.191Z",
+    "updatedAt": "2026-09-21T15:28:13.799Z",
     "statusHistory": [
       {
         "status": "New",
@@ -189,8 +189,21 @@
         "timestamp": "2026-09-21T15:15:31.191Z",
         "updatedBy": "Kitchen Staff",
         "note": "Order ready for customer pickup"
+      },
+      {
+        "status": "Completed",
+        "timestamp": "2026-09-21T15:28:13.778Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Order advanced to Completed"
+      },
+      {
+        "status": "Completed",
+        "timestamp": "2026-09-21T15:28:13.799Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Status updated to Completed"
       }
-    ]
+    ],
+    "completedAt": "2026-09-21T15:28:13.778Z"
   },
   {
     "id": "ORD-3844",

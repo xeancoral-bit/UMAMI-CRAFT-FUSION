@@ -7511,22 +7511,34 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
                               <div style={{ fontSize: '11px', fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: '6px' }}>
                                 Ordered Items ({ticket.items?.length || 0})
                               </div>
-                              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                                 {(ticket.items || []).map((it, idx) => (
-                                  <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', fontSize: '12.5px' }}>
-                                    <div>
-                                      <span style={{ fontWeight: 800, color: '#111827', marginRight: '6px' }}>{it.qty || 1}×</span>
-                                      <span style={{ fontWeight: 600, color: '#1f2937' }}>{it.name}</span>
-                                      {it.notes && (
-                                        <div style={{ fontSize: '11px', color: '#ea580c', fontWeight: 500, marginLeft: '18px' }}>
-                                          ↳ {it.notes}
-                                        </div>
+                                  <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12.5px', gap: '8px' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, flex: 1 }}>
+                                      <span style={{ fontWeight: 800, color: '#ea580c', minWidth: '18px' }}>{it.qty || 1}×</span>
+                                      {it.image ? (
+                                        <img
+                                          src={it.image}
+                                          alt={it.name}
+                                          style={{ width: '34px', height: '34px', borderRadius: '6px', objectFit: 'cover', flexShrink: 0, border: '1px solid #e5e7eb', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}
+                                          onError={(e) => { e.target.style.display = 'none'; }}
+                                        />
+                                      ) : (
+                                        <span style={{ fontSize: '16px', flexShrink: 0 }}>{it.emoji || '🍽️'}</span>
                                       )}
-                                      {it.customizations && Array.isArray(it.customizations) && (
-                                        <div style={{ fontSize: '11px', color: '#6b7280', marginLeft: '18px' }}>
-                                          ↳ {it.customizations.join(', ')}
-                                        </div>
-                                      )}
+                                      <div style={{ minWidth: 0, flex: 1 }}>
+                                        <div style={{ fontWeight: 700, color: '#111827', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{it.name}</div>
+                                        {it.notes && (
+                                          <div style={{ fontSize: '10.5px', color: '#ea580c', fontWeight: 500 }}>
+                                            ↳ {it.notes}
+                                          </div>
+                                        )}
+                                        {it.customizations && Array.isArray(it.customizations) && (
+                                          <div style={{ fontSize: '10.5px', color: '#6b7280' }}>
+                                            ↳ {it.customizations.join(', ')}
+                                          </div>
+                                        )}
+                                      </div>
                                     </div>
                                     <span style={{ fontSize: '12px', fontWeight: 600, color: '#4b5563' }}>
                                       ₱{Number((it.price || 0) * (it.qty || 1)).toFixed(0)}

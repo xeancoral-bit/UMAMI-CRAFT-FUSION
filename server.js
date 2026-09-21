@@ -32,6 +32,7 @@ const RESTAURANTS = {
     cuisine: 'Asian Craft Fusion',
     tagline: 'Bowls, Dumplings & Artisanal Street Noodles',
     accentColor: '#E45729',
+    currencySymbol: '₱',
     menuFile: 'umami.json'
   },
   bella: {
@@ -278,6 +279,17 @@ async function saveDrinksData(drinksList) {
 
 loadMenuData();
 loadDrinksData();
+
+// Menu & Drinks API endpoints
+app.get('/api/menu', async (req, res) => {
+  if (!cachedMenu) await loadMenuData();
+  res.json(cachedMenu || []);
+});
+
+app.get('/api/drinks', async (req, res) => {
+  if (!cachedDrinks) await loadDrinksData();
+  res.json(cachedDrinks || []);
+});
 
 // Serve static assets in production
 app.use(express.static(path.join(__dirname, 'dist')));

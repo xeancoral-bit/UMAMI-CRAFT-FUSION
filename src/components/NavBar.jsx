@@ -304,10 +304,9 @@ function NavBar({
     </div>
   );
 
-  // If LOCKED: Only render the discrete icon button (NO logo image, NO module tabs)
+  // If LOCKED: Only render the discrete icon button on Kiosk view ("kiosk rani makita")
   if (!isUnlocked) {
-    // Hide the lock trigger icon on customer-facing Kiosk and Mobile views
-    if (currentView === 'kiosk' || currentView === 'mobile') {
+    if (currentView !== 'kiosk') {
       return showPinModal ? renderPinModal() : null;
     }
 

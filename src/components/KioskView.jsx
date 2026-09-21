@@ -17,7 +17,9 @@ import {
   Play,
   Store,
   Sparkles,
-  Tag
+  Tag,
+  Utensils,
+  CheckCircle2
 } from 'lucide-react';
 
 function generateKioskId() {
@@ -38,6 +40,8 @@ function KioskView({ onOpenKitchen }) {
   const countdownIntervalRef = useRef(null);
 
   const [masterMenu, setMasterMenu] = useState([]);
+  const [drinksMenu, setDrinksMenu] = useState([]);
+  const [selectedCategory, setSelectedCategory] = useState('All');
   const [lanIp, setLanIp] = useState(null);
   const [customHost, setCustomHost] = useState('');
   const [showIpConfig, setShowIpConfig] = useState(false);
@@ -89,8 +93,29 @@ function KioskView({ onOpenKitchen }) {
 
     fetch('/api/menu')
       .then(res => res.json())
-      .then(data => setMasterMenu(data))
-      .catch(err => console.error("Error loading menu:", err));
+      .then(data => {
+        if (Array.isArray(data) && data.length) setMasterMenu(data);
+      })
+      .catch(err => {
+        console.error("Error loading menu:", err);
+        try {
+          const saved = JSON.parse(localStorage.getItem('umami_admin_menu') || '[]');
+          if (saved.length) setMasterMenu(saved);
+        } catch {}
+      });
+
+    fetch('/api/drinks')
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data) && data.length) setDrinksMenu(data);
+      })
+      .catch(err => {
+        console.error("Error loading drinks:", err);
+        try {
+          const saved = JSON.parse(localStorage.getItem('umami_drinks') || '[]');
+          if (saved.length) setDrinksMenu(saved);
+        } catch {}
+      });
   }, []);
 
   // Fetch host LAN IP for dynamic Wi-Fi QR code generation
@@ -132,6 +157,22 @@ function KioskView({ onOpenKitchen }) {
 
     socket.on('promos-updated', (data) => {
       if (Array.isArray(data)) setPromos(data);
+    });
+
+    socket.on('initial-menu', (data) => {
+      if (Array.isArray(data) && data.length) setMasterMenu(data);
+    });
+
+    socket.on('menu-updated', (data) => {
+      if (Array.isArray(data) && data.length) setMasterMenu(data);
+    });
+
+    socket.on('initial-drinks', (data) => {
+      if (Array.isArray(data) && data.length) setDrinksMenu(data);
+    });
+
+    socket.on('drinks-updated', (data) => {
+      if (Array.isArray(data) && data.length) setDrinksMenu(data);
     });
 
     // Listen for client handshake (preference projection)
@@ -243,23 +284,81 @@ function KioskView({ onOpenKitchen }) {
     clientUrl = `http://${targetHost}:${mobileTargetPort}/?kioskId=${kioskId}&kioskPort=${currentBackendPort}&restaurant=${restaurantInfo.id || 'umami'}`;
   }
 
+  // Formatting & Combining Menu Items and Drinks
+  const formattedDrinks = useMemo(() => {
+    return (drinksMenu || []).map(d => {
+      const price = typeof d.price === 'number' && d.price > 0
+        ? d.price
+        : (d.sizes && d.sizes[0] && d.sizes[0].price ? d.sizes[0].price : 75);
+
+      let itemAllergens = Array.isArray(d.allergens) ? [...d.allergens] : [];
+      if (!itemAllergens.length && (d.category?.toLowerCase().includes('milk') || d.name?.toLowerCase().includes('milk') || d.name?.toLowerCase().includes('taro'))) {
+        itemAllergens = ['dairy'];
+      }
+
+      let tags = Array.isArray(d.tags) ? [...d.tags] : [];
+      if (!tags.includes('sweet')) tags.push('sweet');
+      if (!tags.includes('drinks')) tags.push('drinks');
+
+      return {
+        id: d.id || d.sku,
+        sku: d.sku || d.id,
+        name: d.name,
+        category: d.category || 'Drinks & Boba',
+        price: price,
+        image: d.image || 'https://images.unsplash.com/photo-1558857563-b37cf5a0f12c?auto=format&fit=crop&w=600&q=80',
+        description: d.description || `${d.name} crafted fresh with artisanal ingredients.`,
+        allergens: itemAllergens,
+        tags: tags,
+        emoji: d.emoji || '🧋',
+        isDrink: true,
+        sizes: d.sizes || []
+      };
+    });
+  }, [drinksMenu]);
+
+  // Combine full catalog: food items + drinks
+  const fullCatalog = useMemo(() => {
+    return [...masterMenu, ...formattedDrinks];
+  }, [masterMenu, formattedDrinks]);
+
   // Filtering and Sorting Menu Items
   // 1. Filter out items containing user allergens
-  const filteredMenu = masterMenu.filter(item => {
-    return !item.allergens.some(allergen => allergens.includes(allergen));
-  });
+  const filteredMenu = useMemo(() => {
+    return fullCatalog.filter(item => {
+      const itemAllergens = Array.isArray(item.allergens) ? item.allergens : [];
+      return !itemAllergens.some(allergen => allergens.map(a => a.toLowerCase()).includes(allergen.toLowerCase()));
+    });
+  }, [fullCatalog, allergens]);
 
   // 2. Count match score for preferences to sort/highlight
   const getMatchCount = (item) => {
-    return item.tags.filter(tag => preferences.includes(tag)).length;
+    const itemTags = Array.isArray(item.tags) ? item.tags.map(t => t.toLowerCase()) : [];
+    return itemTags.filter(tag => preferences.map(p => p.toLowerCase()).includes(tag)).length;
   };
 
-  // 3. Sort so that items matching the most preferences appear first
-  const sortedMenu = [...filteredMenu].sort((a, b) => {
-    const scoreA = getMatchCount(a);
-    const scoreB = getMatchCount(b);
-    return scoreB - scoreA; // High score first
-  });
+  // 3. Category tabs
+  const categoriesList = useMemo(() => {
+    const set = new Set();
+    filteredMenu.forEach(item => {
+      if (item.category) set.add(item.category);
+    });
+    return ['All', ...Array.from(set)];
+  }, [filteredMenu]);
+
+  const categoryFilteredMenu = useMemo(() => {
+    if (selectedCategory === 'All') return filteredMenu;
+    return filteredMenu.filter(item => item.category === selectedCategory);
+  }, [filteredMenu, selectedCategory]);
+
+  // 4. Sort so that items matching the most preferences appear first
+  const sortedMenu = useMemo(() => {
+    return [...categoryFilteredMenu].sort((a, b) => {
+      const scoreA = getMatchCount(a);
+      const scoreB = getMatchCount(b);
+      return scoreB - scoreA; // High score first
+    });
+  }, [categoryFilteredMenu, preferences]);
 
   // Extract combined unique tags from receipt items
   const combinedReceiptTags = orderReceipt && orderReceipt.items
@@ -616,23 +715,30 @@ function KioskView({ onOpenKitchen }) {
         {/* STATE B: HANDSHAKE RECEIVED & FILTERED MENU */}
         {state === 'connected' && (
           <div className="slide-up">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '32px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '24px', flexWrap: 'wrap', gap: '16px' }}>
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
                   <span className="pulse-indicator active"></span>
-                  <h3 style={{ fontSize: '20px', fontWeight: '700' }}>Connected to Dining Profile</h3>
+                  <h3 style={{ fontSize: '22px', fontWeight: '800', color: 'var(--text-primary)', margin: 0 }}>
+                    Connected to Dining Profile
+                  </h3>
                 </div>
                 
                 {/* Active Filters Display */}
-                <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
+                <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
                   {allergens.length > 0 ? (
                     <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                      <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: '500' }}>Excluded Allergens:</span>
-                      {allergens.map(a => <span key={a} className="badge badge-allergen">{a}</span>)}
+                      <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: '600' }}>Excluded Allergens:</span>
+                      {allergens.map(a => (
+                        <span key={a} className="badge badge-allergen" style={{ textTransform: 'capitalize' }}>
+                          ✕ {a}
+                        </span>
+                      ))}
                     </div>
                   ) : (
-                    <span style={{ fontSize: '12px', color: 'var(--accent-success)', fontWeight: '500', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      ✓ No Allergens Excluded
+                    <span style={{ fontSize: '12.5px', color: 'var(--accent-success)', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                      <CheckCircle2 size={14} color="var(--accent-success)" />
+                      <span>Zero Allergen Exclusions • Full Menu Safe</span>
                     </span>
                   )}
                   
@@ -640,61 +746,270 @@ function KioskView({ onOpenKitchen }) {
 
                   {preferences.length > 0 && (
                     <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                      <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: '500' }}>Highlighted Preferences:</span>
-                      {preferences.map(p => <span key={p} className="badge badge-recommend">{p}</span>)}
+                      <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: '600' }}>Target Preferences:</span>
+                      {preferences.map(p => (
+                        <span key={p} className="badge badge-recommend" style={{ textTransform: 'capitalize' }}>
+                          ★ {p}
+                        </span>
+                      ))}
                     </div>
                   )}
                 </div>
               </div>
 
               {/* Countdown Timer */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', background: 'rgba(245, 158, 11, 0.08)', border: '1px solid rgba(245, 158, 11, 0.2)', padding: '10px 20px', borderRadius: '14px' }}>
-                <Clock size={18} color="var(--accent-warning)" />
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px',
+                background: 'rgba(245, 158, 11, 0.08)',
+                border: '1px solid rgba(245, 158, 11, 0.25)',
+                padding: '10px 20px',
+                borderRadius: '14px',
+                boxShadow: '0 2px 8px rgba(245, 158, 11, 0.08)'
+              }}>
+                <Clock size={20} color="var(--accent-warning)" />
                 <div>
-                  <div style={{ fontSize: '10px', color: 'var(--accent-warning)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Session Timeout</div>
-                  <div style={{ fontSize: '16px', fontWeight: '800', color: 'var(--accent-warning)' }}>{timeLeft}s</div>
+                  <div style={{ fontSize: '10px', color: 'var(--accent-warning)', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Session Timeout</div>
+                  <div style={{ fontSize: '17px', fontWeight: '800', color: 'var(--accent-warning)', lineHeight: 1.1 }}>{timeLeft}s</div>
                 </div>
               </div>
             </div>
 
-            {/* Menu Grid */}
-            <div className="menu-grid">
-              {sortedMenu.map((item) => {
-                const hasMatch = preferences.some(p => item.tags.includes(p));
+            {/* Category Filter Tabs Bar */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              overflowX: 'auto',
+              paddingBottom: '10px',
+              marginBottom: '24px',
+              scrollbarWidth: 'none'
+            }}>
+              {categoriesList.map(cat => {
+                const isSelected = selectedCategory === cat;
+                const count = cat === 'All'
+                  ? filteredMenu.length
+                  : filteredMenu.filter(m => m.category === cat).length;
+
+                return (
+                  <button
+                    key={cat}
+                    type="button"
+                    onClick={() => setSelectedCategory(cat)}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '7px',
+                      padding: '8px 16px',
+                      borderRadius: '999px',
+                      fontSize: '13px',
+                      fontWeight: 700,
+                      border: isSelected ? '1.5px solid #e45729' : '1px solid #e5e7eb',
+                      background: isSelected ? '#e45729' : '#ffffff',
+                      color: isSelected ? '#ffffff' : '#374151',
+                      boxShadow: isSelected ? '0 4px 14px rgba(228, 87, 41, 0.28)' : '0 1px 3px rgba(0,0,0,0.04)',
+                      cursor: 'pointer',
+                      whiteSpace: 'nowrap',
+                      transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)'
+                    }}
+                  >
+                    <span>{cat}</span>
+                    <span style={{
+                      fontSize: '11px',
+                      fontWeight: 800,
+                      padding: '2px 7px',
+                      borderRadius: '999px',
+                      background: isSelected ? 'rgba(255,255,255,0.25)' : '#f3f4f6',
+                      color: isSelected ? '#ffffff' : '#6b7280'
+                    }}>
+                      {count}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Menu & Drinks Grid */}
+            <div className="kiosk-menu-grid">
+              {sortedMenu.map((item, idx) => {
+                const hasMatch = preferences.some(p => (item.tags || []).map(t => t.toLowerCase()).includes(p.toLowerCase()));
                 const matchCount = getMatchCount(item);
-                
+
                 return (
                   <div 
-                    key={item.id} 
-                    className={`glass-card ${hasMatch ? 'highlighted' : ''}`}
-                    style={{ padding: '24px', display: 'flex', flexDirection: 'column', height: '100%', position: 'relative', overflow: 'hidden' }}
+                    key={item.id || item.sku || item.name} 
+                    className={`kiosk-menu-card ${hasMatch ? 'highlighted' : ''}`}
+                    style={{
+                      border: hasMatch ? '1.5px solid rgba(228, 87, 41, 0.45)' : '1px solid rgba(0, 0, 0, 0.08)',
+                      boxShadow: hasMatch
+                        ? '0 10px 28px -4px rgba(228, 87, 41, 0.18), 0 2px 8px rgba(0,0,0,0.04)'
+                        : '0 4px 20px -2px rgba(44, 26, 17, 0.06), 0 2px 6px rgba(0,0,0,0.03)',
+                      animation: `kioskCardFadeIn 0.4s ease-out ${Math.min(idx * 0.05, 0.5)}s both`
+                    }}
                   >
-                    {hasMatch && (
-                      <div style={{ position: 'absolute', top: '0', right: '0', background: 'var(--brand-gradient)', padding: '4px 12px', borderBottomLeftRadius: '12px', fontSize: '11px', fontWeight: '700', color: '#ffffff', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                        ★ Recommended Match (+{matchCount})
+                    {/* Food / Beverage Artwork Showcase */}
+                    <div style={{ position: 'relative', width: '100%', height: '175px', overflow: 'hidden', background: '#f8fafc' }}>
+                      <img
+                        src={item.image}
+                        alt={item.name}
+                        loading="lazy"
+                        className="kiosk-card-img"
+                        onError={(e) => {
+                          e.target.onerror = null;
+                          e.target.src = item.isDrink 
+                            ? 'https://images.unsplash.com/photo-1558857563-b37cf5a0f12c?auto=format&fit=crop&w=600&q=80'
+                            : 'https://images.unsplash.com/photo-1546069901-ba9599a7e63?auto=format&fit=crop&w=600&q=80';
+                        }}
+                        style={{
+                          width: '100%',
+                          height: '100%',
+                          objectFit: 'cover'
+                        }}
+                      />
+
+                      {/* Gentle Shadow Overlay */}
+                      <div style={{
+                        position: 'absolute',
+                        inset: 0,
+                        background: 'linear-gradient(180deg, rgba(0,0,0,0.2) 0%, rgba(0,0,0,0) 40%, rgba(0,0,0,0.45) 100%)',
+                        pointerEvents: 'none'
+                      }} />
+
+                      {/* Top Left: Category Badge */}
+                      <div style={{
+                        position: 'absolute',
+                        top: '12px',
+                        left: '12px',
+                        background: 'rgba(255, 255, 255, 0.94)',
+                        backdropFilter: 'blur(8px)',
+                        padding: '4px 10px',
+                        borderRadius: '999px',
+                        fontSize: '11px',
+                        fontWeight: 700,
+                        color: '#c2410c',
+                        boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px'
+                      }}>
+                        <span>{item.emoji || (item.isDrink ? '🧋' : '🍽️')}</span>
+                        <span>{item.category}</span>
                       </div>
-                    )}
-                    
-                    <div style={{ marginBottom: '16px' }}>
-                      <div style={{ fontSize: '28px', marginBottom: '8px' }}>{item.emoji || '🍽️'}</div>
-                      <h4 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '8px', paddingRight: hasMatch ? '120px' : '0' }}>{item.name}</h4>
-                      <p style={{ color: 'var(--text-secondary)', fontSize: '13px', lineHeight: '1.5' }}>{item.description}</p>
+
+                      {/* Top Right: Recommendation Match Badge */}
+                      {hasMatch && (
+                        <div style={{
+                          position: 'absolute',
+                          top: '12px',
+                          right: '12px',
+                          background: 'linear-gradient(135deg, #e45729 0%, #c2410c 100%)',
+                          color: '#ffffff',
+                          padding: '4px 11px',
+                          borderRadius: '999px',
+                          fontSize: '11px',
+                          fontWeight: 800,
+                          boxShadow: '0 4px 14px rgba(228, 87, 41, 0.4)',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          letterSpacing: '0.02em'
+                        }}>
+                          <Sparkles size={12} />
+                          <span>Match (+{matchCount})</span>
+                        </div>
+                      )}
+
+                      {/* Bottom Right: High-Visibility Price Badge */}
+                      <div style={{
+                        position: 'absolute',
+                        bottom: '10px',
+                        right: '12px',
+                        background: 'rgba(17, 24, 39, 0.88)',
+                        backdropFilter: 'blur(8px)',
+                        color: '#ffffff',
+                        padding: '4px 11px',
+                        borderRadius: '8px',
+                        fontSize: '14.5px',
+                        fontWeight: 800,
+                        boxShadow: '0 2px 8px rgba(0,0,0,0.25)',
+                        letterSpacing: '0.01em'
+                      }}>
+                        ₱{Number(item.price || 0).toFixed(2)}
+                      </div>
                     </div>
 
-                    <div style={{ marginTop: 'auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div style={{ fontSize: '20px', fontWeight: '800', color: 'var(--text-primary)' }}>
-                        ₱{item.price.toFixed(2)}
+                    {/* Card Content Details */}
+                    <div style={{ padding: '16px 18px 18px', display: 'flex', flexDirection: 'column', flex: 1 }}>
+                      <div style={{ marginBottom: '10px' }}>
+                        <h4 style={{
+                          fontSize: '17px',
+                          fontWeight: 800,
+                          color: '#1c1917',
+                          margin: '0 0 6px 0',
+                          lineHeight: 1.3
+                        }}>
+                          {item.name}
+                        </h4>
+                        <p style={{
+                          color: '#64748b',
+                          fontSize: '12.5px',
+                          lineHeight: '1.5',
+                          margin: 0,
+                          display: '-webkit-box',
+                          WebkitLineClamp: 2,
+                          WebkitBoxOrient: 'vertical',
+                          overflow: 'hidden'
+                        }}>
+                          {item.description}
+                        </p>
                       </div>
-                      
-                      <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                        {item.tags.map(tag => (
-                          <span 
-                            key={tag} 
-                            className={`badge ${preferences.includes(tag) ? 'badge-recommend' : 'badge-tag'}`}
-                          >
-                            {tag}
-                          </span>
-                        ))}
+
+                      {/* Bottom Tags Strip */}
+                      <div style={{
+                        marginTop: 'auto',
+                        paddingTop: '12px',
+                        borderTop: '1px solid #f3f4f6',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: '8px'
+                      }}>
+                        <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap' }}>
+                          {(item.tags || []).slice(0, 3).map(tag => {
+                            const isPref = preferences.map(p => p.toLowerCase()).includes(tag.toLowerCase());
+                            return (
+                              <span 
+                                key={tag} 
+                                style={{
+                                  fontSize: '10.5px',
+                                  fontWeight: 700,
+                                  textTransform: 'uppercase',
+                                  letterSpacing: '0.04em',
+                                  padding: '3px 8px',
+                                  borderRadius: '6px',
+                                  background: isPref ? '#ffedd5' : '#f1f5f9',
+                                  color: isPref ? '#c2410c' : '#475569',
+                                  border: isPref ? '1px solid #fed7aa' : '1px solid #e2e8f0'
+                                }}
+                              >
+                                {tag}
+                              </span>
+                            );
+                          })}
+                        </div>
+
+                        <div style={{
+                          fontSize: '11px',
+                          fontWeight: 700,
+                          color: '#10b981',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '3px'
+                        }}>
+                          <ShieldCheck size={13} color="#10b981" />
+                          <span>Safe</span>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -702,11 +1017,13 @@ function KioskView({ onOpenKitchen }) {
               })}
 
               {sortedMenu.length === 0 && (
-                <div style={{ gridColumn: '1 / -1', padding: '60px', textAlign: 'center' }} className="glass-card">
+                <div style={{ gridColumn: '1 / -1', padding: '60px 24px', textAlign: 'center', background: '#ffffff', borderRadius: '20px', border: '1px solid #e5e7eb' }}>
                   <AlertTriangle size={48} color="var(--accent-warning)" style={{ marginBottom: '16px' }} />
-                  <h3>No items match your dietary safety profile.</h3>
-                  <p style={{ color: 'var(--text-muted)', fontSize: '14px', marginTop: '8px' }}>
-                    All items on the menu contain one or more of your registered allergens.
+                  <h3 style={{ fontSize: '18px', fontWeight: 800, color: '#1f2937', marginBottom: '8px' }}>
+                    No items match your dietary safety profile.
+                  </h3>
+                  <p style={{ color: 'var(--text-muted)', fontSize: '14px', maxWidth: '420px', margin: '0 auto' }}>
+                    Items in this category contain one or more of your registered allergens. Try choosing "All" or adjusting your dietary filter.
                   </p>
                 </div>
               )}

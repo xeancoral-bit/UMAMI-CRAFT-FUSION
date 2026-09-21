@@ -71,6 +71,7 @@ function KitchenView({ onReturnToKiosk }) {
     backendPort: 3001
   });
   const [socketConnected, setSocketConnected] = useState(false);
+  const [catalogImages, setCatalogImages] = useState({});
   const socketRef = useRef(null);
 
   // Live clock
@@ -78,6 +79,47 @@ function KitchenView({ onReturnToKiosk }) {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
+
+  // Load menu and drinks catalogs to build an image lookup map by name
+  useEffect(() => {
+    Promise.all([
+      fetch('/api/menu').then(r => r.json()).catch(() => []),
+      fetch('/api/drinks').then(r => r.json()).catch(() => [])
+    ]).then(([menuData, drinksData]) => {
+      const map = {};
+      if (Array.isArray(menuData)) {
+        menuData.forEach(item => {
+          if (item.name && item.image) {
+            map[item.name.toLowerCase().trim()] = item.image;
+          }
+        });
+      }
+      if (Array.isArray(drinksData)) {
+        drinksData.forEach(item => {
+          if (item.name && item.image) {
+            map[item.name.toLowerCase().trim()] = item.image;
+          }
+        });
+      }
+      setCatalogImages(map);
+    });
+  }, []);
+
+  const getItemImage = (item) => {
+    if (item.image && typeof item.image === 'string' && item.image.trim() !== '') {
+      return item.image;
+    }
+    if (item.imageUrl && typeof item.imageUrl === 'string' && item.imageUrl.trim() !== '') {
+      return item.imageUrl;
+    }
+    if (item.name) {
+      const cleanName = item.name.toLowerCase().trim();
+      if (catalogImages[cleanName]) return catalogImages[cleanName];
+      const baseName = cleanName.split('(')[0].trim();
+      if (catalogImages[baseName]) return catalogImages[baseName];
+    }
+    return null;
+  };
 
   // Load restaurant metadata
   useEffect(() => {
@@ -500,30 +542,60 @@ function KitchenView({ onReturnToKiosk }) {
 
                 {/* Itemized Order List */}
                 <div className="ticket-items-list">
-                  {items.map((item, idx) => (
-                    <div key={idx} className="ticket-item-row">
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <span className="ticket-item-qty">{item.quantity || item.qty || 1}x</span>
-                        <span style={{ fontSize: '18px' }}>{item.emoji || '🍽️'}</span>
-                        <div>
-                          <div className="ticket-item-name">{item.name}</div>
-                          {item.customizations && item.customizations.length > 0 && (
-                            <div style={{ fontSize: '10.5px', color: '#f59e0b', fontWeight: 600 }}>
-                              {item.customizations.join(' • ')}
+                  {items.map((item, idx) => {
+                    const itemImage = getItemImage(item);
+                    return (
+                      <div key={idx} className="ticket-item-row">
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, minWidth: 0 }}>
+                          <span className="ticket-item-qty">{item.quantity || item.qty || 1}x</span>
+                          
+                          {/* Food / Beverage Image Thumbnail with Fallback */}
+                          <div className="ticket-item-thumb-container">
+                            {itemImage ? (
+                              <img
+                                src={itemImage}
+                                alt={item.name}
+                                className="ticket-item-thumb"
+                                onError={(e) => {
+                                  e.target.style.display = 'none';
+                                  const fallback = e.target.parentElement.querySelector('.ticket-item-thumb-fallback');
+                                  if (fallback) fallback.style.display = 'flex';
+                                }}
+                              />
+                            ) : null}
+                            <div
+                              className="ticket-item-thumb-fallback"
+                              style={{ display: itemImage ? 'none' : 'flex' }}
+                            >
+                              <span>{item.emoji || (item.isDrink ? '🧋' : '🍽️')}</span>
                             </div>
-                          )}
-                          {item.tags && item.tags.length > 0 && (
-                            <span style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
-                              {item.tags.join(', ')}
-                            </span>
-                          )}
+                          </div>
+
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div className="ticket-item-name" title={item.name}>{item.name}</div>
+                            {item.customizations && item.customizations.length > 0 && (
+                              <div className="ticket-item-customizations">
+                                {item.customizations.join(' • ')}
+                              </div>
+                            )}
+                            {item.tags && item.tags.length > 0 && (
+                              <div className="ticket-item-tags">
+                                {(Array.isArray(item.tags) ? item.tags : [item.tags]).map((tag, tIdx) => (
+                                  <span key={tIdx} className="ticket-item-tag-pill">
+                                    {tag}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
                         </div>
+
+                        <span className="ticket-item-price">
+                          ₱{((item.price || 0) * (item.quantity || item.qty || 1)).toFixed(2)}
+                        </span>
                       </div>
-                      <span className="ticket-item-price">
-                        ${((item.price || 0) * (item.quantity || item.qty || 1)).toFixed(2)}
-                      </span>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
 
                 {/* Ticket Footer / Summary */}
@@ -534,7 +606,7 @@ function KitchenView({ onReturnToKiosk }) {
                       {order.payment && <span style={{ marginLeft: '8px', padding: '2px 6px', background: 'rgba(255,255,255,0.06)', borderRadius: '4px', fontSize: '11px' }}>💳 {order.payment}</span>}
                     </span>
                     <span style={{ fontSize: '15px', fontWeight: '800', color: 'var(--text-primary)' }}>
-                      ${(order.totalPrice || order.total || 0).toFixed(2)}
+                      ₱{(order.totalPrice || order.total || 0).toFixed(2)}
                     </span>
                   </div>
 
