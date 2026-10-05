@@ -1,5 +1,141 @@
 [
   {
+    "id": "ORD-8019",
+    "orderId": "ORD-8019",
+    "customer": "Mobile Diner",
+    "orderType": "Dine-In",
+    "diningOption": "Dine-In",
+    "location": "Table 1",
+    "tableId": "Table 1",
+    "tableNumber": "Table 1",
+    "kioskId": "GQNSUM",
+    "restaurantId": "umami",
+    "item": {
+      "id": "MIX-01",
+      "name": "Craft Bowl + Side + Drink Deal",
+      "description": "Pick any Rice Bowl/Noodles + 1 Crispy Dimsum + 1 Cold Beverage",
+      "price": 429,
+      "originalPrice": 560,
+      "badge": "Save ₱131",
+      "allergens": [],
+      "tags": [
+        "mixmatch",
+        "popular",
+        "savory"
+      ],
+      "emoji": "🥢",
+      "image": "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=600&q=80",
+      "available": true,
+      "category": "Mix & Match Deals",
+      "catalogType": "mixmatch",
+      "quantity": 1
+    },
+    "items": [
+      {
+        "id": "MIX-01",
+        "name": "Craft Bowl + Side + Drink Deal",
+        "qty": 1,
+        "quantity": 1,
+        "price": 429,
+        "image": "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=600&q=80",
+        "emoji": "🥢",
+        "tags": [
+          "mixmatch",
+          "popular",
+          "savory"
+        ],
+        "customizations": []
+      },
+      {
+        "id": "CMB-104",
+        "name": "Mango Dessert Treat",
+        "qty": 1,
+        "quantity": 1,
+        "price": 249,
+        "image": "https://images.unsplash.com/photo-1562440499-64c9a111f713?auto=format&fit=crop&w=600&q=80",
+        "emoji": "🥭",
+        "tags": [
+          "combo",
+          "savory"
+        ],
+        "customizations": []
+      }
+    ],
+    "itemCount": 2,
+    "total": 678,
+    "totalPrice": 678,
+    "payment": "GCash",
+    "paymentStatus": "Paid Online",
+    "status": "Completed",
+    "nextStatus": "Completed",
+    "stripeColor": "#059669",
+    "priority": "Normal",
+    "isWaitAlert": false,
+    "waitTime": "0 min",
+    "orderedTags": [
+      "mixmatch",
+      "popular",
+      "savory",
+      "combo",
+      "savory"
+    ],
+    "allergens": [
+      "gluten"
+    ],
+    "note": "Exclude: GLUTEN",
+    "isAllergy": true,
+    "busserName": null,
+    "device": "Desktop",
+    "platform": "Desktop",
+    "createdAt": "2026-09-29T20:37:36.861Z",
+    "updatedAt": "2026-09-29T20:38:24.442Z",
+    "statusHistory": [
+      {
+        "status": "New",
+        "timestamp": "2026-09-29T20:37:36.861Z",
+        "updatedBy": "Customer App",
+        "note": "Order submitted and routed to kitchen queue"
+      },
+      {
+        "status": "Preparing",
+        "timestamp": "2026-09-29T20:37:54.755Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Order advanced to Preparing"
+      },
+      {
+        "status": "Preparing",
+        "timestamp": "2026-09-29T20:37:55.443Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Status updated to Preparing"
+      },
+      {
+        "status": "Ready for Pickup",
+        "timestamp": "2026-09-29T20:37:56.901Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Plated & Ready for pickup"
+      },
+      {
+        "status": "Ready for Pickup",
+        "timestamp": "2026-09-29T20:37:58.587Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Order ready for customer pickup"
+      },
+      {
+        "status": "Completed",
+        "timestamp": "2026-09-29T20:38:22.514Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Order advanced to Completed"
+      },
+      {
+        "status": "Completed",
+        "timestamp": "2026-09-29T20:38:24.442Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Status updated to Completed"
+      }
+    ],
+    "completedAt": "2026-09-29T20:38:22.514Z"
+  },
+  {
     "id": "ORD-5263",
     "orderId": "ORD-5263",
     "customer": "Mobile Diner",
@@ -203,7 +339,9 @@
         "note": "Status updated to Completed"
       }
     ],
-    "completedAt": "2026-09-21T15:28:13.778Z"
+    "completedAt": "2026-09-21T15:28:13.778Z",
+    "device": "Mobile",
+    "platform": "Mobile"
   },
   {
     "id": "ORD-3844",
@@ -363,7 +501,9 @@
         "note": "Status updated to Completed"
       }
     ],
-    "completedAt": "2026-09-21T15:10:42.186Z"
+    "completedAt": "2026-09-21T15:10:42.186Z",
+    "device": "Mobile",
+    "platform": "Mobile"
   },
   {
     "id": "ORD-4267",
@@ -536,7 +676,9 @@
         "note": "Status updated to Completed"
       }
     ],
-    "completedAt": "2026-09-21T13:53:13.905Z"
+    "completedAt": "2026-09-21T13:53:13.905Z",
+    "device": "Mobile",
+    "platform": "Mobile"
   },
   {
     "id": "ORD-9297",
@@ -708,7 +850,9 @@
         "note": "Status updated to Completed"
       }
     ],
-    "completedAt": "2026-09-21T13:50:49.798Z"
+    "completedAt": "2026-09-21T13:50:49.798Z",
+    "device": "Mobile",
+    "platform": "Mobile"
   },
   {
     "id": "ORD-3509",
@@ -862,7 +1006,9 @@
         "note": "Status updated to Completed"
       }
     ],
-    "completedAt": "2026-09-21T13:49:25.548Z"
+    "completedAt": "2026-09-21T13:49:25.548Z",
+    "device": "Mobile",
+    "platform": "Mobile"
   },
   {
     "id": "ORD-1043",
@@ -976,7 +1122,9 @@
         "note": "Status updated to Completed"
       }
     ],
-    "completedAt": "2026-09-20T15:33:38.684Z"
+    "completedAt": "2026-09-20T15:33:38.684Z",
+    "device": "Tablet",
+    "platform": "Tablet"
   },
   {
     "id": "ORD-1042",
@@ -1095,7 +1243,9 @@
         "note": "Status updated to Completed"
       }
     ],
-    "completedAt": "2026-09-20T15:33:36.666Z"
+    "completedAt": "2026-09-20T15:33:36.666Z",
+    "device": "Desktop",
+    "platform": "Desktop"
   },
   {
     "id": "ORD-1041",
@@ -1213,7 +1363,9 @@
         "note": "Status updated to Completed"
       }
     ],
-    "completedAt": "2026-09-20T15:33:33.277Z"
+    "completedAt": "2026-09-20T15:33:33.277Z",
+    "device": "Tablet",
+    "platform": "Tablet"
   },
   {
     "id": "ORD-1040",
@@ -1307,7 +1459,9 @@
         "note": "Status updated to Completed"
       }
     ],
-    "completedAt": "2026-09-20T15:33:35.034Z"
+    "completedAt": "2026-09-20T15:33:35.034Z",
+    "device": "Desktop",
+    "platform": "Desktop"
   },
   {
     "id": "ORD-1039",
@@ -1385,7 +1539,9 @@
         "updatedBy": "Food Runner",
         "note": "Delivered to Table 8"
       }
-    ]
+    ],
+    "device": "Tablet",
+    "platform": "Tablet"
   },
   {
     "id": "ORD-1038",
@@ -1462,6 +1618,8 @@
         "updatedBy": "Admin (Orders Dashboard)",
         "note": "Confirmed served by staff"
       }
-    ]
+    ],
+    "device": "Tablet",
+    "platform": "Tablet"
   }
 ]

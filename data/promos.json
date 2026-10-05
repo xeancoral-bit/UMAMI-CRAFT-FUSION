@@ -1,39 +1,17 @@
 [
   {
-    "id": "PR-1001",
-    "name": "Grand Opening 15% OFF Special",
-    "code": "GRAND15",
-    "discountType": "percent",
-    "discountValue": 15,
-    "discountLabel": "15% Off (Automatic)",
-    "targetLabel": "All Menu Items",
-    "dateRange": "Jan 1, 2025 – Dec 31, 2026",
-    "maxRedemptions": 500,
-    "currentRedemptions": 0,
-    "status": "active",
-    "type": "discount",
-    "bannerTitle": "GRAND OPENING SPECIAL",
-    "bannerHighlight": "15% OFF",
-    "bannerSubtitle": "Taste Meets Technology • Good Food, Better Days",
-    "bannerImage": "/ramen_promo_banner.png",
-    "bannerBg": "#8c2411",
-    "applicableItems": [],
-    "applyToAll": true,
-    "createdAt": 1727740800000,
-    "revenueImpact": 0,
-    "lastRedeemedAt": 1789924255836,
-    "lastOrderId": "ORD-999",
-    "updatedAt": 1789924267861
-  },
-  {
     "id": "PR-1002",
     "name": "Signature Dumplings & Noodles Deal",
     "code": "UMAMI20",
+    "originalCode": "UMAMI20",
+    "associatedItem": "Spicy Szechuan Dumplings, Honey Glazed Peanut Noodles",
+    "associatedTable": "All Tables (Storewide)",
     "discountType": "percent",
     "discountValue": 20,
     "discountLabel": "20% Off",
     "targetLabel": "Spicy Szechuan Dumplings, Honey Glazed Peanut Noodles",
     "dateRange": "Jan 1, 2025 – Dec 31, 2026",
+    "expiresAt": "2026-12-31T23:59:59.000Z",
     "maxRedemptions": 200,
     "currentRedemptions": 0,
     "status": "active",
@@ -48,17 +26,27 @@
       "Honey Glazed Peanut Noodles"
     ],
     "applyToAll": false,
-    "createdAt": 1727740900000
+    "createdAt": 1727740900000,
+    "retiredCodes": [
+      "UMAMI20"
+    ],
+    "expiredAt": 1790712664221,
+    "expiredReason": "Manually expired by administrator",
+    "updatedAt": 1790712679323
   },
   {
     "id": "PR-1003",
     "name": "Tropical Mango Shake Refresh",
     "code": "MANGO10",
+    "originalCode": "MANGO10",
+    "associatedItem": "Mango Shake",
+    "associatedTable": "All Tables (Storewide)",
     "discountType": "fixed",
     "discountValue": 10,
     "discountLabel": "₱10 Off",
     "targetLabel": "Mango Shake",
     "dateRange": "Jan 1, 2025 – Dec 31, 2026",
+    "expiresAt": "2026-12-31T23:59:59.000Z",
     "maxRedemptions": 300,
     "currentRedemptions": 0,
     "status": "active",
@@ -72,6 +60,12 @@
       "Mango Shake"
     ],
     "applyToAll": false,
-    "createdAt": 1727741000000
+    "createdAt": 1727741000000,
+    "retiredCodes": [
+      "MANGO10"
+    ],
+    "expiredAt": 1790712666015,
+    "expiredReason": "Manually expired by administrator",
+    "updatedAt": 1790712988203
   }
 ]

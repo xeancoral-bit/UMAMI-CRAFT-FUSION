@@ -10,6 +10,7 @@ import AdminLoginModal from './components/AdminLoginModal';
 import AdminSecurityModal from './components/AdminSecurityModal';
 import AccessDeniedView from './components/AccessDeniedView';
 import NavBar from './components/NavBar';
+import ErrorBoundary from './components/ErrorBoundary';
 
 function App() {
   const [kioskId, setKioskId] = useState(null);
@@ -54,8 +55,8 @@ function App() {
 
     // Listen for order updates to keep badge counts current
     const refreshCounts = (orders) => {
-      setActiveOrdersCount(orders.filter(o => o.status === 'Order Received' || o.status === 'Cooking').length);
-      setReadyOrdersCount(orders.filter(o => o.status === 'Order Ready').length);
+      setActiveOrdersCount(orders.filter(o => ['New', 'Order Received', 'Preparing', 'Ready', 'Order Ready', 'Ready for Pickup'].includes(o.status)).length);
+      setReadyOrdersCount(orders.filter(o => o.status === 'Ready for Pickup' || o.status === 'Order Ready' || o.status === 'Ready').length);
     };
 
     socket.on('initial-orders', (orders) => {
@@ -103,8 +104,9 @@ function App() {
         if (viewParam === 'admin' && !isAdminAuthenticated) {
           setShowAdminLoginModal(true);
         }
-      } else if (id) {
-        setCurrentView('mobile');
+      } else {
+        // Without explicit view=mobile, URLs such as /?kioskId=PBWC5A&kioskPort=3001&restaurant=umami load the kiosk terminal
+        setCurrentView('kiosk');
       }
     };
 
@@ -185,42 +187,44 @@ function App() {
         onPasswordChanged={() => {}}
       />
 
-      {currentView === 'mobile' && (
-        <MobileView kioskId={kioskId} onResetSession={handleResetSession} />
-      )}
+      <ErrorBoundary onRetry={() => window.location.reload()}>
+        {currentView === 'mobile' && (
+          <MobileView kioskId={kioskId} onResetSession={handleResetSession} />
+        )}
 
-      {currentView === 'kiosk' && (
-        <KioskView onOpenKitchen={() => handleSelectView('kitchen')} />
-      )}
+        {currentView === 'kiosk' && (
+          <KioskView initialKioskId={kioskId} onOpenKitchen={() => handleSelectView('kitchen')} />
+        )}
 
-      {currentView === 'kitchen' && (
-        <KitchenView onReturnToKiosk={() => handleSelectView('kiosk')} />
-      )}
+        {currentView === 'kitchen' && (
+          <KitchenView onReturnToKiosk={() => handleSelectView('kiosk')} />
+        )}
 
-      {currentView === 'busser' && (
-        <BusserView onReturnToHome={() => handleSelectView('kiosk')} />
-      )}
+        {currentView === 'busser' && (
+          <BusserView onReturnToHome={() => handleSelectView('kiosk')} />
+        )}
 
-      {currentView === 'restaurant' && (
-        <RestaurantView onReturnToKiosk={() => handleSelectView('kiosk')} />
-      )}
+        {currentView === 'restaurant' && (
+          <RestaurantView onReturnToKiosk={() => handleSelectView('kiosk')} />
+        )}
 
-      {currentView === 'admin' && (
-        isAdminAuthenticated ? (
-          <AdminView
-            onLogout={handleAdminLogout}
-            onOpenSecurity={() => setShowAdminSecurityModal(true)}
-            onReturnToKiosk={() => handleSelectView('kiosk')}
-            socketConnected={socketConnected}
-            socket={socketRef.current}
-          />
-        ) : (
-          <AccessDeniedView
-            onReturn={() => handleSelectView('kiosk')}
-            onRequestLogin={() => setShowAdminLoginModal(true)}
-          />
-        )
-      )}
+        {currentView === 'admin' && (
+          isAdminAuthenticated ? (
+            <AdminView
+              onLogout={handleAdminLogout}
+              onOpenSecurity={() => setShowAdminSecurityModal(true)}
+              onReturnToKiosk={() => handleSelectView('kiosk')}
+              socketConnected={socketConnected}
+              socket={socketRef.current}
+            />
+          ) : (
+            <AccessDeniedView
+              onReturn={() => handleSelectView('kiosk')}
+              onRequestLogin={() => setShowAdminLoginModal(true)}
+            />
+          )
+        )}
+      </ErrorBoundary>
     </div>
   );
 }

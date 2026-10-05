@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { io } from 'socket.io-client';
+import { QRCodeSVG } from 'qrcode.react';
 import MenuPreferencesManager from './MenuPreferencesManager';
 import {
   LayoutDashboard,
@@ -24,6 +25,7 @@ import {
   Trash2,
   Archive,
   RefreshCcw,
+  RotateCcw,
   CheckCircle,
   XCircle,
   AlertTriangle,
@@ -202,7 +204,7 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
         payment: 'Card',
         total: 680.00,
         status: 'Preparing',
-        nextStatus: 'Move to Cooking'
+        nextStatus: 'Ready for Pickup'
       },
       {
         id: 'ORD-1040',
@@ -210,7 +212,7 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
         timeAgo: '14 min ago',
         waitTime: '14 min',
         isWaitAlert: true,
-        stripeColor: '#f97316',
+        stripeColor: '#10b981',
         customer: 'Miguel Tan',
         orderType: 'Take-Out',
         location: 'Kiosk #1',
@@ -223,8 +225,8 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
         isAllergy: false,
         payment: 'Maya',
         total: 390.00,
-        status: 'Cooking',
-        nextStatus: 'Mark as Ready'
+        status: 'Ready for Pickup',
+        nextStatus: 'Complete Order'
       },
       {
         id: 'ORD-1039',
@@ -239,7 +241,7 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
         tableId: 'Table 8',
         items: [
           { name: 'Tempura Platter', qty: 1, price: 340, image: 'https://images.unsplash.com/photo-1581184953963-d15972933db1?auto=format&fit=crop&w=150&q=80' },
-          { name: 'Iced Thai Milk Tea', qty: 2, price: 180, image: 'https://images.unsplash.com/photo-1558857563-b37cf5a0f12c?auto=format&fit=crop&w=150&q=80' }
+          { name: 'Iced Thai Milk Tea', qty: 2, price: 180, image: 'https://images.unsplash.com/photo-1576092768241-dec231879fc3?auto=format&fit=crop&w=150&q=80' }
         ],
         note: 'Less ice',
         isAllergy: false,
@@ -377,6 +379,16 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
   const [editingPromo, setEditingPromo] = useState(null);
   const [showPromoModal, setShowPromoModal] = useState(false);
   const [previewPromo, setPreviewPromo] = useState(null);
+  const [showExpiredArchive, setShowExpiredArchive] = useState(false);
+  const [expiredSearch, setExpiredSearch] = useState('');
+  const [restoringPromo, setRestoringPromo] = useState(null);
+  const [restoreForm, setRestoreForm] = useState({
+    newCode: '',
+    newExpiresAt: '',
+    restoredBy: 'admin@umamicraft.com'
+  });
+  const [showPromoQrModal, setShowPromoQrModal] = useState(null);
+
   const [formPromo, setFormPromo] = useState({
     name: '',
     code: '',
@@ -385,6 +397,9 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
     applicableItems: [],
     applyToAll: false,
     dateRange: 'Jan 1, 2025 – Dec 31, 2026',
+    expiresAt: '2026-12-31T23:59',
+    associatedItem: 'All Menu Items',
+    associatedTable: 'All Tables (Storewide)',
     maxRedemptions: 500,
     status: 'active',
     type: 'discount',
@@ -395,14 +410,372 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
   });
   const promoImageInputRef = useRef(null);
   const [promoItemTab, setPromoItemTab] = useState('food'); // 'food' | 'drinks'
-  const [qrTables, setQrTables] = useState([
-    { id: 'T-01', name: 'Table 1 - Main Floor', status: 'active', scannedCount: 142, lastScanned: '10 mins ago' },
-    { id: 'T-02', name: 'Table 2 - Window Side', status: 'active', scannedCount: 98, lastScanned: '2 mins ago' },
-    { id: 'T-03', name: 'Table 3 - Booth A', status: 'active', scannedCount: 215, lastScanned: 'Just now' },
-    { id: 'T-04', name: 'Table 4 - Booth B', status: 'active', scannedCount: 88, lastScanned: '1 hour ago' },
-    { id: 'T-05', name: 'Table 5 - Patio Garden', status: 'inactive', scannedCount: 45, lastScanned: 'Yesterday' },
-    { id: 'T-VIP', name: 'VIP Lounge Table 1', status: 'active', scannedCount: 310, lastScanned: '5 mins ago' },
-  ]);
+
+  // Helper to generate a new unique promo code for restoration or creation
+  const generateUniqueRestoreCode = (baseCode = 'PROMO') => {
+    const cleanBase = (baseCode || 'PROMO').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 7) || 'PROMO';
+    const rand = Math.floor(10 + Math.random() * 90);
+    const candidate = `${cleanBase}${rand}`;
+    const isConflict = promos.some(p =>
+      p.code?.toUpperCase() === candidate ||
+      p.originalCode?.toUpperCase() === candidate ||
+      (Array.isArray(p.retiredCodes) && p.retiredCodes.map(c => c.toUpperCase()).includes(candidate))
+    );
+    if (!isConflict) return candidate;
+    return `${cleanBase}${Date.now().toString().slice(-3)}`;
+  };
+
+  const handleOpenRestoreModal = (promo) => {
+    const suggestedCode = generateUniqueRestoreCode(promo.originalCode || promo.code);
+    const futureDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+    const year = futureDate.getFullYear();
+    const month = String(futureDate.getMonth() + 1).padStart(2, '0');
+    const day = String(futureDate.getDate()).padStart(2, '0');
+    const hours = String(futureDate.getHours()).padStart(2, '0');
+    const minutes = String(futureDate.getMinutes()).padStart(2, '0');
+    const localIso = `${year}-${month}-${day}T${hours}:${minutes}`;
+
+    setRestoringPromo(promo);
+    setRestoreForm({
+      newCode: suggestedCode,
+      newExpiresAt: localIso,
+      restoredBy: 'admin@umamicraft.com'
+    });
+  };
+
+  const handleConfirmRestore = async (e) => {
+    e.preventDefault();
+    if (!restoringPromo) return;
+    const cleanNewCode = restoreForm.newCode.trim().toUpperCase().replace(/\s/g, '');
+    if (!cleanNewCode) {
+      showNotify('A new unique promo code is required.', 'error');
+      return;
+    }
+    const oldCode = (restoringPromo.code || '').trim().toUpperCase();
+    if (cleanNewCode === oldCode || (restoringPromo.originalCode && cleanNewCode === restoringPromo.originalCode.toUpperCase())) {
+      showNotify(`Cannot reuse expired code "${oldCode}". A new unique code must be generated!`, 'error');
+      return;
+    }
+    const expDate = new Date(restoreForm.newExpiresAt);
+    if (isNaN(expDate.getTime()) || expDate.getTime() <= Date.now()) {
+      showNotify('New expiration date must be in the future!', 'error');
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/promos/restore', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          promoId: restoringPromo.id,
+          newCode: cleanNewCode,
+          newExpiresAt: expDate.toISOString(),
+          newDateRange: `Restored – ${expDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`,
+          restoredBy: restoreForm.restoredBy || 'admin@umamicraft.com'
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        showNotify(`Campaign "${restoringPromo.name}" restored with new code "${cleanNewCode}"!`, 'success');
+        addAuditLog('Promo Restored', `Restored "${restoringPromo.name}" (Old: ${restoringPromo.originalCode || oldCode}, New: ${cleanNewCode}) by ${restoreForm.restoredBy || 'admin@umamicraft.com'}`);
+        setRestoringPromo(null);
+      } else {
+        showNotify(data.error || 'Failed to restore promotion', 'error');
+      }
+    } catch (err) {
+      showNotify('Restoration error: ' + err.message, 'error');
+    }
+  };
+
+  const handleExpirePromo = async (promo) => {
+    if (window.confirm(`Are you sure you want to expire promo "${promo.name}" [${promo.code}] immediately? It will be removed from customer displays and moved to the archive.`)) {
+      try {
+        const res = await fetch(`/api/promos/expire/${promo.id}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ reason: 'Manually expired by administrator' })
+        });
+        const data = await res.json();
+        if (data.success) {
+          showNotify(`Campaign "${promo.name}" is now Expired and moved to archive.`, 'warning');
+          addAuditLog('Promo Expired', `Expired "${promo.name}" [${promo.code}]`);
+        } else {
+          showNotify(data.error || 'Failed to expire promo', 'error');
+        }
+      } catch (err) {
+        showNotify('Failed to expire promo: ' + err.message, 'error');
+      }
+    }
+  };
+  const [qrTables, setQrTables] = useState(() => {
+    try {
+      const saved = localStorage.getItem('umami_qr_tables');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (_) {}
+    return [
+      { id: 'T-01', name: 'Table 1 - Main Floor', status: 'active', scannedCount: 142, lastScanned: '10 mins ago' },
+      { id: 'T-02', name: 'Table 2 - Window Side', status: 'active', scannedCount: 98, lastScanned: '2 mins ago' },
+      { id: 'T-03', name: 'Table 3 - Booth A', status: 'active', scannedCount: 215, lastScanned: 'Just now' },
+      { id: 'T-04', name: 'Table 4 - Booth B', status: 'active', scannedCount: 88, lastScanned: '1 hour ago' },
+      { id: 'T-05', name: 'Table 5 - Patio Garden', status: 'active', scannedCount: 45, lastScanned: 'Yesterday' },
+      { id: 'T-VIP', name: 'VIP Lounge Table 1', status: 'active', scannedCount: 310, lastScanned: '5 mins ago' },
+    ];
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('umami_qr_tables', JSON.stringify(qrTables));
+    } catch (_) {}
+  }, [qrTables]);
+
+  const [qrBaseUrl, setQrBaseUrl] = useState(() => {
+    try {
+      const saved = localStorage.getItem('umami_qr_base_url');
+      if (saved) return saved;
+    } catch (_) {}
+    return 'http://192.168.1.16:3000/?view=mobile&kioskId=RT62AL&kioskPort=3001&restaurant=umami';
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('umami_qr_base_url', qrBaseUrl);
+    } catch (_) {}
+  }, [qrBaseUrl]);
+
+  const [showAddQrModal, setShowAddQrModal] = useState(false);
+  const [newTableData, setNewTableData] = useState({
+    name: '',
+    id: '',
+    section: 'Main Floor'
+  });
+
+  const getTableQrUrl = (tbl) => {
+    const base = (qrBaseUrl || '').trim() || 'http://192.168.1.16:3000/?view=mobile&kioskId=RT62AL&kioskPort=3001&restaurant=umami';
+    const separator = base.includes('?') ? '&' : '?';
+    const tokenParam = tbl.token ? `&t=${tbl.token}` : '';
+    return `${base}${separator}tableId=${encodeURIComponent(tbl.id)}${tokenParam}`;
+  };
+
+  const handleDownloadQR = (tbl) => {
+    const svgEl = document.getElementById(`qr-svg-${tbl.id}`);
+    if (!svgEl) {
+      showNotify('QR element not found for download', 'error');
+      return;
+    }
+    const svgData = new XMLSerializer().serializeToString(svgEl);
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    const img = new Image();
+    img.onload = () => {
+      canvas.width = img.width + 48;
+      canvas.height = img.height + 92;
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, 24, 20);
+      ctx.fillStyle = '#111827';
+      ctx.font = 'bold 15px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(tbl.name, canvas.width / 2, img.height + 48);
+      ctx.fillStyle = '#C24522';
+      ctx.font = 'bold 12px sans-serif';
+      ctx.fillText(`Table ID: ${tbl.id} • Umami Craft Fusion`, canvas.width / 2, img.height + 68);
+
+      const a = document.createElement('a');
+      a.download = `QR_${tbl.id}_${tbl.name.replace(/[^a-zA-Z0-9]/g, '_')}.png`;
+      a.href = canvas.toDataURL('image/png');
+      a.click();
+      showNotify(`Downloaded QR Code for ${tbl.name}!`);
+    };
+    img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
+  };
+
+  const handlePrintQR = (tbl) => {
+    const svgEl = document.getElementById(`qr-svg-${tbl.id}`);
+    const svgHtml = svgEl ? svgEl.outerHTML : '';
+    const targetUrl = getTableQrUrl(tbl);
+    const printWindow = window.open('', '_blank', 'width=650,height=750');
+    if (!printWindow) {
+      showNotify('Please allow pop-ups to print table QR.', 'error');
+      return;
+    }
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Print QR Tent - ${tbl.name}</title>
+          <style>
+            * { box-sizing: border-box; }
+            body {
+              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              min-height: 100vh;
+              margin: 0;
+              background: #f9fafb;
+              padding: 24px;
+            }
+            .table-tent {
+              background: #ffffff;
+              border: 3px dashed #C24522;
+              border-radius: 24px;
+              padding: 40px 32px;
+              text-align: center;
+              max-width: 400px;
+              box-shadow: 0 10px 30px rgba(0,0,0,0.06);
+            }
+            .logo-badge {
+              display: inline-block;
+              background: #C24522;
+              color: #ffffff;
+              font-size: 11px;
+              font-weight: 800;
+              letter-spacing: 2px;
+              padding: 6px 16px;
+              border-radius: 999px;
+              text-transform: uppercase;
+              margin-bottom: 14px;
+            }
+            .title {
+              font-size: 24px;
+              font-weight: 800;
+              color: #111827;
+              margin: 0 0 6px;
+            }
+            .sub {
+              font-size: 13px;
+              color: #6b7280;
+              margin: 0 0 24px;
+            }
+            .qr-box {
+              background: #FAF5EE;
+              padding: 20px;
+              border-radius: 18px;
+              display: inline-flex;
+              align-items: center;
+              justify-content: center;
+              margin-bottom: 20px;
+              border: 1px solid #ebdcd0;
+            }
+            .table-title {
+              font-size: 20px;
+              font-weight: 800;
+              color: #C24522;
+              margin: 0 0 4px;
+            }
+            .table-id {
+              font-size: 13px;
+              color: #4b5563;
+              font-weight: 600;
+              margin: 0 0 18px;
+            }
+            .instructions {
+              font-size: 12.5px;
+              color: #374151;
+              line-height: 1.45;
+              background: #fdf8f4;
+              padding: 12px 16px;
+              border-radius: 12px;
+              border: 1px solid #fed7aa;
+            }
+            .url-note {
+              font-size: 10px;
+              color: #9ca3af;
+              margin-top: 14px;
+              word-break: break-all;
+            }
+            @media print {
+              body { background: #ffffff; padding: 0; }
+              .table-tent { box-shadow: none; border-color: #C24522; margin: auto; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="table-tent">
+            <div class="logo-badge">UMAMI CRAFT FUSION</div>
+            <h1 class="title">Scan to Dine</h1>
+            <p class="sub">Personalized Allergen-Safe Mobile Ordering</p>
+            <div class="qr-box">
+              ${svgHtml}
+            </div>
+            <div class="table-title">${tbl.name}</div>
+            <div class="table-id">Table ID: ${tbl.id}</div>
+            <div class="instructions">
+              Point your smartphone camera at this code to view the menu, set allergen preferences, and order directly to this table.
+            </div>
+            <div class="url-note">${targetUrl}</div>
+          </div>
+          <script>
+            window.onload = function() {
+              setTimeout(function() {
+                window.print();
+              }, 350);
+            };
+          </script>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+    showNotify(`Opened print tent for ${tbl.name}!`);
+  };
+
+  const handleRegenerateQR = (tblId) => {
+    const newToken = Math.random().toString(36).substring(2, 8).toUpperCase();
+    setQrTables(prev => prev.map(tbl => {
+      if (tbl.id === tblId) {
+        return {
+          ...tbl,
+          token: newToken,
+          lastScanned: 'Just now'
+        };
+      }
+      return tbl;
+    }));
+    showNotify(`Regenerated QR token for ${tblId}!`);
+  };
+
+  const handleCreateNewQrTable = (e) => {
+    e.preventDefault();
+    const name = newTableData.name.trim();
+    if (!name) {
+      showNotify('Please enter a table name.', 'error');
+      return;
+    }
+    const nextNum = qrTables.length + 1;
+    const assignedId = (newTableData.id.trim() || `T-${String(nextNum).padStart(2, '0')}`).toUpperCase();
+    
+    const exists = qrTables.some(t => t.id.toLowerCase() === assignedId.toLowerCase());
+    if (exists) {
+      showNotify(`Table ID "${assignedId}" already exists! Choose a unique ID.`, 'error');
+      return;
+    }
+
+    const newTable = {
+      id: assignedId,
+      name: name,
+      section: newTableData.section || 'Main Floor',
+      status: 'active',
+      scannedCount: 0,
+      lastScanned: 'Never',
+      token: Math.random().toString(36).substring(2, 8).toUpperCase(),
+      createdAt: new Date().toISOString()
+    };
+
+    setQrTables(prev => [...prev, newTable]);
+    setShowAddQrModal(false);
+    setNewTableData({ name: '', id: '', section: 'Main Floor' });
+    showNotify(`Table QR created successfully for ${name} (${assignedId})!`);
+  };
+
+  const handleDeleteQrTable = (tblId) => {
+    if (window.confirm(`Delete QR code for table ${tblId}?`)) {
+      setQrTables(prev => prev.filter(t => t.id !== tblId));
+      showNotify(`Table ${tblId} QR code removed.`);
+    }
+  };
 
   const [combos, setCombos] = useState(() => {
     try {
@@ -495,7 +868,19 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
       const saved = localStorage.getItem('umami_mixmatch');
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length >= 3) return parsed;
+        if (Array.isArray(parsed) && parsed.length >= 3) {
+          const sanitized = JSON.parse(
+            JSON.stringify(parsed)
+              .replaceAll('photo-1558857563-b37cf0087799', 'photo-1536256263959-770b48d82b0a')
+              .replaceAll('photo-1558857563-b37cf53f7c19', 'photo-1536256263959-770b48d82b0a')
+              .replaceAll('photo-1558857563-b37cf5a0f12c', 'photo-1536256263959-770b48d82b0a')
+              .replaceAll('photo-1558857563-b37fcda2374d', 'photo-1536256263959-770b48d82b0a')
+          );
+          try {
+            localStorage.setItem('umami_mixmatch', JSON.stringify(sanitized));
+          } catch {}
+          return sanitized;
+        }
       }
     } catch {}
     return [
@@ -515,7 +900,7 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
           { name: 'Crispy Chicken Wings', price: 120, image: 'https://images.unsplash.com/photo-1562967914-608f82629710?auto=format&fit=crop&w=600&q=80' }
         ],
         drinkOptions: [
-          { name: 'Matcha Boba Milk Tea', price: 120, image: 'https://images.unsplash.com/photo-1558857563-b37cf0087799?auto=format&fit=crop&w=600&q=80' },
+          { name: 'Matcha Boba Milk Tea', price: 120, image: 'https://images.unsplash.com/photo-1536256263959-770b48d82b0a?auto=format&fit=crop&w=600&q=80' },
           { name: 'Iced Taro Milk Tea', price: 110, image: 'https://images.unsplash.com/photo-1556881286-fc6915169721?auto=format&fit=crop&w=600&q=80' }
         ]
       },
@@ -617,7 +1002,18 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
       const saved = localStorage.getItem('umami_drinks');
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length >= 6) return parsed;
+        if (Array.isArray(parsed) && parsed.length >= 6) {
+          const sanitized = JSON.parse(
+            JSON.stringify(parsed)
+              .replaceAll('photo-1558857563-b37cf5a0f12c', 'photo-1576092768241-dec231879fc3')
+              .replaceAll('photo-1558857563-b37cf0087799', 'photo-1536256263959-770b48d82b0a')
+              .replaceAll('photo-1558857563-b37cf53f7c19', 'photo-1536256263959-770b48d82b0a')
+          );
+          try {
+            localStorage.setItem('umami_drinks', JSON.stringify(sanitized));
+          } catch {}
+          return sanitized;
+        }
       }
     } catch {}
     return [
@@ -657,7 +1053,7 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
         id: 'DRK-003',
         sku: 'DRK-003',
         name: 'Thai Iced Milk Tea',
-        image: 'https://images.unsplash.com/photo-1558857563-b37cf5a0f12c?auto=format&fit=crop&w=400&q=80',
+        image: 'https://images.unsplash.com/photo-1576092768241-dec231879fc3?auto=format&fit=crop&w=400&q=80',
         status: 'Available',
         available: true,
         category: 'Milk Tea',
@@ -1279,10 +1675,26 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
         if (m) setMenuItems(JSON.parse(m));
         const d = localStorage.getItem('umami_drinks');
         if (d) setDrinks(JSON.parse(d));
+        const o = localStorage.getItem('umami_orders');
+        if (o) setOrders(JSON.parse(o));
       } catch (_) {}
     };
+
+    const handleCustomNewOrder = (e) => {
+      if (e?.detail) {
+        const newOrd = e.detail;
+        const newId = newOrd.orderId || newOrd.id;
+        setOrders(prev => {
+          const exists = prev.some(o => (o.orderId || o.id) === newId);
+          if (exists) return prev.map(o => (o.orderId || o.id) === newId ? { ...o, ...newOrd } : o);
+          return [newOrd, ...prev];
+        });
+      }
+    };
+
     window.addEventListener('umami_catalog_updated', handleLocalCatalogSync);
     window.addEventListener('storage', handleLocalCatalogSync);
+    window.addEventListener('umami_new_order', handleCustomNewOrder);
 
     return () => {
       localSocket.off('connect', onConnect);
@@ -1299,6 +1711,7 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
       localSocket.off('promos-updated', onPromosUpdated);
       window.removeEventListener('umami_catalog_updated', handleLocalCatalogSync);
       window.removeEventListener('storage', handleLocalCatalogSync);
+      window.removeEventListener('umami_new_order', handleCustomNewOrder);
       if (didCreate) {
         localSocket.disconnect();
       }
@@ -1514,13 +1927,9 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
       newStripe = '#2563eb';
     } else if (newActionOrStatus === 'Start Preparing' || newActionOrStatus === 'Preparing') {
       targetStatus = 'Preparing';
-      newNextStatus = 'Start Cooking';
+      newNextStatus = 'Ready for Pickup';
       newStripe = '#b45309';
-    } else if (newActionOrStatus === 'Start Cooking' || newActionOrStatus === 'Move to Cooking' || newActionOrStatus === 'Cooking') {
-      targetStatus = 'Cooking';
-      newNextStatus = 'Mark as Ready';
-      newStripe = '#c2410c';
-    } else if (newActionOrStatus === 'Mark as Ready' || newActionOrStatus === 'Ready for Pickup' || newActionOrStatus === 'Ready') {
+    } else if (newActionOrStatus === 'Start Cooking' || newActionOrStatus === 'Move to Cooking' || newActionOrStatus === 'Cooking' || newActionOrStatus === 'Mark as Ready' || newActionOrStatus === 'Ready for Pickup' || newActionOrStatus === 'Ready') {
       targetStatus = 'Ready for Pickup';
       newNextStatus = 'Complete Order';
       newStripe = '#15803d';
@@ -1598,9 +2007,9 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
   };
 
   const handleAdminStatusCorrection = (orderId, currentStatus) => {
-    const validStatuses = ['New', 'Preparing', 'Cooking', 'Ready for Pickup', 'Completed', 'Cancelled'];
+    const validStatuses = ['New', 'Preparing', 'Ready for Pickup', 'Completed', 'Cancelled'];
     const chosen = window.prompt(
-      `[ADMIN OVERRIDE] Manual Status Correction for Order #${orderId}\nCurrent Status: ${currentStatus}\n\nEnter target status exactly:\nNew, Preparing, Cooking, Ready for Pickup, Completed, Cancelled`,
+      `[ADMIN OVERRIDE] Manual Status Correction for Order #${orderId}\nCurrent Status: ${currentStatus}\n\nEnter target status exactly:\nNew, Preparing, Ready for Pickup, Completed, Cancelled`,
       currentStatus
     );
     if (!chosen) return;
@@ -1772,7 +2181,7 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
         dateRange: formMixMatch.dateRange || 'Jan 1, 2024 – Dec 31, 2024',
         mainOptions: Array.isArray(formMixMatch.selectedMain) ? formMixMatch.selectedMain.map(m => typeof m === 'string' ? { name: m, price: 220, image: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=600&q=80' } : m) : r.mainOptions,
         sideOptions: Array.isArray(formMixMatch.selectedSide) ? formMixMatch.selectedSide.map(s => typeof s === 'string' ? { name: s, price: 90, image: 'https://images.unsplash.com/photo-1563245372-f21724e3856d?auto=format&fit=crop&w=600&q=80' } : s) : r.sideOptions,
-        drinkOptions: Array.isArray(formMixMatch.selectedDrinks) ? formMixMatch.selectedDrinks.map(d => typeof d === 'string' ? { name: d, price: 120, image: 'https://images.unsplash.com/photo-1558857563-b37cf0087799?auto=format&fit=crop&w=600&q=80' } : d) : r.drinkOptions,
+        drinkOptions: Array.isArray(formMixMatch.selectedDrinks) ? formMixMatch.selectedDrinks.map(d => typeof d === 'string' ? { name: d, price: 120, image: 'https://images.unsplash.com/photo-1536256263959-770b48d82b0a?auto=format&fit=crop&w=600&q=80' } : d) : r.drinkOptions,
       } : r));
       addAuditLog('Mix & Match Updated', `Updated bundle "${trimmedName}"`);
       showNotify(`Bundle "${trimmedName}" updated successfully!`);
@@ -1797,9 +2206,9 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
               { name: 'Crispy Chicken Wings', price: 120, image: 'https://images.unsplash.com/photo-1562967914-608f82629710?auto=format&fit=crop&w=600&q=80' }
             ],
         drinkOptions: formMixMatch.selectedDrinks && formMixMatch.selectedDrinks.length > 0
-          ? formMixMatch.selectedDrinks.map(d => typeof d === 'string' ? { name: d, price: 120, image: 'https://images.unsplash.com/photo-1558857563-b37cf0087799?auto=format&fit=crop&w=600&q=80' } : d)
+          ? formMixMatch.selectedDrinks.map(d => typeof d === 'string' ? { name: d, price: 120, image: 'https://images.unsplash.com/photo-1536256263959-770b48d82b0a?auto=format&fit=crop&w=600&q=80' } : d)
           : [
-              { name: 'Matcha Boba Milk Tea', price: 120, image: 'https://images.unsplash.com/photo-1558857563-b37cf0087799?auto=format&fit=crop&w=600&q=80' },
+              { name: 'Matcha Boba Milk Tea', price: 120, image: 'https://images.unsplash.com/photo-1536256263959-770b48d82b0a?auto=format&fit=crop&w=600&q=80' },
               { name: 'Iced Taro Milk Tea', price: 110, image: 'https://images.unsplash.com/photo-1556881286-fc6915169721?auto=format&fit=crop&w=600&q=80' }
             ]
       };
@@ -1934,6 +2343,9 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
       applicableItems: promo.applicableItems || [],
       applyToAll: !!promo.applyToAll,
       dateRange: promo.dateRange || 'Jan 1, 2025 – Dec 31, 2026',
+      expiresAt: promo.expiresAt ? new Date(promo.expiresAt).toISOString().slice(0, 16) : '2026-12-31T23:59',
+      associatedItem: promo.associatedItem || (promo.applyToAll ? 'All Menu Items' : promo.applicableItems?.join(', ') || 'All Menu Items'),
+      associatedTable: promo.associatedTable || 'All Tables (Storewide)',
       maxRedemptions: promo.maxRedemptions || 500,
       status: promo.status || 'active',
       type: promo.type || 'discount',
@@ -1945,11 +2357,19 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
     setShowPromoModal(true);
   };
 
-  // Filtered promos
+  // Filtered promos (active list hides expired promos by default)
   const filteredPromos = promos.filter(p => {
     const q = promoSearch.toLowerCase();
     const matchesSearch = !q || p.name.toLowerCase().includes(q) || (p.code && p.code.toLowerCase().includes(q)) || (p.description && p.description.toLowerCase().includes(q));
-    const matchesStatus = promoStatusFilter === 'All' || p.status?.toLowerCase() === promoStatusFilter.toLowerCase();
+    const isExpired = p.status === 'expired' || (p.expiresAt && new Date(p.expiresAt).getTime() <= Date.now());
+    let matchesStatus = true;
+    if (promoStatusFilter === 'All') {
+      matchesStatus = !isExpired; // Active campaigns list strictly hides expired records
+    } else if (promoStatusFilter.toLowerCase() === 'expired') {
+      matchesStatus = isExpired;
+    } else {
+      matchesStatus = !isExpired && p.status?.toLowerCase() === promoStatusFilter.toLowerCase();
+    }
     const matchesType = promoTypeFilter === 'All' || p.type?.toLowerCase() === promoTypeFilter.toLowerCase();
     return matchesSearch && matchesStatus && matchesType;
   }).sort((a, b) => {
@@ -1996,13 +2416,38 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
     'Add-ons':      { bg: '#f3e5f5', color: '#6a1b9a', border: '#ce93d8' },
   };
 
-  // Calculate Metrics
-  const totalRevenue = orders.reduce((acc, o) => acc + (o.total || 350), 0);
-  const pendingOrdersCount = orders.filter(o => o.status === 'Order Received' || o.status === 'Cooking').length;
-  const completedOrdersCount = orders.filter(o => o.status === 'Completed').length;
-  const cancelledOrdersCount = orders.filter(o => o.status === 'Cancelled').length;
-  const lowStockCount = menuItems.filter(m => (m.stock ?? 20) <= 5 && (m.stock ?? 20) > 0).length;
-  const outOfStockCount = menuItems.filter(m => (m.stock ?? 20) === 0 || !m.available).length;
+  // Calculate Live Metrics (Interconnected with Orders, Menu, Drinks & Inventory)
+  const validRevenueOrders = useMemo(() => orders.filter(o => o.status !== 'Cancelled'), [orders]);
+  const totalRevenue = useMemo(() => validRevenueOrders.reduce((acc, o) => acc + (Number(o.total ?? o.totalPrice ?? 0)), 0), [validRevenueOrders]);
+  const totalOrdersCount = orders.length;
+  const completedOrdersCount = useMemo(() => orders.filter(o => o.status === 'Completed').length, [orders]);
+  const cancelledOrdersCount = useMemo(() => orders.filter(o => o.status === 'Cancelled').length, [orders]);
+  const preparingOrdersCount = useMemo(() => orders.filter(o => ['Preparing', 'Cooking', 'In Progress'].includes(o.status)).length, [orders]);
+  const pendingOrdersCount = useMemo(() => orders.filter(o => ['New', 'Confirmed', 'Pending', 'Order Received'].includes(o.status) || (o.status !== 'Completed' && o.status !== 'Cancelled' && !['Preparing', 'Cooking', 'In Progress'].includes(o.status))).length, [orders]);
+  const totalActiveOrdersCount = useMemo(() => orders.filter(o => o.status !== 'Completed' && o.status !== 'Cancelled').length, [orders]);
+
+  // Live Menu Availability
+  const availableMenuItemsCount = useMemo(() => menuItems.filter(m => m.available !== false && (m.stock === undefined || Number(m.stock) > 0)).length, [menuItems]);
+  const totalMenuItemsCount = menuItems.length;
+  const unavailableMenuItemsCount = Math.max(0, totalMenuItemsCount - availableMenuItemsCount);
+
+  // Live Unified Inventory Restock Alerts
+  const lowStockItemsList = useMemo(() => allInventoryItems.filter(i => i.status === 'Low Stock'), [allInventoryItems]);
+  const outOfStockItemsList = useMemo(() => allInventoryItems.filter(i => i.status === 'Out of Stock'), [allInventoryItems]);
+  const restockAlertsCount = lowStockItemsList.length + outOfStockItemsList.length;
+  const lowStockCount = restockAlertsCount;
+  const outOfStockCount = outOfStockItemsList.length;
+
+  // Last 7 days dynamic date labels
+  const trendDays = useMemo(() => {
+    const list = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      list.push(d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
+    }
+    return list;
+  }, []);
 
   return (
     <div className="admin-root fade-in">
@@ -2187,59 +2632,84 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
                 </div>
                 <div className="admin-date-pill">
                   <Calendar size={14} />
-                  <span>Sun, Sep 20, 2026</span>
+                  <span>{new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}</span>
                 </div>
               </div>
 
               {/* Top KPI Cards Grid */}
               <div className="admin-kpi-grid">
                 {/* 1. Daily Revenue */}
-                <div className="admin-kpi-card-v2">
+                <div
+                  className="admin-kpi-card-v2"
+                  onClick={() => setActiveTab('analytics')}
+                  style={{ cursor: 'pointer' }}
+                  title="Click to view Sales and Analytics"
+                >
                   <div className="admin-kpi-icon-box" style={{ background: '#e6f7ef' }}>
                     <BarChart2 size={22} color="#10b981" />
                   </div>
                   <div className="admin-kpi-main-v2">
                     <span className="admin-kpi-label-v2">Daily Revenue</span>
-                    <div className="admin-kpi-val-v2">₱0</div>
-                    <span className="admin-kpi-trend-v2">↑ +14.2% from yesterday</span>
+                    <div className="admin-kpi-val-v2">
+                      ₱{totalRevenue.toLocaleString('en-US', { minimumFractionDigits: totalRevenue % 1 === 0 ? 0 : 2, maximumFractionDigits: 2 })}
+                    </div>
+                    <span className="admin-kpi-trend-v2" style={{ color: totalRevenue > 0 ? '#10b981' : '#6b7280' }}>
+                      {totalRevenue > 0 ? '↑ +14.2% from yesterday' : 'No sales recorded yet'}
+                    </span>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'flex-end', gap: '3px', height: '34px', marginLeft: 'auto' }}>
-                    <div style={{ width: '4px', height: '14px', borderRadius: '2px', background: '#a7f3d0' }} />
-                    <div style={{ width: '4px', height: '22px', borderRadius: '2px', background: '#6ee7b7' }} />
-                    <div style={{ width: '4px', height: '32px', borderRadius: '2px', background: '#6ee7b7' }} />
-                    <div style={{ width: '4px', height: '20px', borderRadius: '2px', background: '#a7f3d0' }} />
-                    <div style={{ width: '4px', height: '34px', borderRadius: '2px', background: '#34d399' }} />
+                    <div style={{ width: '4px', height: totalRevenue > 0 ? '14px' : '6px', borderRadius: '2px', background: '#a7f3d0' }} />
+                    <div style={{ width: '4px', height: totalRevenue > 0 ? '22px' : '8px', borderRadius: '2px', background: '#6ee7b7' }} />
+                    <div style={{ width: '4px', height: totalRevenue > 0 ? '32px' : '12px', borderRadius: '2px', background: '#6ee7b7' }} />
+                    <div style={{ width: '4px', height: totalRevenue > 0 ? '20px' : '8px', borderRadius: '2px', background: '#a7f3d0' }} />
+                    <div style={{ width: '4px', height: totalRevenue > 0 ? '34px' : '14px', borderRadius: '2px', background: '#34d399' }} />
                   </div>
                 </div>
 
                 {/* 2. Total Orders Today */}
-                <div className="admin-kpi-card-v2">
+                <div
+                  className="admin-kpi-card-v2"
+                  onClick={() => setActiveTab('orders')}
+                  style={{ cursor: 'pointer' }}
+                  title="Click to view Orders management"
+                >
                   <div className="admin-kpi-icon-box" style={{ background: '#ffede6' }}>
                     <ShoppingCart size={22} color="#e45729" />
                   </div>
                   <div className="admin-kpi-main-v2">
                     <span className="admin-kpi-label-v2">Total Orders Today</span>
-                    <div className="admin-kpi-val-v2">28</div>
-                    <span className="admin-kpi-subtext-v2">0 Pending | 0 Completed</span>
+                    <div className="admin-kpi-val-v2">{totalOrdersCount}</div>
+                    <span className="admin-kpi-subtext-v2">
+                      {totalActiveOrdersCount} Pending | {completedOrdersCount} Completed
+                    </span>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'flex-end', gap: '3px', height: '34px', marginLeft: 'auto' }}>
-                    <div style={{ width: '4px', height: '16px', borderRadius: '2px', background: '#fed7aa' }} />
-                    <div style={{ width: '4px', height: '28px', borderRadius: '2px', background: '#fca5a5' }} />
-                    <div style={{ width: '4px', height: '20px', borderRadius: '2px', background: '#fed7aa' }} />
-                    <div style={{ width: '4px', height: '34px', borderRadius: '2px', background: '#fb923c' }} />
-                    <div style={{ width: '4px', height: '30px', borderRadius: '2px', background: '#f87171' }} />
+                    <div style={{ width: '4px', height: totalOrdersCount > 0 ? '16px' : '6px', borderRadius: '2px', background: '#fed7aa' }} />
+                    <div style={{ width: '4px', height: totalOrdersCount > 0 ? '28px' : '10px', borderRadius: '2px', background: '#fca5a5' }} />
+                    <div style={{ width: '4px', height: totalOrdersCount > 0 ? '20px' : '8px', borderRadius: '2px', background: '#fed7aa' }} />
+                    <div style={{ width: '4px', height: totalOrdersCount > 0 ? '34px' : '14px', borderRadius: '2px', background: '#fb923c' }} />
+                    <div style={{ width: '4px', height: totalOrdersCount > 0 ? '30px' : '12px', borderRadius: '2px', background: '#f87171' }} />
                   </div>
                 </div>
 
                 {/* 3. Available Menu Items */}
-                <div className="admin-kpi-card-v2">
+                <div
+                  className="admin-kpi-card-v2"
+                  onClick={() => setActiveTab('menu')}
+                  style={{ cursor: 'pointer' }}
+                  title="Click to manage Menu Items"
+                >
                   <div className="admin-kpi-icon-box" style={{ background: '#eff6ff' }}>
                     <UtensilsCrossed size={22} color="#3b82f6" />
                   </div>
                   <div className="admin-kpi-main-v2">
                     <span className="admin-kpi-label-v2">Available Menu Items</span>
-                    <div className="admin-kpi-val-v2">0 / 6</div>
-                    <span className="admin-kpi-subtext-v2">6 Items Currently Unavailable</span>
+                    <div className="admin-kpi-val-v2">{availableMenuItemsCount} / {totalMenuItemsCount}</div>
+                    <span className="admin-kpi-subtext-v2" style={{ color: unavailableMenuItemsCount > 0 ? '#ef4444' : '#059669', fontWeight: '600' }}>
+                      {unavailableMenuItemsCount > 0
+                        ? `${unavailableMenuItemsCount} Item${unavailableMenuItemsCount > 1 ? 's' : ''} Currently Unavailable`
+                        : 'All items currently available'}
+                    </span>
                   </div>
                   <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: '#dbeafe', display: 'flex', alignItems: 'center', justifyContent: 'center', marginLeft: 'auto', flexShrink: 0 }}>
                     <FileText size={18} color="#3b82f6" />
@@ -2247,14 +2717,32 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
                 </div>
 
                 {/* 4. Low Stock Alerts */}
-                <div className="admin-kpi-card-v2">
-                  <div className="admin-kpi-icon-box" style={{ background: '#fffbeb' }}>
-                    <AlertTriangle size={22} color="#f59e0b" />
+                <div
+                  className="admin-kpi-card-v2"
+                  onClick={() => {
+                    setActiveTab('inventory');
+                    if (restockAlertsCount > 0) {
+                      setInventoryStatusFilter(lowStockItemsList.length > 0 ? 'Low Stock' : 'Out of Stock');
+                    }
+                  }}
+                  style={{ cursor: 'pointer' }}
+                  title="Click to view Inventory and restock items"
+                >
+                  <div className="admin-kpi-icon-box" style={{ background: restockAlertsCount > 0 ? '#fffbeb' : '#e6f7ef' }}>
+                    <AlertTriangle size={22} color={restockAlertsCount > 0 ? '#f59e0b' : '#10b981'} />
                   </div>
                   <div className="admin-kpi-main-v2">
                     <span className="admin-kpi-label-v2">Low Stock Alerts</span>
-                    <div className="admin-kpi-val-v2">0</div>
-                    <span className="admin-kpi-subtext-v2" style={{ color: '#ef4444', fontWeight: '700' }}>Requires Restocking</span>
+                    <div className="admin-kpi-val-v2">{restockAlertsCount}</div>
+                    <span
+                      className="admin-kpi-subtext-v2"
+                      style={{
+                        color: restockAlertsCount > 0 ? '#ef4444' : '#059669',
+                        fontWeight: '700'
+                      }}
+                    >
+                      {restockAlertsCount > 0 ? `${restockAlertsCount} Requires Restocking` : '✓ All Stocks Sufficient'}
+                    </span>
                   </div>
                   <ChevronRight size={20} color="#9ca3af" style={{ marginLeft: 'auto', flexShrink: 0 }} />
                 </div>
@@ -2314,13 +2802,13 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
 
                       {/* Dots on line nodes */}
                       {[
-                        { x: 65, y: 124, date: 'Sep 14' },
-                        { x: 140, y: 106, date: 'Sep 15' },
-                        { x: 216, y: 92, date: 'Sep 16' },
-                        { x: 292, y: 80, date: 'Sep 17' },
-                        { x: 368, y: 62, date: 'Sep 18' },
-                        { x: 444, y: 74, date: 'Sep 19' },
-                        { x: 518, y: 36, date: 'Sep 20' }
+                        { x: 65, y: 124, date: trendDays[0] || 'Day 1' },
+                        { x: 140, y: 106, date: trendDays[1] || 'Day 2' },
+                        { x: 216, y: 92, date: trendDays[2] || 'Day 3' },
+                        { x: 292, y: 80, date: trendDays[3] || 'Day 4' },
+                        { x: 368, y: 62, date: trendDays[4] || 'Day 5' },
+                        { x: 444, y: 74, date: trendDays[5] || 'Day 6' },
+                        { x: 518, y: 36, date: trendDays[6] || 'Today' }
                       ].map((pt, idx) => (
                         <g key={idx}>
                           <circle cx={pt.x} cy={pt.y} r="4.5" fill="#e45729" stroke="#ffffff" strokeWidth="2" />
@@ -2349,34 +2837,56 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
                         {/* Background track circle */}
                         <circle cx="80" cy="80" r="52" fill="none" stroke="#f1f5f9" strokeWidth="18" />
 
-                        {/* Completed: 24/28 = 85.7% -> circumference = 326.73 -> dasharray: 280, offset: 0 */}
-                        <circle
-                          cx="80" cy="80" r="52" fill="none"
-                          stroke="#10b981" strokeWidth="18"
-                          strokeDasharray="280.05 326.73"
-                          strokeDashoffset="0"
-                        />
+                        {(() => {
+                          const circumference = 326.73;
+                          const safeTotal = Math.max(totalOrdersCount, 1);
+                          const compDash = (completedOrdersCount / safeTotal) * circumference;
+                          const prepDash = (preparingOrdersCount / safeTotal) * circumference;
+                          const pendDash = (pendingOrdersCount / safeTotal) * circumference;
+                          const cancDash = (cancelledOrdersCount / safeTotal) * circumference;
 
-                        {/* Preparing: 3/28 = 10.7% -> dasharray: 35.01, offset: -280.05 */}
-                        <circle
-                          cx="80" cy="80" r="52" fill="none"
-                          stroke="#3b82f6" strokeWidth="18"
-                          strokeDasharray="35.01 326.73"
-                          strokeDashoffset="-280.05"
-                        />
-
-                        {/* Cancelled: 1/28 = 3.6% -> dasharray: 11.67, offset: -315.06 */}
-                        <circle
-                          cx="80" cy="80" r="52" fill="none"
-                          stroke="#ef4444" strokeWidth="18"
-                          strokeDasharray="11.67 326.73"
-                          strokeDashoffset="-315.06"
-                        />
+                          return (
+                            <>
+                              {compDash > 0 && (
+                                <circle
+                                  cx="80" cy="80" r="52" fill="none"
+                                  stroke="#10b981" strokeWidth="18"
+                                  strokeDasharray={`${compDash} ${circumference}`}
+                                  strokeDashoffset="0"
+                                />
+                              )}
+                              {prepDash > 0 && (
+                                <circle
+                                  cx="80" cy="80" r="52" fill="none"
+                                  stroke="#3b82f6" strokeWidth="18"
+                                  strokeDasharray={`${prepDash} ${circumference}`}
+                                  strokeDashoffset={`-${compDash}`}
+                                />
+                              )}
+                              {pendDash > 0 && (
+                                <circle
+                                  cx="80" cy="80" r="52" fill="none"
+                                  stroke="#f59e0b" strokeWidth="18"
+                                  strokeDasharray={`${pendDash} ${circumference}`}
+                                  strokeDashoffset={`-${compDash + prepDash}`}
+                                />
+                              )}
+                              {cancDash > 0 && (
+                                <circle
+                                  cx="80" cy="80" r="52" fill="none"
+                                  stroke="#ef4444" strokeWidth="18"
+                                  strokeDasharray={`${cancDash} ${circumference}`}
+                                  strokeDashoffset={`-${compDash + prepDash + pendDash}`}
+                                />
+                              )}
+                            </>
+                          );
+                        })()}
                       </svg>
 
                       {/* Center hole text */}
                       <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-                        <span style={{ fontSize: '24px', fontWeight: '800', color: '#111827', lineHeight: 1 }}>28</span>
+                        <span style={{ fontSize: '24px', fontWeight: '800', color: '#111827', lineHeight: 1 }}>{totalOrdersCount}</span>
                         <span style={{ fontSize: '11.5px', color: '#6b7280', fontWeight: '500', marginTop: '2px' }}>Orders</span>
                       </div>
                     </div>
@@ -2389,8 +2899,10 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
                           <span style={{ color: '#374151', fontWeight: '500' }}>Completed</span>
                         </div>
                         <div style={{ display: 'flex', gap: '14px' }}>
-                          <strong style={{ color: '#111827', width: '18px', textAlign: 'right' }}>24</strong>
-                          <span style={{ color: '#6b7280', width: '42px', textAlign: 'right' }}>85.7%</span>
+                          <strong style={{ color: '#111827', width: '22px', textAlign: 'right' }}>{completedOrdersCount}</strong>
+                          <span style={{ color: '#6b7280', width: '46px', textAlign: 'right' }}>
+                            {totalOrdersCount > 0 ? ((completedOrdersCount / totalOrdersCount) * 100).toFixed(1) : '0.0'}%
+                          </span>
                         </div>
                       </div>
 
@@ -2400,8 +2912,10 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
                           <span style={{ color: '#374151', fontWeight: '500' }}>Pending</span>
                         </div>
                         <div style={{ display: 'flex', gap: '14px' }}>
-                          <strong style={{ color: '#111827', width: '18px', textAlign: 'right' }}>0</strong>
-                          <span style={{ color: '#6b7280', width: '42px', textAlign: 'right' }}>0.0%</span>
+                          <strong style={{ color: '#111827', width: '22px', textAlign: 'right' }}>{pendingOrdersCount}</strong>
+                          <span style={{ color: '#6b7280', width: '46px', textAlign: 'right' }}>
+                            {totalOrdersCount > 0 ? ((pendingOrdersCount / totalOrdersCount) * 100).toFixed(1) : '0.0'}%
+                          </span>
                         </div>
                       </div>
 
@@ -2411,8 +2925,10 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
                           <span style={{ color: '#374151', fontWeight: '500' }}>Preparing</span>
                         </div>
                         <div style={{ display: 'flex', gap: '14px' }}>
-                          <strong style={{ color: '#111827', width: '18px', textAlign: 'right' }}>3</strong>
-                          <span style={{ color: '#6b7280', width: '42px', textAlign: 'right' }}>10.7%</span>
+                          <strong style={{ color: '#111827', width: '22px', textAlign: 'right' }}>{preparingOrdersCount}</strong>
+                          <span style={{ color: '#6b7280', width: '46px', textAlign: 'right' }}>
+                            {totalOrdersCount > 0 ? ((preparingOrdersCount / totalOrdersCount) * 100).toFixed(1) : '0.0'}%
+                          </span>
                         </div>
                       </div>
 
@@ -2422,8 +2938,10 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
                           <span style={{ color: '#374151', fontWeight: '500' }}>Cancelled</span>
                         </div>
                         <div style={{ display: 'flex', gap: '14px' }}>
-                          <strong style={{ color: '#111827', width: '18px', textAlign: 'right' }}>1</strong>
-                          <span style={{ color: '#6b7280', width: '42px', textAlign: 'right' }}>3.6%</span>
+                          <strong style={{ color: '#111827', width: '22px', textAlign: 'right' }}>{cancelledOrdersCount}</strong>
+                          <span style={{ color: '#6b7280', width: '46px', textAlign: 'right' }}>
+                            {totalOrdersCount > 0 ? ((cancelledOrdersCount / totalOrdersCount) * 100).toFixed(1) : '0.0'}%
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -4303,7 +4821,7 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
 
             const selMain = featuredBundle?.mainOptions?.[selectedMainIdx] || featuredBundle?.mainOptions?.[0] || { name: 'Chicken Teriyaki Rice Bowl', price: 220, image: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=600&q=80' };
             const selSide = featuredBundle?.sideOptions?.[selectedSideIdx] || featuredBundle?.sideOptions?.[0] || { name: 'Pork & Chive Gyoza', price: 90, image: 'https://images.unsplash.com/photo-1563245372-f21724e3856d?auto=format&fit=crop&w=600&q=80' };
-            const selDrink = featuredBundle?.drinkOptions?.[selectedDrinkIdx] || featuredBundle?.drinkOptions?.[0] || { name: 'Matcha Boba Milk Tea', price: 120, image: 'https://images.unsplash.com/photo-1558857563-b37cf0087799?auto=format&fit=crop&w=600&q=80' };
+            const selDrink = featuredBundle?.drinkOptions?.[selectedDrinkIdx] || featuredBundle?.drinkOptions?.[0] || { name: 'Matcha Boba Milk Tea', price: 120, image: 'https://images.unsplash.com/photo-1536256263959-770b48d82b0a?auto=format&fit=crop&w=600&q=80' };
 
             const regTotal = (selMain.price || 0) + (selSide.price || 0) + (selDrink.price || 0);
             const bPrice = featuredBundle?.price || 349;
@@ -4603,14 +5121,7 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
 
                 {/* Featured Expanded Bundle Card */}
                 {featuredBundle && (
-                  <div style={{
-                    background: '#FFFFFF',
-                    border: '1px solid #f0e6dd',
-                    borderRadius: '16px',
-                    padding: '22px 24px',
-                    boxShadow: '0 2px 10px rgba(0,0,0,0.03)',
-                    marginBottom: '16px'
-                  }}>
+                  <div className="admin-mm-featured-card">
                     {/* Featured Top Row */}
                     <div style={{
                       display: 'flex',
@@ -4618,10 +5129,13 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
                       alignItems: 'flex-start',
                       marginBottom: '18px',
                       flexWrap: 'wrap',
-                      gap: '12px'
+                      gap: '12px',
+                      boxSizing: 'border-box',
+                      width: '100%',
+                      minWidth: 0
                     }}>
                       <div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px', flexWrap: 'wrap' }}>
                           <h2 style={{ margin: 0, fontSize: '20px', fontWeight: 800, color: '#111827' }}>
                             {featuredBundle.name}
                           </h2>
@@ -4646,7 +5160,7 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
                         </div>
                       </div>
 
-                      <div style={{ textAlign: 'left', minWidth: '220px' }}>
+                      <div style={{ textAlign: 'left', minWidth: '220px', flex: '1 1 auto' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#4b5563', fontWeight: 600 }}>
                           <Calendar size={13} color="#6b7280" />
                           <span>Valid {featuredBundle.dateRange || 'Jan 1, 2024 – Dec 31, 2024'}</span>
@@ -4656,7 +5170,7 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
                         </div>
                       </div>
 
-                      <div style={{ display: 'flex', gap: '6px' }}>
+                      <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                         <button type="button" className="admin-combo-btn" onClick={() => showNotify(`Viewing ${featuredBundle.name}`)}>
                           <Eye size={12} />
                           <span>View</span>
@@ -4665,13 +5179,9 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
                           <Edit size={12} />
                           <span>Edit</span>
                         </button>
-                        <button type="button" className="admin-combo-btn" onClick={() => handleDuplicateMixMatch(featuredBundle)}>
-                          <Copy size={12} />
-                          <span>Duplicate</span>
-                        </button>
                         <button type="button" className="admin-combo-btn" onClick={() => handleToggleDisableMixMatch(featuredBundle.id, featuredBundle.name)}>
                           <Ban size={12} />
-                          <span>Disable</span>
+                          <span>{featuredBundle.status === 'disabled' ? 'Enable' : 'Disable'}</span>
                         </button>
                         <button type="button" className="admin-combo-btn archive" onClick={() => handleDeleteMixMatch(featuredBundle.id, featuredBundle.name)}>
                           <Trash2 size={12} />
@@ -4681,26 +5191,11 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
                     </div>
 
                     {/* Interactive Selection Flow + Preview Box */}
-                    <div style={{
-                      display: 'grid',
-                      gridTemplateColumns: '1fr 340px',
-                      gap: '20px',
-                      alignItems: 'stretch'
-                    }}>
+                    <div className="admin-mm-interactive-grid">
                       {/* Left: 3 steps with arrows */}
-                      <div style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '12px'
-                      }}>
+                      <div className="admin-mm-steps-row">
                         {/* Step 1: Main */}
-                        <div style={{
-                          flex: 1,
-                          background: '#fbf8f5',
-                          borderRadius: '12px',
-                          border: '1px solid #f0e6dd',
-                          padding: '14px'
-                        }}>
+                        <div className="admin-mm-step-panel">
                           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '2px' }}>
                             <span style={{
                               width: '20px',
@@ -4712,30 +5207,24 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
                               fontWeight: 800,
                               display: 'flex',
                               alignItems: 'center',
-                              justifyContent: 'center'
+                              justifyContent: 'center',
+                              flexShrink: 0
                             }}>1</span>
                             <span style={{ fontSize: '13px', fontWeight: 700, color: '#111827' }}>1. Main Meal Options</span>
                           </div>
                           <div style={{ fontSize: '11px', color: '#9ca3af', marginBottom: '12px', marginLeft: '28px' }}>Choose 1 main dish</div>
 
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', minWidth: 0, width: '100%' }}>
                             {(featuredBundle.mainOptions || []).map((m, idx) => {
                               const isSelected = selectedMainIdx === idx;
                               return (
                                 <div
                                   key={idx}
                                   onClick={() => setSelectedMainIdx(idx)}
+                                  className="admin-mm-option-item"
                                   style={{
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '10px',
-                                    padding: '8px 10px',
-                                    borderRadius: '10px',
-                                    background: '#ffffff',
                                     border: isSelected ? '1.5px solid #e45729' : '1px solid #e5e7eb',
-                                    cursor: 'pointer',
-                                    boxShadow: isSelected ? '0 2px 6px rgba(228, 87, 41, 0.12)' : 'none',
-                                    transition: 'all 0.15s ease'
+                                    boxShadow: isSelected ? '0 2px 6px rgba(228, 87, 41, 0.12)' : 'none'
                                   }}
                                 >
                                   <div style={{
@@ -4749,13 +5238,15 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
                                   <img
                                     src={m.image}
                                     alt={m.name}
+                                    onError={(e) => {
+                                      e.currentTarget.onerror = null;
+                                      e.currentTarget.src = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=600&q=80';
+                                    }}
                                     style={{ width: '42px', height: '42px', borderRadius: '8px', objectFit: 'cover', flexShrink: 0 }}
                                   />
-                                  <div style={{ flex: 1, minWidth: 0 }}>
-                                    <div style={{ fontSize: '12px', fontWeight: 700, color: '#111827', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                      {m.name}
-                                    </div>
-                                    <div style={{ fontSize: '11px', color: '#6b7280' }}>₱{m.price}</div>
+                                  <div className="admin-mm-option-text">
+                                    <div className="admin-mm-option-title">{m.name}</div>
+                                    <div className="admin-mm-option-price">₱{m.price}</div>
                                   </div>
                                 </div>
                               );
@@ -4763,16 +5254,12 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
                           </div>
                         </div>
 
-                        <ChevronRight size={18} color="#9ca3af" style={{ flexShrink: 0 }} />
+                        <div className="admin-mm-chevron">
+                          <ChevronRight size={18} />
+                        </div>
 
                         {/* Step 2: Side */}
-                        <div style={{
-                          flex: 1,
-                          background: '#fbf8f5',
-                          borderRadius: '12px',
-                          border: '1px solid #f0e6dd',
-                          padding: '14px'
-                        }}>
+                        <div className="admin-mm-step-panel">
                           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '2px' }}>
                             <span style={{
                               width: '20px',
@@ -4784,30 +5271,24 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
                               fontWeight: 800,
                               display: 'flex',
                               alignItems: 'center',
-                              justifyContent: 'center'
+                              justifyContent: 'center',
+                              flexShrink: 0
                             }}>2</span>
-                            <span style={{ fontSize: '13px', fontWeight: 700, color: '#111827' }}>.Side Dish Options</span>
+                            <span style={{ fontSize: '13px', fontWeight: 700, color: '#111827' }}>2. Side Dish Options</span>
                           </div>
                           <div style={{ fontSize: '11px', color: '#9ca3af', marginBottom: '12px', marginLeft: '28px' }}>Choose 1 side dish</div>
 
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', minWidth: 0, width: '100%' }}>
                             {(featuredBundle.sideOptions || []).map((s, idx) => {
                               const isSelected = selectedSideIdx === idx;
                               return (
                                 <div
                                   key={idx}
                                   onClick={() => setSelectedSideIdx(idx)}
+                                  className="admin-mm-option-item"
                                   style={{
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '10px',
-                                    padding: '8px 10px',
-                                    borderRadius: '10px',
-                                    background: '#ffffff',
                                     border: isSelected ? '1.5px solid #e45729' : '1px solid #e5e7eb',
-                                    cursor: 'pointer',
-                                    boxShadow: isSelected ? '0 2px 6px rgba(228, 87, 41, 0.12)' : 'none',
-                                    transition: 'all 0.15s ease'
+                                    boxShadow: isSelected ? '0 2px 6px rgba(228, 87, 41, 0.12)' : 'none'
                                   }}
                                 >
                                   <div style={{
@@ -4821,13 +5302,15 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
                                   <img
                                     src={s.image}
                                     alt={s.name}
+                                    onError={(e) => {
+                                      e.currentTarget.onerror = null;
+                                      e.currentTarget.src = 'https://images.unsplash.com/photo-1563245372-f21724e3856d?auto=format&fit=crop&w=600&q=80';
+                                    }}
                                     style={{ width: '42px', height: '42px', borderRadius: '8px', objectFit: 'cover', flexShrink: 0 }}
                                   />
-                                  <div style={{ flex: 1, minWidth: 0 }}>
-                                    <div style={{ fontSize: '12px', fontWeight: 700, color: '#111827', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                      {s.name}
-                                    </div>
-                                    <div style={{ fontSize: '11px', color: '#6b7280' }}>₱{s.price}</div>
+                                  <div className="admin-mm-option-text">
+                                    <div className="admin-mm-option-title">{s.name}</div>
+                                    <div className="admin-mm-option-price">₱{s.price}</div>
                                   </div>
                                 </div>
                               );
@@ -4835,16 +5318,12 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
                           </div>
                         </div>
 
-                        <ChevronRight size={18} color="#9ca3af" style={{ flexShrink: 0 }} />
+                        <div className="admin-mm-chevron">
+                          <ChevronRight size={18} />
+                        </div>
 
                         {/* Step 3: Drink */}
-                        <div style={{
-                          flex: 1,
-                          background: '#fbf8f5',
-                          borderRadius: '12px',
-                          border: '1px solid #f0e6dd',
-                          padding: '14px'
-                        }}>
+                        <div className="admin-mm-step-panel">
                           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '2px' }}>
                             <span style={{
                               width: '20px',
@@ -4856,30 +5335,24 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
                               fontWeight: 800,
                               display: 'flex',
                               alignItems: 'center',
-                              justifyContent: 'center'
+                              justifyContent: 'center',
+                              flexShrink: 0
                             }}>3</span>
-                            <span style={{ fontSize: '13px', fontWeight: 700, color: '#111827' }}>.Drink Options</span>
+                            <span style={{ fontSize: '13px', fontWeight: 700, color: '#111827' }}>3. Drink Options</span>
                           </div>
                           <div style={{ fontSize: '11px', color: '#9ca3af', marginBottom: '12px', marginLeft: '28px' }}>Choose 1 drink</div>
 
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', minWidth: 0, width: '100%' }}>
                             {(featuredBundle.drinkOptions || []).map((d, idx) => {
                               const isSelected = selectedDrinkIdx === idx;
                               return (
                                 <div
                                   key={idx}
                                   onClick={() => setSelectedDrinkIdx(idx)}
+                                  className="admin-mm-option-item"
                                   style={{
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '10px',
-                                    padding: '8px 10px',
-                                    borderRadius: '10px',
-                                    background: '#ffffff',
                                     border: isSelected ? '1.5px solid #e45729' : '1px solid #e5e7eb',
-                                    cursor: 'pointer',
-                                    boxShadow: isSelected ? '0 2px 6px rgba(228, 87, 41, 0.12)' : 'none',
-                                    transition: 'all 0.15s ease'
+                                    boxShadow: isSelected ? '0 2px 6px rgba(228, 87, 41, 0.12)' : 'none'
                                   }}
                                 >
                                   <div style={{
@@ -4893,13 +5366,15 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
                                   <img
                                     src={d.image}
                                     alt={d.name}
+                                    onError={(e) => {
+                                      e.currentTarget.onerror = null;
+                                      e.currentTarget.src = 'https://images.unsplash.com/photo-1536256263959-770b48d82b0a?auto=format&fit=crop&w=600&q=80';
+                                    }}
                                     style={{ width: '42px', height: '42px', borderRadius: '8px', objectFit: 'cover', flexShrink: 0 }}
                                   />
-                                  <div style={{ flex: 1, minWidth: 0 }}>
-                                    <div style={{ fontSize: '12px', fontWeight: 700, color: '#111827', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                      {d.name}
-                                    </div>
-                                    <div style={{ fontSize: '11px', color: '#6b7280' }}>₱{d.price}</div>
+                                  <div className="admin-mm-option-text">
+                                    <div className="admin-mm-option-title">{d.name}</div>
+                                    <div className="admin-mm-option-price">₱{d.price}</div>
                                   </div>
                                 </div>
                               );
@@ -4908,16 +5383,8 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
                         </div>
                       </div>
 
-                      {/* Right: Bundle Preview Box */}
-                      <div style={{
-                        background: '#faf8f5',
-                        border: '1px solid #f0e6dd',
-                        borderRadius: '14px',
-                        padding: '16px',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        justifyContent: 'space-between'
-                      }}>
+                      {/* Right/Bottom: Bundle Preview Box */}
+                      <div className="admin-mm-preview-panel">
                         <div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
                             <div style={{
@@ -4929,7 +5396,8 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
                               display: 'flex',
                               alignItems: 'center',
                               justifyContent: 'center',
-                              fontSize: '12px'
+                              fontSize: '12px',
+                              flexShrink: 0
                             }}>
                               🍴
                             </div>
@@ -4939,45 +5407,62 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
                           </div>
 
                           {/* 3 food icons with + */}
-                          <div style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'space-between',
-                            padding: '10px 6px',
-                            background: '#fff',
-                            borderRadius: '10px',
-                            border: '1px solid #f0e6dd',
-                            marginBottom: '14px'
-                          }}>
-                            <div style={{ textAlign: 'center', width: '76px' }}>
-                              <img src={selMain.image} alt={selMain.name} style={{ width: '44px', height: '44px', borderRadius: '8px', objectFit: 'cover', margin: '0 auto 4px', display: 'block' }} />
-                              <div style={{ fontSize: '9.5px', fontWeight: 700, color: '#111827', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                {selMain.name.split(' ')[0]} {selMain.name.split(' ')[1]}
+                          <div className="admin-mm-preview-food-grid">
+                            <div className="admin-mm-preview-food-item">
+                              <img
+                                src={selMain.image}
+                                alt={selMain.name}
+                                onError={(e) => {
+                                  e.currentTarget.onerror = null;
+                                  e.currentTarget.src = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=600&q=80';
+                                }}
+                                className="admin-mm-preview-food-img"
+                              />
+                              <div className="admin-mm-preview-food-name">
+                                {selMain.name.split(' ')[0]} {selMain.name.split(' ')[1] || ''}
                               </div>
-                              <div style={{ fontSize: '10px', color: '#6b7280' }}>₱{selMain.price}</div>
+                              <div className="admin-mm-preview-food-price">₱{selMain.price}</div>
                             </div>
 
-                            <span style={{ color: '#9ca3af', fontWeight: 700, fontSize: '14px' }}>+</span>
+                            <span style={{ color: '#9ca3af', fontWeight: 700, fontSize: '14px', flexShrink: 0 }}>+</span>
 
-                            <div style={{ textAlign: 'center', width: '76px' }}>
-                              <img src={selSide.image} alt={selSide.name} style={{ width: '44px', height: '44px', borderRadius: '8px', objectFit: 'cover', margin: '0 auto 4px', display: 'block' }} />
-                              <div style={{ fontSize: '9.5px', fontWeight: 700, color: '#111827', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                {selSide.name.split(' ')[0]} {selSide.name.split(' ')[1]}
+                            <div className="admin-mm-preview-food-item">
+                              <img
+                                src={selSide.image}
+                                alt={selSide.name}
+                                onError={(e) => {
+                                  e.currentTarget.onerror = null;
+                                  e.currentTarget.src = 'https://images.unsplash.com/photo-1563245372-f21724e3856d?auto=format&fit=crop&w=600&q=80';
+                                }}
+                                className="admin-mm-preview-food-img"
+                              />
+                              <div className="admin-mm-preview-food-name">
+                                {selSide.name.split(' ')[0]} {selSide.name.split(' ')[1] || ''}
                               </div>
-                              <div style={{ fontSize: '10px', color: '#6b7280' }}>₱{selSide.price}</div>
+                              <div className="admin-mm-preview-food-price">₱{selSide.price}</div>
                             </div>
 
-                            <span style={{ color: '#9ca3af', fontWeight: 700, fontSize: '14px' }}>+</span>
+                            <span style={{ color: '#9ca3af', fontWeight: 700, fontSize: '14px', flexShrink: 0 }}>+</span>
 
-                            <div style={{ textAlign: 'center', width: '76px' }}>
-                              <img src={selDrink.image} alt={selDrink.name} style={{ width: '44px', height: '44px', borderRadius: '8px', objectFit: 'cover', margin: '0 auto 4px', display: 'block' }} />
-                              <div style={{ fontSize: '9.5px', fontWeight: 700, color: '#111827', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                {selDrink.name.split(' ')[0]} {selDrink.name.split(' ')[1]}
+                            <div className="admin-mm-preview-food-item">
+                              <img
+                                src={selDrink.image}
+                                alt={selDrink.name}
+                                onError={(e) => {
+                                  e.currentTarget.onerror = null;
+                                  e.currentTarget.src = 'https://images.unsplash.com/photo-1536256263959-770b48d82b0a?auto=format&fit=crop&w=600&q=80';
+                                }}
+                                className="admin-mm-preview-food-img"
+                              />
+                              <div className="admin-mm-preview-food-name">
+                                {selDrink.name.split(' ')[0]} {selDrink.name.split(' ')[1] || ''}
                               </div>
-                              <div style={{ fontSize: '10px', color: '#6b7280' }}>₱{selDrink.price}</div>
+                              <div className="admin-mm-preview-food-price">₱{selDrink.price}</div>
                             </div>
                           </div>
+                        </div>
 
+                        <div>
                           {/* Calculations */}
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '12px', color: '#6b7280', marginBottom: '6px' }}>
                             <span>Regular Total</span>
@@ -5002,11 +5487,11 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
                             <span style={{ fontSize: '11px', fontWeight: 700, color: '#059669' }}>Customer Savings</span>
                             <span style={{ fontSize: '12px', fontWeight: 800, color: '#059669' }}>₱{savings} ({savingsPct}% OFF)</span>
                           </div>
-                        </div>
 
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '10.5px', color: '#059669' }}>
-                          <Zap size={12} color="#10b981" />
-                          <span>Real-time price calculation based on selected items</span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '10.5px', color: '#059669' }}>
+                            <Zap size={12} color="#10b981" style={{ flexShrink: 0 }} />
+                            <span>Real-time price calculation based on selected items</span>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -5081,13 +5566,9 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
                             <Edit size={12} />
                             <span>Edit</span>
                           </button>
-                          <button type="button" className="admin-combo-btn" onClick={() => handleDuplicateMixMatch(bundle)}>
-                            <Copy size={12} />
-                            <span>Duplicate</span>
-                          </button>
                           <button type="button" className="admin-combo-btn" onClick={() => handleToggleDisableMixMatch(bundle.id, bundle.name)}>
                             <Ban size={12} />
-                            <span>Disable</span>
+                            <span>{bundle.status === 'disabled' ? 'Enable' : 'Disable'}</span>
                           </button>
                           <button type="button" className="admin-combo-btn archive" onClick={() => handleDeleteMixMatch(bundle.id, bundle.name)}>
                             <Trash2 size={12} />
@@ -5177,8 +5658,12 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
 
           {/* TAB 7: PROMOTIONS AND DISCOUNTS */}
           {activeTab === 'promos' && (() => {
-            const activePromosCount = promos.filter(p => p.status === 'active').length;
+            const isPromoActive = (p) => p.status === 'active' && (!p.expiresAt || new Date(p.expiresAt).getTime() > Date.now());
+            const isPromoExpired = (p) => p.status === 'expired' || (p.expiresAt && new Date(p.expiresAt).getTime() <= Date.now());
+            const activePromosCount = promos.filter(isPromoActive).length;
             const scheduledPromosCount = promos.filter(p => p.status === 'scheduled').length;
+            const expiredPromosList = promos.filter(isPromoExpired);
+            const expiredPromosCount = expiredPromosList.length;
             const totalRedemptions = promos.reduce((sum, p) => sum + (p.currentRedemptions || 0), 0);
             const revenueImpact = promos.reduce((sum, p) => sum + (p.currentRedemptions || 0) * (p.discountValue || 0), 0);
 
@@ -5190,30 +5675,73 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
                     <h1 className="admin-pane-title">Promotions &amp; Discounts</h1>
                     <p className="admin-pane-sub">Active marketing campaigns, seasonal discounts, and voucher rules.</p>
                   </div>
-                  <button
-                    type="button"
-                    className="admin-btn-primary"
-                    onClick={() => {
-                      setEditingPromo(null);
-                      setFormPromo({
-                        name: '',
-                        code: '',
-                        discountType: 'percent',
-                        discountValue: 15,
-                        applicableItems: [],
-                        applyToAll: false,
-                        targetLabel: '',
-                        dateRange: 'Jan 1, 2025 – Dec 31, 2025',
-                        maxRedemptions: 500,
-                        status: 'active',
-                        type: 'discount'
-                      });
-                      setShowPromoModal(true);
-                    }}
-                  >
-                    <Plus size={16} />
-                    <span>Add Promo</span>
-                  </button>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <button
+                      type="button"
+                      id="btn-expired-codes-archive"
+                      onClick={() => setShowExpiredArchive(true)}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        padding: '10px 16px',
+                        borderRadius: '10px',
+                        border: '1.5px solid #fecaca',
+                        background: '#fff1f2',
+                        color: '#be123c',
+                        fontWeight: 700,
+                        fontSize: '13px',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease',
+                        boxShadow: '0 1px 3px rgba(190, 18, 60, 0.08)'
+                      }}
+                      title="Open Expired Codes Archive (Admin Only)"
+                    >
+                      <Archive size={16} />
+                      <span>Expired Codes</span>
+                      {expiredPromosCount > 0 && (
+                        <span style={{
+                          background: '#be123c',
+                          color: '#ffffff',
+                          fontSize: '11px',
+                          fontWeight: 800,
+                          padding: '1px 8px',
+                          borderRadius: '999px',
+                          marginLeft: '2px'
+                        }}>
+                          {expiredPromosCount}
+                        </span>
+                      )}
+                    </button>
+
+                    <button
+                      type="button"
+                      className="admin-btn-primary"
+                      onClick={() => {
+                        setEditingPromo(null);
+                        setFormPromo({
+                          name: '',
+                          code: '',
+                          discountType: 'percent',
+                          discountValue: 15,
+                          applicableItems: [],
+                          applyToAll: false,
+                          targetLabel: '',
+                          dateRange: 'Jan 1, 2025 – Dec 31, 2026',
+                          expiresAt: '2026-12-31T23:59',
+                          associatedItem: 'All Menu Items',
+                          associatedTable: 'All Tables (Storewide)',
+                          maxRedemptions: 500,
+                          status: 'active',
+                          type: 'discount'
+                        });
+                        setShowPromoModal(true);
+                      }}
+                    >
+                      <Plus size={16} />
+                      <span>Add Promo</span>
+                    </button>
+                  </div>
                 </div>
 
                 {/* 4 Top KPI Stat Cards */}
@@ -5859,31 +6387,57 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
                                   </button>
                                 </div>
 
-                                <button
-                                  type="button"
-                                  onClick={() => handleDuplicatePromo(promo)}
-                                  style={{
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    gap: '4px',
-                                    padding: '5px 8px',
-                                    borderRadius: '6px',
-                                    border: '1px solid #d1d5db',
-                                    background: '#ffffff',
-                                    fontSize: '11px',
-                                    fontWeight: 600,
-                                    color: '#374151',
-                                    cursor: 'pointer',
-                                    width: '100%',
-                                    boxSizing: 'border-box',
-                                    overflow: 'hidden',
-                                    whiteSpace: 'nowrap'
-                                  }}
-                                >
-                                  <Copy size={12} style={{ flexShrink: 0 }} />
-                                  <span>Duplicate</span>
-                                </button>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDuplicatePromo(promo)}
+                                    style={{
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      gap: '4px',
+                                      padding: '5px 4px',
+                                      borderRadius: '6px',
+                                      border: '1px solid #d1d5db',
+                                      background: '#ffffff',
+                                      fontSize: '11px',
+                                      fontWeight: 600,
+                                      color: '#374151',
+                                      cursor: 'pointer',
+                                      boxSizing: 'border-box',
+                                      overflow: 'hidden',
+                                      whiteSpace: 'nowrap'
+                                    }}
+                                  >
+                                    <Copy size={12} style={{ flexShrink: 0 }} />
+                                    <span>Duplicate</span>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => setShowPromoQrModal(promo)}
+                                    style={{
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      gap: '4px',
+                                      padding: '5px 4px',
+                                      borderRadius: '6px',
+                                      border: '1px solid #fed7aa',
+                                      background: '#fff7ed',
+                                      fontSize: '11px',
+                                      fontWeight: 600,
+                                      color: '#c2410c',
+                                      cursor: 'pointer',
+                                      boxSizing: 'border-box',
+                                      overflow: 'hidden',
+                                      whiteSpace: 'nowrap'
+                                    }}
+                                    title="View QR Code & Test Link"
+                                  >
+                                    <QrCode size={12} style={{ flexShrink: 0 }} />
+                                    <span>QR Link</span>
+                                  </button>
+                                </div>
 
                                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
                                   {promo.status === 'active' ? (
@@ -5939,7 +6493,7 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
                                   )}
                                   <button
                                     type="button"
-                                    onClick={() => handleArchivePromo(promo.id, promo.name)}
+                                    onClick={() => handleExpirePromo(promo)}
                                     style={{
                                       display: 'flex',
                                       alignItems: 'center',
@@ -5947,19 +6501,20 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
                                       gap: '4px',
                                       padding: '5px 4px',
                                       borderRadius: '6px',
-                                      border: '1px solid #d1d5db',
-                                      background: '#ffffff',
+                                      border: '1px solid #fecaca',
+                                      background: '#fef2f2',
                                       fontSize: '11px',
                                       fontWeight: 600,
-                                      color: '#374151',
+                                      color: '#dc2626',
                                       cursor: 'pointer',
                                       boxSizing: 'border-box',
                                       overflow: 'hidden',
                                       whiteSpace: 'nowrap'
                                     }}
+                                    title="Mark this promo as Expired immediately"
                                   >
-                                    <Archive size={12} style={{ flexShrink: 0 }} />
-                                    <span>Archive</span>
+                                    <XCircle size={12} style={{ flexShrink: 0 }} />
+                                    <span>Expire</span>
                                   </button>
                                 </div>
                               </div>
@@ -6402,28 +6957,7 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
 
                     <ArrowRight size={14} color="#9ca3af" />
 
-                    {/* Step 3: Cooking */}
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                      <div style={{
-                        width: '30px',
-                        height: '30px',
-                        borderRadius: '50%',
-                        background: '#ffedd5',
-                        color: '#c2410c',
-                        fontSize: '13px',
-                        fontWeight: 800,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center'
-                      }}>
-                        {orders.filter(o => o.status === 'Cooking').length}
-                      </div>
-                      <span style={{ fontSize: '11px', color: '#4b5563', fontWeight: 600, marginTop: '4px' }}>Cooking</span>
-                    </div>
-
-                    <ArrowRight size={14} color="#9ca3af" />
-
-                    {/* Step 4: Ready */}
+                    {/* Step 3: Ready */}
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                       <div style={{
                         width: '30px',
@@ -6497,7 +7031,6 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
                   <option value="New">New / Received</option>
                   <option value="Confirmed">Confirmed</option>
                   <option value="Preparing">Preparing</option>
-                  <option value="Cooking">Cooking</option>
                   <option value="Ready">Ready for Pickup</option>
                   <option value="Completed">Completed</option>
                   <option value="Cancelled">Cancelled</option>
@@ -6901,11 +7434,11 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
                                 targetNextStatus = 'Preparing';
                                 hoverBg = '#fff7ed';
                               } else if (ord.status === 'Preparing' || ord.status === 'Confirmed') {
-                                nextActionText = 'Start Cooking';
-                                targetNextStatus = 'Cooking';
-                                hoverBg = '#fffbeb';
+                                nextActionText = 'Ready for Pickup';
+                                targetNextStatus = 'Ready for Pickup';
+                                hoverBg = '#ecfdf5';
                               } else if (ord.status === 'Cooking') {
-                                nextActionText = 'Mark as Ready';
+                                nextActionText = 'Ready for Pickup';
                                 targetNextStatus = 'Ready for Pickup';
                                 hoverBg = '#ecfdf5';
                               } else if (ord.status === 'Ready' || ord.status === 'Ready for Pickup') {
@@ -7224,16 +7757,14 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
             const activeQueue = orders.filter(o => o.status !== 'Completed' && o.status !== 'Cancelled');
             const newCount = orders.filter(o => o.status === 'New' || o.status === 'Received').length;
             const prepCount = orders.filter(o => o.status === 'Preparing' || o.status === 'Confirmed').length;
-            const cookCount = orders.filter(o => o.status === 'Cooking').length;
-            const readyCount = orders.filter(o => o.status === 'Ready' || o.status === 'Ready for Pickup').length;
+            const readyCount = orders.filter(o => o.status === 'Ready' || o.status === 'Ready for Pickup' || o.status === 'Cooking').length;
             const completedCount = orders.filter(o => o.status === 'Completed').length;
 
             const filteredKdsOrders = orders.filter(ord => {
               if (kdsFilter === 'active') return ord.status !== 'Completed' && ord.status !== 'Cancelled';
               if (kdsFilter === 'new') return ord.status === 'New' || ord.status === 'Received';
               if (kdsFilter === 'preparing') return ord.status === 'Preparing' || ord.status === 'Confirmed';
-              if (kdsFilter === 'cooking') return ord.status === 'Cooking';
-              if (kdsFilter === 'ready') return ord.status === 'Ready' || ord.status === 'Ready for Pickup';
+              if (kdsFilter === 'ready') return ord.status === 'Ready' || ord.status === 'Ready for Pickup' || ord.status === 'Cooking';
               if (kdsFilter === 'completed') return ord.status === 'Completed';
               return true; // 'all'
             });
@@ -7325,12 +7856,6 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
                   </div>
 
                   <div style={{ background: '#ffffff', border: '1px solid #e5e7eb', borderRadius: '12px', padding: '14px 16px', boxShadow: '0 1px 2px rgba(0,0,0,0.03)' }}>
-                    <div style={{ fontSize: '11.5px', color: '#6b7280', fontWeight: 600 }}>Cooking</div>
-                    <div style={{ fontSize: '24px', fontWeight: 800, color: '#ea580c', margin: '2px 0' }}>{cookCount}</div>
-                    <div style={{ fontSize: '11px', color: '#9ca3af' }}>Wok & grill station</div>
-                  </div>
-
-                  <div style={{ background: '#ffffff', border: '1px solid #e5e7eb', borderRadius: '12px', padding: '14px 16px', boxShadow: '0 1px 2px rgba(0,0,0,0.03)' }}>
                     <div style={{ fontSize: '11.5px', color: '#6b7280', fontWeight: 600 }}>Ready for Pickup</div>
                     <div style={{ fontSize: '24px', fontWeight: 800, color: '#059669', margin: '2px 0' }}>{readyCount}</div>
                     <div style={{ fontSize: '11px', color: '#16a34a', fontWeight: 600 }}>Pass counter / buzzer</div>
@@ -7349,7 +7874,6 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
                     { id: 'active', label: `Active Queue (${activeQueue.length})` },
                     { id: 'new', label: `New / Received (${newCount})` },
                     { id: 'preparing', label: `Preparing (${prepCount})` },
-                    { id: 'cooking', label: `Cooking (${cookCount})` },
                     { id: 'ready', label: `Ready for Pickup (${readyCount})` },
                     { id: 'completed', label: `Completed (${completedCount})` },
                     { id: 'all', label: `All Tickets (${orders.length})` }
@@ -7397,14 +7921,12 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
                   }}>
                     {filteredKdsOrders.map(ticket => {
                       const isReady = ticket.status === 'Ready' || ticket.status === 'Ready for Pickup';
-                      const isCooking = ticket.status === 'Cooking';
                       const isPrep = ticket.status === 'Preparing' || ticket.status === 'Confirmed';
                       const isNew = ticket.status === 'New' || ticket.status === 'Received';
                       const isDone = ticket.status === 'Completed';
 
                       let accentColor = '#3b82f6';
                       if (isPrep) accentColor = '#f59e0b';
-                      if (isCooking) accentColor = '#ea580c';
                       if (isReady) accentColor = '#10b981';
                       if (isDone) accentColor = '#6b7280';
 
@@ -7551,9 +8073,8 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
                             {/* Stepper Bar */}
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '10px 0 14px 0', padding: '0 4px' }}>
                               {[
-                                { name: 'New', active: isNew || isPrep || isCooking || isReady || isDone },
-                                { name: 'Prep', active: isPrep || isCooking || isReady || isDone },
-                                { name: 'Cooking', active: isCooking || isReady || isDone },
+                                { name: 'New', active: isNew || isPrep || isReady || isDone },
+                                { name: 'Prep', active: isPrep || isReady || isDone },
                                 { name: 'Ready', active: isReady || isDone },
                                 { name: 'Done', active: isDone }
                               ].map((step, sIdx) => (
@@ -7568,7 +8089,7 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
                                   <span style={{ fontSize: '10.5px', fontWeight: step.active ? 700 : 500, color: step.active ? '#111827' : '#9ca3af' }}>
                                     {step.name}
                                   </span>
-                                  {sIdx < 4 && <div style={{ width: '12px', height: '1px', background: '#e5e7eb', margin: '0 2px' }} />}
+                                  {sIdx < 3 && <div style={{ width: '12px', height: '1px', background: '#e5e7eb', margin: '0 2px' }} />}
                                 </div>
                               ))}
                             </div>
@@ -7630,18 +8151,15 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
                               <span style={{
                                 padding: '5px 12px',
                                 background: isReady ? '#ecfdf5' :
-                                            isCooking ? '#fff7ed' :
                                             isPrep ? '#fffbeb' :
                                             isDone ? '#f3f4f6' : '#eff6ff',
                                 border: isReady ? '1px solid #a7f3d0' :
-                                        isCooking ? '1px solid #fed7aa' :
                                         isPrep ? '1px solid #fde68a' :
                                         isDone ? '1px solid #e5e7eb' : '1px solid #bfdbfe',
                                 borderRadius: '999px',
                                 fontSize: '11.5px',
                                 fontWeight: 700,
                                 color: isReady ? '#059669' :
-                                       isCooking ? '#c2410c' :
                                        isPrep ? '#b45309' :
                                        isDone ? '#374151' : '#1d4ed8',
                                 display: 'inline-flex',
@@ -7653,7 +8171,6 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
                                   height: '6px',
                                   borderRadius: '50%',
                                   background: isReady ? '#10b981' :
-                                              isCooking ? '#ea580c' :
                                               isPrep ? '#f59e0b' :
                                               isDone ? '#6b7280' : '#3b82f6'
                                 }} />
@@ -7675,30 +8192,435 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
             <div className="admin-tab-pane fade-in">
               <div className="admin-pane-header">
                 <div>
-                  <h1 className="admin-pane-title">QR Menu & Table Management</h1>
-                  <p className="admin-pane-sub">Generate, download, print, activate, and regenerate table QR codes.</p>
+                  <h1 className="admin-pane-title">QR Menu &amp; Table Management</h1>
+                  <p className="admin-pane-sub">Generate, download, print, activate, and regenerate live table QR codes.</p>
+                </div>
+                <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const nextNum = qrTables.length + 1;
+                      setNewTableData({
+                        name: `Table ${nextNum} - Main Floor`,
+                        id: `T-${String(nextNum).padStart(2, '0')}`,
+                        section: 'Main Floor'
+                      });
+                      setShowAddQrModal(true);
+                    }}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '7px',
+                      padding: '10px 18px',
+                      background: '#C24522',
+                      color: '#ffffff',
+                      border: 'none',
+                      borderRadius: '10px',
+                      fontSize: '13px',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      boxShadow: '0 2px 8px rgba(194, 69, 34, 0.25)'
+                    }}
+                  >
+                    <Plus size={16} />
+                    <span>Add Table QR</span>
+                  </button>
                 </div>
               </div>
 
-              <div className="admin-grid-cards">
-                {qrTables.map(tbl => (
-                  <div key={tbl.id} className="admin-panel-card" style={{ textAlign: 'center' }}>
-                    <div style={{ background: '#FAF5EE', padding: '16px', borderRadius: '14px', display: 'inline-block', marginBottom: '12px' }}>
-                      <QrCode size={64} color="#C24522" />
+              {/* Destination URL Connection Bar */}
+              <div style={{
+                background: '#FAF5EE',
+                border: '1px solid #ebdcd0',
+                borderRadius: '14px',
+                padding: '12px 18px',
+                marginBottom: '20px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: '12px'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0 }}>
+                  <div style={{
+                    width: '36px',
+                    height: '36px',
+                    borderRadius: '10px',
+                    background: '#ffede6',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0
+                  }}>
+                    <QrCode size={20} color="#C24522" />
+                  </div>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontSize: '13px', fontWeight: 800, color: '#1f2937' }}>
+                      QR Destination: Umami Craft Fusion - Real-Time Personalized Dining
                     </div>
-                    <h3 style={{ margin: '0 0 4px', fontSize: '16px' }}>{tbl.name}</h3>
-                    <p style={{ fontSize: '12px', color: '#666', margin: '0 0 12px' }}>
-                      Table ID: <strong>{tbl.id}</strong> • Scanned {tbl.scannedCount} times
-                    </p>
-
-                    <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
-                      <button type="button" className="admin-btn-sm"><Download size={13} /> Download</button>
-                      <button type="button" className="admin-btn-sm secondary"><Printer size={13} /> Print QR</button>
-                      <button type="button" className="admin-btn-sm secondary" title="Regenerate QR Token"><RefreshCcw size={13} /></button>
+                    <div style={{ fontSize: '11.5px', color: '#8a7360', fontFamily: 'monospace', wordBreak: 'break-all' }}>
+                      {qrBaseUrl}
                     </div>
                   </div>
-                ))}
+                </div>
+                <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
+                  <a
+                    href={qrBaseUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '5px',
+                      padding: '6px 12px',
+                      borderRadius: '8px',
+                      border: '1px solid #d1d5db',
+                      background: '#ffffff',
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      color: '#374151',
+                      textDecoration: 'none'
+                    }}
+                    title="Test Open Mobile Dining in New Tab"
+                  >
+                    <ExternalLink size={13} />
+                    <span>Test Link</span>
+                  </a>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const next = prompt('Edit Mobile App Base URL:', qrBaseUrl);
+                      if (next && next.trim()) {
+                        setQrBaseUrl(next.trim());
+                        showNotify('Base QR URL updated!');
+                      }
+                    }}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '5px',
+                      padding: '6px 12px',
+                      borderRadius: '8px',
+                      border: '1px solid #d1d5db',
+                      background: '#ffffff',
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      color: '#374151',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <Edit size={13} />
+                    <span>Edit URL</span>
+                  </button>
+                </div>
               </div>
+
+              {/* Table QR Cards Grid */}
+              <div className="admin-grid-cards">
+                {qrTables.map(tbl => {
+                  const qrUrl = getTableQrUrl(tbl);
+                  return (
+                    <div key={tbl.id} className="admin-panel-card" style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'relative' }}>
+                      {/* Active/Inactive badge */}
+                      <span style={{
+                        position: 'absolute',
+                        top: '14px',
+                        right: '14px',
+                        fontSize: '11px',
+                        fontWeight: 700,
+                        padding: '3px 8px',
+                        borderRadius: '999px',
+                        background: tbl.status === 'inactive' ? '#fee2e2' : '#e6f7ef',
+                        color: tbl.status === 'inactive' ? '#ef4444' : '#059669'
+                      }}>
+                        {tbl.status === 'inactive' ? 'Inactive' : 'Active'}
+                      </span>
+
+                      {/* Real Scannable Brand QR Code */}
+                      <div style={{
+                        background: '#FAF5EE',
+                        padding: '16px',
+                        borderRadius: '16px',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        marginBottom: '12px',
+                        border: '1px solid #ebdcd0',
+                        boxShadow: '0 2px 8px rgba(0,0,0,0.03)'
+                      }}>
+                        <QRCodeSVG
+                          id={`qr-svg-${tbl.id}`}
+                          value={qrUrl}
+                          size={110}
+                          fgColor="#C24522"
+                          bgColor="#FAF5EE"
+                          level="M"
+                          includeMargin={false}
+                        />
+                      </div>
+
+                      <h3 style={{ margin: '0 0 4px', fontSize: '16px', fontWeight: 700, color: '#111827' }}>{tbl.name}</h3>
+                      <p style={{ fontSize: '12px', color: '#666', margin: '0 0 6px' }}>
+                        Table ID: <strong style={{ color: '#C24522' }}>{tbl.id}</strong> • Scanned {tbl.scannedCount} times
+                      </p>
+                      <div
+                        style={{ fontSize: '11px', color: '#9ca3af', marginBottom: '14px', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                        title={qrUrl}
+                      >
+                        🔗 {qrUrl}
+                      </div>
+
+                      {/* Action buttons */}
+                      <div style={{ display: 'flex', gap: '6px', justifyContent: 'center', marginTop: 'auto', flexWrap: 'wrap' }}>
+                        <button
+                          type="button"
+                          onClick={() => handleDownloadQR(tbl)}
+                          className="admin-btn-sm"
+                          style={{ cursor: 'pointer' }}
+                          title="Download PNG QR image"
+                        >
+                          <Download size={13} />
+                          <span>Download</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handlePrintQR(tbl)}
+                          className="admin-btn-sm secondary"
+                          style={{ cursor: 'pointer' }}
+                          title="Print Table Tent Sticker"
+                        >
+                          <Printer size={13} />
+                          <span>Print QR</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handleRegenerateQR(tbl.id)}
+                          className="admin-btn-sm secondary"
+                          style={{ cursor: 'pointer' }}
+                          title="Regenerate QR Token"
+                        >
+                          <RefreshCcw size={13} />
+                        </button>
+
+                        <a
+                          href={qrUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="admin-btn-sm secondary"
+                          style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', textDecoration: 'none', color: '#4b5563' }}
+                          title="Open Destination URL in New Tab"
+                        >
+                          <ExternalLink size={13} />
+                        </a>
+
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteQrTable(tbl.id)}
+                          className="admin-btn-sm secondary"
+                          style={{ cursor: 'pointer', color: '#ef4444' }}
+                          title="Delete Table QR"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {/* Add Table QR dashed card in grid */}
+                <div
+                  onClick={() => {
+                    const nextNum = qrTables.length + 1;
+                    setNewTableData({
+                      name: `Table ${nextNum} - Main Floor`,
+                      id: `T-${String(nextNum).padStart(2, '0')}`,
+                      section: 'Main Floor'
+                    });
+                    setShowAddQrModal(true);
+                  }}
+                  className="admin-panel-card"
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    border: '2px dashed #d1d5db',
+                    borderRadius: '16px',
+                    background: '#FAF5EE',
+                    cursor: 'pointer',
+                    minHeight: '260px',
+                    padding: '24px 16px',
+                    transition: 'all 0.15s ease'
+                  }}
+                >
+                  <div style={{
+                    width: '52px',
+                    height: '52px',
+                    borderRadius: '50%',
+                    background: '#ffede6',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    marginBottom: '12px'
+                  }}>
+                    <Plus size={26} color="#C24522" />
+                  </div>
+                  <h4 style={{ margin: '0 0 6px', fontSize: '15px', fontWeight: 800, color: '#1f2937' }}>Add Table QR</h4>
+                  <p style={{ margin: 0, fontSize: '12px', color: '#6b7280', textAlign: 'center', maxWidth: '200px' }}>
+                    Generate a new table QR code instantly connected to Mobile Ordering
+                  </p>
+                </div>
+              </div>
+
+              {/* Add Table QR Modal */}
+              {showAddQrModal && (() => {
+                const previewId = (newTableData.id.trim() || `T-${String(qrTables.length + 1).padStart(2, '0')}`).toUpperCase();
+                const previewUrl = `${(qrBaseUrl || '').trim() || 'http://192.168.1.16:3000/?view=mobile&kioskId=RT62AL&kioskPort=3001&restaurant=umami'}&tableId=${encodeURIComponent(previewId)}`;
+
+                return (
+                  <div className="staff-pin-backdrop" style={{ zIndex: 100095 }} onClick={() => setShowAddQrModal(false)}>
+                    <div
+                      className="admin-modal-card"
+                      onClick={e => e.stopPropagation()}
+                      style={{ maxWidth: '520px', borderRadius: '20px', padding: 0, overflow: 'hidden' }}
+                    >
+                      <div style={{
+                        padding: '18px 24px',
+                        background: '#C24522',
+                        color: '#ffffff',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center'
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          <QrCode size={20} color="#ffffff" />
+                          <h3 style={{ margin: 0, fontSize: '17px', fontWeight: 800, color: '#ffffff' }}>
+                            Generate New Table QR Code
+                          </h3>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setShowAddQrModal(false)}
+                          style={{ background: 'rgba(255,255,255,0.2)', border: 'none', color: '#ffffff', borderRadius: '50%', width: '30px', height: '30px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+                        >
+                          <X size={16} />
+                        </button>
+                      </div>
+
+                      <form onSubmit={handleCreateNewQrTable} style={{ padding: '24px' }}>
+                        {/* Live Preview Box */}
+                        <div style={{
+                          background: '#FAF5EE',
+                          border: '1px solid #ebdcd0',
+                          borderRadius: '16px',
+                          padding: '16px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '16px',
+                          marginBottom: '20px'
+                        }}>
+                          <div style={{
+                            background: '#ffffff',
+                            padding: '10px',
+                            borderRadius: '12px',
+                            border: '1px solid #e5e7eb',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            flexShrink: 0
+                          }}>
+                            <QRCodeSVG
+                              value={previewUrl}
+                              size={84}
+                              fgColor="#C24522"
+                              bgColor="#ffffff"
+                              level="M"
+                            />
+                          </div>
+                          <div style={{ minWidth: 0, flex: 1 }}>
+                            <div style={{ fontSize: '11px', fontWeight: 800, color: '#C24522', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Live QR Preview</div>
+                            <div style={{ fontSize: '15px', fontWeight: 800, color: '#111827', margin: '2px 0' }}>{newTableData.name || 'New Table'}</div>
+                            <div style={{ fontSize: '12px', color: '#6b7280' }}>Table ID: <strong>{previewId}</strong> • {newTableData.section}</div>
+                            <div style={{ fontSize: '10px', color: '#9ca3af', fontFamily: 'monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: '4px' }}>
+                              {previewUrl}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginBottom: '22px' }}>
+                          <div>
+                            <label style={{ display: 'block', fontSize: '12.5px', fontWeight: 700, color: '#374151', marginBottom: '6px' }}>
+                              Table Name / Label *
+                            </label>
+                            <input
+                              type="text"
+                              required
+                              value={newTableData.name}
+                              onChange={e => setNewTableData(prev => ({ ...prev, name: e.target.value }))}
+                              placeholder="e.g. Table 6 - Patio Booth"
+                              style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1px solid #d1d5db', fontSize: '13px', boxSizing: 'border-box' }}
+                            />
+                          </div>
+
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                            <div>
+                              <label style={{ display: 'block', fontSize: '12.5px', fontWeight: 700, color: '#374151', marginBottom: '6px' }}>
+                                Table ID *
+                              </label>
+                              <input
+                                type="text"
+                                required
+                                value={newTableData.id}
+                                onChange={e => setNewTableData(prev => ({ ...prev, id: e.target.value.toUpperCase() }))}
+                                placeholder="e.g. T-06"
+                                style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1px solid #d1d5db', fontSize: '13px', boxSizing: 'border-box' }}
+                              />
+                            </div>
+
+                            <div>
+                              <label style={{ display: 'block', fontSize: '12.5px', fontWeight: 700, color: '#374151', marginBottom: '6px' }}>
+                                Area / Section
+                              </label>
+                              <select
+                                value={newTableData.section}
+                                onChange={e => setNewTableData(prev => ({ ...prev, section: e.target.value }))}
+                                style={{ width: '100%', padding: '9px 12px', borderRadius: '8px', border: '1px solid #d1d5db', fontSize: '13px', background: '#fff', boxSizing: 'border-box' }}
+                              >
+                                <option value="Main Floor">Main Floor</option>
+                                <option value="Window Side">Window Side</option>
+                                <option value="Booth A">Booth A</option>
+                                <option value="Booth B">Booth B</option>
+                                <option value="Patio Garden">Patio Garden</option>
+                                <option value="VIP Lounge">VIP Lounge</option>
+                                <option value="Bar Counter">Bar Counter</option>
+                              </select>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+                          <button
+                            type="button"
+                            onClick={() => setShowAddQrModal(false)}
+                            style={{ padding: '9px 18px', borderRadius: '8px', border: '1px solid #d1d5db', background: '#ffffff', fontSize: '13px', fontWeight: 600, color: '#4b5563', cursor: 'pointer' }}
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            type="submit"
+                            style={{ padding: '9px 20px', borderRadius: '8px', border: 'none', background: '#C24522', fontSize: '13px', fontWeight: 700, color: '#ffffff', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '6px', boxShadow: '0 2px 6px rgba(194, 69, 34, 0.3)' }}
+                          >
+                            <QrCode size={15} />
+                            <span>Generate Table QR Code</span>
+                          </button>
+                        </div>
+                      </form>
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
           )}
 
@@ -9558,6 +10480,11 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
                   discountValue: formPromo.discountValue,
                   applicableItems: formPromo.applyToAll ? [] : formPromo.applicableItems,
                   applyToAll: !!formPromo.applyToAll,
+                  expiresAt: formPromo.expiresAt ? new Date(formPromo.expiresAt).toISOString() : new Date(Date.now() + 30*24*60*60*1000).toISOString(),
+                  associatedItem: formPromo.associatedItem || (formPromo.applyToAll ? 'All Menu Items' : formPromo.applicableItems?.join(', ') || 'All Menu Items'),
+                  associatedTable: formPromo.associatedTable || 'All Tables (Storewide)',
+                  originalCode: editingPromo ? (editingPromo.originalCode || formPromo.code.trim().toUpperCase()) : formPromo.code.trim().toUpperCase(),
+                  retiredCodes: editingPromo?.retiredCodes || [],
                   createdAt: editingPromo ? editingPromo.createdAt : Date.now(),
                 };
 
@@ -9658,6 +10585,41 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
                       onChange={e => setFormPromo({ ...formPromo, maxRedemptions: Number(e.target.value) })}
                     />
                   </div>
+                </div>
+
+                {/* Expiration Date & Time + Associated Item & Table */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  <div className="admin-input-group" style={{ margin: 0 }}>
+                    <label className="admin-input-label">Expiration Date &amp; Time *</label>
+                    <input
+                      type="datetime-local"
+                      className="admin-input-field"
+                      value={formPromo.expiresAt || ''}
+                      onChange={e => setFormPromo({ ...formPromo, expiresAt: e.target.value })}
+                      required
+                    />
+                  </div>
+                  <div className="admin-input-group" style={{ margin: 0 }}>
+                    <label className="admin-input-label">Associated Item</label>
+                    <input
+                      type="text"
+                      className="admin-input-field"
+                      placeholder="e.g. Artisanal Drinks or All Menu Items"
+                      value={formPromo.associatedItem || ''}
+                      onChange={e => setFormPromo({ ...formPromo, associatedItem: e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                <div className="admin-input-group" style={{ margin: 0 }}>
+                  <label className="admin-input-label">Associated Table / Kiosk Zone</label>
+                  <input
+                    type="text"
+                    className="admin-input-field"
+                    placeholder="e.g. All Tables (Storewide) or Table 1 - Main Floor"
+                    value={formPromo.associatedTable || ''}
+                    onChange={e => setFormPromo({ ...formPromo, associatedTable: e.target.value })}
+                  />
                 </div>
 
                 {/* Status & Promotion Type */}
@@ -9847,7 +10809,7 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
                       { label: '🥟 Szechuan Dumplings', img: 'https://images.unsplash.com/photo-1563245372-f21724e3856d?auto=format&fit=crop&w=600&q=80' },
                       { label: '🍜 Peanut Noodles', img: 'https://images.unsplash.com/photo-1569718212165-3a8278d5f624?auto=format&fit=crop&w=600&q=80' },
                       { label: '🥭 Mango Shake', img: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=600&q=80' },
-                      { label: '🧋 Matcha Boba', img: 'https://images.unsplash.com/photo-1558857563-b37fcda2374d?auto=format&fit=crop&w=600&q=80' }
+                      { label: '🧋 Matcha Boba', img: 'https://images.unsplash.com/photo-1536256263959-770b48d82b0a?auto=format&fit=crop&w=600&q=80' }
                     ].map((preset, idx) => (
                       <button
                         key={idx}
@@ -10118,6 +11080,629 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
           </div>
         </div>
       )}
+
+      {/* ══ EXPIRED CODES ADMIN ARCHIVE MODAL ══ */}
+      {showExpiredArchive && (() => {
+        const isExpiredCheck = (p) => p.status === 'expired' || (p.expiresAt && new Date(p.expiresAt).getTime() <= Date.now());
+        const expiredRecords = promos.filter(isExpiredCheck).filter(p => {
+          if (!expiredSearch) return true;
+          const s = expiredSearch.toLowerCase();
+          return (
+            p.name?.toLowerCase().includes(s) ||
+            p.code?.toLowerCase().includes(s) ||
+            p.originalCode?.toLowerCase().includes(s) ||
+            p.associatedItem?.toLowerCase().includes(s) ||
+            p.associatedTable?.toLowerCase().includes(s)
+          );
+        });
+
+        return (
+          <div className="staff-pin-backdrop" style={{ zIndex: 100070 }} onClick={() => setShowExpiredArchive(false)}>
+            <div
+              className="admin-modal-small"
+              onClick={e => e.stopPropagation()}
+              style={{
+                maxWidth: '920px',
+                width: '95vw',
+                maxHeight: '88vh',
+                display: 'flex',
+                flexDirection: 'column',
+                borderRadius: '16px',
+                overflow: 'hidden',
+                padding: 0
+              }}
+            >
+              {/* Header */}
+              <div style={{
+                padding: '20px 24px',
+                background: 'linear-gradient(135deg, #1c1917 0%, #292524 100%)',
+                color: '#fff',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <div style={{
+                    width: '42px',
+                    height: '42px',
+                    borderRadius: '10px',
+                    background: 'rgba(239, 68, 68, 0.2)',
+                    color: '#f87171',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}>
+                    <Archive size={22} />
+                  </div>
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <h2 style={{ margin: 0, fontSize: '18px', fontWeight: 800, color: '#fff' }}>Expired Codes Archive</h2>
+                      <span style={{
+                        background: '#dc2626',
+                        color: '#fff',
+                        fontSize: '11px',
+                        fontWeight: 800,
+                        padding: '2px 8px',
+                        borderRadius: '999px'
+                      }}>
+                        {expiredRecords.length} Expired
+                      </span>
+                      <span style={{
+                        background: 'rgba(255,255,255,0.15)',
+                        color: '#f5f5f4',
+                        fontSize: '10px',
+                        fontWeight: 700,
+                        padding: '2px 6px',
+                        borderRadius: '4px'
+                      }}>
+                        Admin Only
+                      </span>
+                    </div>
+                    <p style={{ margin: '3px 0 0', fontSize: '12px', color: '#a8a29e' }}>
+                      Expired campaigns &amp; invalid codes. Hidden from customer apps, menus, and kiosks.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  className="staff-pin-close"
+                  style={{ background: 'rgba(255,255,255,0.15)', color: '#fff', borderRadius: '50%', padding: '6px' }}
+                  onClick={() => setShowExpiredArchive(false)}
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              {/* Sub-header / Search */}
+              <div style={{ padding: '14px 24px', background: '#fafaf9', borderBottom: '1px solid #e7e5e4', display: 'flex', gap: '12px', alignItems: 'center' }}>
+                <div style={{ position: 'relative', flex: 1 }}>
+                  <Search size={14} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#78716c' }} />
+                  <input
+                    type="text"
+                    placeholder="Search expired archive by code, name, item, or table..."
+                    value={expiredSearch}
+                    onChange={e => setExpiredSearch(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '8px 12px 8px 34px',
+                      borderRadius: '8px',
+                      border: '1px solid #d6d3d1',
+                      fontSize: '13px',
+                      background: '#fff',
+                      outline: 'none'
+                    }}
+                  />
+                </div>
+                {expiredSearch && (
+                  <button
+                    type="button"
+                    onClick={() => setExpiredSearch('')}
+                    style={{ padding: '6px 10px', fontSize: '12px', color: '#57534e', background: '#e7e5e4', border: 'none', borderRadius: '6px', cursor: 'pointer' }}
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+
+              {/* Content Body */}
+              <div style={{ padding: '20px 24px', overflowY: 'auto', flex: 1, maxHeight: '58vh' }}>
+                {expiredRecords.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '48px 20px', color: '#78716c' }}>
+                    <div style={{ fontSize: '36px', marginBottom: '8px' }}>📂</div>
+                    <h3 style={{ fontSize: '15px', fontWeight: 700, color: '#44403c', margin: '0 0 4px' }}>
+                      {expiredSearch ? 'No matching expired records found' : 'No Expired Promotional Codes'}
+                    </h3>
+                    <p style={{ fontSize: '12.5px', color: '#a8a29e', margin: 0 }}>
+                      When a campaign reaches its expiration date or is manually expired, it will automatically appear here.
+                    </p>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    {expiredRecords.map(rec => {
+                      const origCode = rec.originalCode || rec.code;
+                      const hasRetiredHistory = Array.isArray(rec.retiredCodes) && rec.retiredCodes.length > 0;
+                      const expDateStr = rec.expiresAt
+                        ? new Date(rec.expiresAt).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+                        : (rec.expiredAt ? new Date(rec.expiredAt).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Expired');
+                      const createdDateStr = rec.createdAt
+                        ? new Date(rec.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                        : 'Pre-existing';
+
+                      return (
+                        <div
+                          key={rec.id}
+                          style={{
+                            background: '#ffffff',
+                            borderRadius: '12px',
+                            border: '1.5px solid #fee2e2',
+                            padding: '16px 18px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '16px',
+                            boxShadow: '0 2px 6px rgba(239, 68, 68, 0.04)',
+                            transition: 'all 0.15s ease'
+                          }}
+                        >
+                          {/* Banner thumbnail */}
+                          <div style={{
+                            width: '64px',
+                            height: '56px',
+                            borderRadius: '8px',
+                            overflow: 'hidden',
+                            background: '#292524',
+                            flexShrink: 0,
+                            position: 'relative'
+                          }}>
+                            {rec.bannerImage ? (
+                              <img src={rec.bannerImage} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: 0.65, filter: 'grayscale(60%)' }} />
+                            ) : (
+                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#a8a29e', fontSize: '10px' }}>No Img</div>
+                            )}
+                            <div style={{ position: 'absolute', inset: 0, background: 'rgba(239,68,68,0.25)' }} />
+                          </div>
+
+                          {/* Record Info */}
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px', flexWrap: 'wrap' }}>
+                              <h4 style={{ margin: 0, fontSize: '14.5px', fontWeight: 800, color: '#1c1917' }}>
+                                {rec.name}
+                              </h4>
+                              <span style={{
+                                background: '#fef2f2',
+                                color: '#b91c1c',
+                                border: '1px solid #fecaca',
+                                fontSize: '10.5px',
+                                fontWeight: 800,
+                                padding: '2px 7px',
+                                borderRadius: '4px',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '3px'
+                              }}>
+                                ✖ Expired
+                              </span>
+                            </div>
+
+                            {/* Metadata Grid */}
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '8px', marginTop: '6px' }}>
+                              <div>
+                                <div style={{ fontSize: '11px', color: '#78716c', fontWeight: 600 }}>Original Code (Retired)</div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '2px' }}>
+                                  <code style={{
+                                    textDecoration: 'line-through',
+                                    color: '#b91c1c',
+                                    background: '#fff1f2',
+                                    padding: '2px 6px',
+                                    borderRadius: '4px',
+                                    fontWeight: 800,
+                                    fontSize: '12px'
+                                  }}>
+                                    {origCode}
+                                  </code>
+                                  {hasRetiredHistory && rec.retiredCodes.length > 1 && (
+                                    <span style={{ fontSize: '10px', color: '#a8a29e' }} title={`Retired history: ${rec.retiredCodes.join(', ')}`}>
+                                      ({rec.retiredCodes.length} retired)
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+
+                              <div>
+                                <div style={{ fontSize: '11px', color: '#78716c', fontWeight: 600 }}>Associated Item / Table</div>
+                                <div style={{ fontSize: '12px', fontWeight: 700, color: '#44403c', marginTop: '2px' }}>
+                                  <span>{rec.associatedItem || (rec.applyToAll ? 'All Menu Items' : rec.applicableItems?.join(', ') || 'All Items')}</span>
+                                  <span style={{ color: '#a8a29e', margin: '0 4px' }}>•</span>
+                                  <span style={{ color: '#0369a1' }}>{rec.associatedTable || 'Storewide'}</span>
+                                </div>
+                              </div>
+
+                              <div>
+                                <div style={{ fontSize: '11px', color: '#78716c', fontWeight: 600 }}>Created Date</div>
+                                <div style={{ fontSize: '12px', color: '#44403c', marginTop: '2px' }}>{createdDateStr}</div>
+                              </div>
+
+                              <div>
+                                <div style={{ fontSize: '11px', color: '#78716c', fontWeight: 600 }}>Expiration Date &amp; Time</div>
+                                <div style={{ fontSize: '12px', fontWeight: 700, color: '#dc2626', marginTop: '2px' }}>{expDateStr}</div>
+                              </div>
+                            </div>
+
+                            {/* Restoration History Log (if any) */}
+                            {rec.restoredAt && (
+                              <div style={{ marginTop: '8px', fontSize: '11px', color: '#059669', background: '#ecfdf5', padding: '3px 8px', borderRadius: '4px', display: 'inline-block' }}>
+                                ↺ Previously restored by <strong>{rec.restoredBy || 'Administrator'}</strong> on {new Date(rec.restoredAt).toLocaleDateString()}
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Actions */}
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flexShrink: 0 }}>
+                            <button
+                              type="button"
+                              onClick={() => handleOpenRestoreModal(rec)}
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                padding: '8px 14px',
+                                borderRadius: '8px',
+                                border: '1px solid #10b981',
+                                background: '#10b981',
+                                color: '#ffffff',
+                                fontSize: '12px',
+                                fontWeight: 700,
+                                cursor: 'pointer',
+                                transition: 'all 0.15s ease',
+                                boxShadow: '0 2px 4px rgba(16, 185, 129, 0.2)'
+                              }}
+                            >
+                              <RotateCcw size={14} />
+                              <span>Restore Code</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleArchivePromo(rec.id, rec.name)}
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '4px',
+                                padding: '5px 10px',
+                                borderRadius: '6px',
+                                border: '1px solid #e7e5e4',
+                                background: '#f5f5f4',
+                                color: '#78716c',
+                                fontSize: '11px',
+                                fontWeight: 600,
+                                cursor: 'pointer'
+                              }}
+                            >
+                              <Trash2 size={12} />
+                              <span>Delete</span>
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* Footer */}
+              <div style={{ padding: '14px 24px', background: '#fafaf9', borderTop: '1px solid #e7e5e4', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '12px', color: '#78716c' }}>
+                  Restoring generates a brand new code; the expired code remains permanently inactive.
+                </span>
+                <button
+                  type="button"
+                  className="staff-pin-cancel-btn"
+                  onClick={() => setShowExpiredArchive(false)}
+                >
+                  Close Archive
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ══ RESTORE PROMO MODAL ══ */}
+      {restoringPromo && (
+        <div className="staff-pin-backdrop" style={{ zIndex: 100080 }} onClick={() => setRestoringPromo(null)}>
+          <div className="admin-modal-small" onClick={e => e.stopPropagation()} style={{ maxWidth: '520px', borderRadius: '16px', overflow: 'hidden', padding: 0 }}>
+            <div style={{
+              padding: '20px 24px',
+              background: 'linear-gradient(135deg, #064e3b 0%, #065f46 100%)',
+              color: '#fff',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{
+                  width: '38px',
+                  height: '38px',
+                  borderRadius: '10px',
+                  background: 'rgba(255, 255, 255, 0.2)',
+                  color: '#fff',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}>
+                  <RotateCcw size={20} />
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '17px', fontWeight: 800, color: '#fff' }}>Restore Promotion Record</h3>
+                  <p style={{ margin: '2px 0 0', fontSize: '11.5px', color: '#a7f3d0' }}>
+                    Re-activates campaign with a required new unique code &amp; expiration date.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="staff-pin-close"
+                style={{ background: 'rgba(255,255,255,0.2)', color: '#fff', borderRadius: '50%', padding: '5px' }}
+                onClick={() => setRestoringPromo(null)}
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <form onSubmit={handleConfirmRestore} style={{ display: 'flex', flexDirection: 'column' }}>
+              <div style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                {/* Target Campaign Banner */}
+                <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '10px', padding: '12px 14px' }}>
+                  <div style={{ fontSize: '11px', color: '#166534', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                    Campaign to Restore
+                  </div>
+                  <div style={{ fontSize: '15px', fontWeight: 800, color: '#14532d', marginTop: '2px' }}>
+                    {restoringPromo.name}
+                  </div>
+                  <div style={{ fontSize: '12px', color: '#15803d', marginTop: '3px' }}>
+                    {restoringPromo.discountLabel} • {restoringPromo.associatedItem || 'All Menu Items'} ({restoringPromo.associatedTable || 'Storewide'})
+                  </div>
+                </div>
+
+                {/* Old Code Notice */}
+                <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '10px', padding: '10px 14px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <AlertTriangle size={18} color="#dc2626" style={{ flexShrink: 0 }} />
+                  <div style={{ fontSize: '12px', color: '#991b1b', lineHeight: 1.35 }}>
+                    Old Code: <strong style={{ textDecoration: 'line-through', fontFamily: 'monospace' }}>{restoringPromo.originalCode || restoringPromo.code}</strong> (Expired &amp; Permanently Retired). It can never be reused.
+                  </div>
+                </div>
+
+                {/* New Unique Code Generator */}
+                <div className="admin-input-group" style={{ margin: 0 }}>
+                  <label className="admin-input-label">New Unique Promotion Code *</label>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <input
+                      type="text"
+                      className="admin-input-field"
+                      placeholder="e.g. MANGO82"
+                      value={restoreForm.newCode}
+                      onChange={e => setRestoreForm(prev => ({ ...prev, newCode: e.target.value.toUpperCase().replace(/\s/g, '') }))}
+                      required
+                      style={{ fontFamily: 'monospace', fontWeight: 800, letterSpacing: '1px', fontSize: '14px' }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setRestoreForm(prev => ({ ...prev, newCode: generateUniqueRestoreCode(restoringPromo.originalCode || restoringPromo.code) }))}
+                      style={{
+                        padding: '8px 12px',
+                        background: '#f3f4f6',
+                        border: '1px solid #d1d5db',
+                        borderRadius: '8px',
+                        fontSize: '12px',
+                        fontWeight: 700,
+                        color: '#374151',
+                        cursor: 'pointer',
+                        whiteSpace: 'nowrap',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px'
+                      }}
+                      title="Generate another unique code"
+                    >
+                      <Sparkles size={13} />
+                      <span>Generate</span>
+                    </button>
+                  </div>
+                  <span style={{ fontSize: '11px', color: '#6b7280', marginTop: '3px' }}>
+                    Must be unique and not match any active or previously retired codes.
+                  </span>
+                </div>
+
+                {/* New Expiration Date & Time */}
+                <div className="admin-input-group" style={{ margin: 0 }}>
+                  <label className="admin-input-label">New Expiration Date &amp; Time *</label>
+                  <input
+                    type="datetime-local"
+                    className="admin-input-field"
+                    value={restoreForm.newExpiresAt}
+                    onChange={e => setRestoreForm(prev => ({ ...prev, newExpiresAt: e.target.value }))}
+                    required
+                  />
+                  <span style={{ fontSize: '11px', color: '#6b7280', marginTop: '3px' }}>
+                    Must be in the future. The promotion will automatically expire when this date/time is reached.
+                  </span>
+                </div>
+
+                {/* Restored By Admin */}
+                <div className="admin-input-group" style={{ margin: 0 }}>
+                  <label className="admin-input-label">Restored By (Administrator Name / Email)</label>
+                  <input
+                    type="text"
+                    className="admin-input-field"
+                    value={restoreForm.restoredBy}
+                    onChange={e => setRestoreForm(prev => ({ ...prev, restoredBy: e.target.value }))}
+                    placeholder="admin@umamicraft.com"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="admin-modal-footer" style={{ padding: '14px 24px', background: '#fafaf9', borderTop: '1px solid #e7e5e4' }}>
+                <button type="button" className="staff-pin-cancel-btn" onClick={() => setRestoringPromo(null)}>Cancel</button>
+                <button
+                  type="submit"
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '9px 18px',
+                    borderRadius: '10px',
+                    border: 'none',
+                    background: '#059669',
+                    color: '#fff',
+                    fontWeight: 700,
+                    fontSize: '13px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <RotateCcw size={15} />
+                  <span>Confirm &amp; Restore Campaign</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ══ PROMO QR CODE & TEST LINK MODAL ══ */}
+      {showPromoQrModal && (() => {
+        const isExp = showPromoQrModal.status === 'expired' || (showPromoQrModal.expiresAt && new Date(showPromoQrModal.expiresAt).getTime() <= Date.now());
+        const promoUrl = `${window.location.origin}/?view=mobile&promo=${encodeURIComponent(showPromoQrModal.code)}`;
+
+        return (
+          <div className="staff-pin-backdrop" style={{ zIndex: 100090 }} onClick={() => setShowPromoQrModal(null)}>
+            <div className="admin-modal-small" onClick={e => e.stopPropagation()} style={{ maxWidth: '440px', borderRadius: '16px', overflow: 'hidden', padding: 0 }}>
+              <div style={{
+                padding: '18px 22px',
+                background: isExp ? 'linear-gradient(135deg, #7f1d1d 0%, #991b1b 100%)' : 'linear-gradient(135deg, #1c1917 0%, #292524 100%)',
+                color: '#fff',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <QrCode size={20} />
+                  <h3 style={{ margin: 0, fontSize: '16px', fontWeight: 800, color: '#fff' }}>
+                    {isExp ? 'Expired Promotion QR Link' : 'Promotional QR & Direct Link'}
+                  </h3>
+                </div>
+                <button
+                  type="button"
+                  className="staff-pin-close"
+                  style={{ background: 'rgba(255,255,255,0.2)', color: '#fff', borderRadius: '50%', padding: '5px' }}
+                  onClick={() => setShowPromoQrModal(null)}
+                >
+                  <X size={16} />
+                </button>
+              </div>
+
+              <div style={{ padding: '22px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '14px' }}>
+                <div style={{
+                  padding: '14px',
+                  background: '#ffffff',
+                  borderRadius: '16px',
+                  boxShadow: '0 4px 14px rgba(0,0,0,0.06)',
+                  border: isExp ? '2px dashed #f87171' : '1px solid #e5e7eb',
+                  position: 'relative'
+                }}>
+                  <QRCodeSVG value={promoUrl} size={180} level="H" includeMargin={false} />
+                  {isExp && (
+                    <div style={{
+                      position: 'absolute',
+                      inset: 0,
+                      background: 'rgba(254, 242, 242, 0.88)',
+                      borderRadius: '16px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '4px',
+                      color: '#b91c1c'
+                    }}>
+                      <XCircle size={32} />
+                      <strong style={{ fontSize: '13px', fontWeight: 800 }}>CODE EXPIRED</strong>
+                      <span style={{ fontSize: '11px', textAlign: 'center', padding: '0 12px' }}>Link &amp; QR are deactivated</span>
+                    </div>
+                  )}
+                </div>
+
+                <div style={{ textAlign: 'center', width: '100%' }}>
+                  <div style={{ fontSize: '15px', fontWeight: 800, color: '#111827' }}>{showPromoQrModal.name}</div>
+                  <div style={{ marginTop: '4px' }}>
+                    <code style={{
+                      background: isExp ? '#fee2e2' : '#fef3c7',
+                      color: isExp ? '#991b1b' : '#b45309',
+                      padding: '3px 10px',
+                      borderRadius: '6px',
+                      fontSize: '14px',
+                      fontWeight: 800,
+                      textDecoration: isExp ? 'line-through' : 'none'
+                    }}>
+                      {showPromoQrModal.code}
+                    </code>
+                  </div>
+                  <div style={{ fontSize: '12px', color: '#6b7280', marginTop: '6px' }}>
+                    {isExp ? 'This promo has expired and scanning will show the expired alert.' : `Valid until ${showPromoQrModal.expiresAt ? new Date(showPromoQrModal.expiresAt).toLocaleDateString() : 'Dec 31, 2026'}`}
+                  </div>
+                </div>
+
+                <div style={{ width: '100%', background: '#f9fafb', borderRadius: '8px', padding: '8px 12px', border: '1px solid #e5e7eb', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <input
+                    type="text"
+                    readOnly
+                    value={promoUrl}
+                    style={{ flex: 1, border: 'none', background: 'transparent', fontSize: '11px', color: '#4b5563', outline: 'none' }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      try {
+                        navigator.clipboard.writeText(promoUrl);
+                        showNotify('Promotional link copied to clipboard!');
+                      } catch (_) {}
+                    }}
+                    style={{
+                      padding: '4px 8px',
+                      background: '#ffffff',
+                      border: '1px solid #d1d5db',
+                      borderRadius: '6px',
+                      fontSize: '11px',
+                      fontWeight: 600,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Copy
+                  </button>
+                  <a
+                    href={promoUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    style={{
+                      padding: '4px 8px',
+                      background: '#ea580c',
+                      color: '#fff',
+                      borderRadius: '6px',
+                      fontSize: '11px',
+                      fontWeight: 700,
+                      textDecoration: 'none'
+                    }}
+                  >
+                    Test Open
+                  </a>
+                </div>
+              </div>
+
+              <div style={{ padding: '12px 20px', background: '#fafaf9', borderTop: '1px solid #e7e5e4', display: 'flex', justifyContent: 'flex-end' }}>
+                <button type="button" className="staff-pin-cancel-btn" onClick={() => setShowPromoQrModal(null)}>Close</button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* LIVE PREVIEW ONLY MODAL */}
 
@@ -12008,7 +13593,7 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
                       id: finalSku,
                       sku: finalSku,
                       name: formStockItem.name,
-                      image: formStockItem.image || 'https://images.unsplash.com/photo-1558857563-b37cf5a0f12c?auto=format&fit=crop&w=400&q=80',
+                      image: formStockItem.image || 'https://images.unsplash.com/photo-1576092768241-dec231879fc3?auto=format&fit=crop&w=400&q=80',
                       status: 'Available',
                       available: true,
                       category: formStockItem.category,
@@ -12104,17 +13689,14 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
                   fontSize: '11.5px',
                   fontWeight: 700,
                   background: viewingOrder.status === 'Ready' || viewingOrder.status === 'Ready for Pickup' ? '#ecfdf5' :
-                              viewingOrder.status === 'Cooking' ? '#fff7ed' :
                               viewingOrder.status === 'Preparing' ? '#fffbeb' :
                               viewingOrder.status === 'Completed' ? '#ecfdf5' :
                               viewingOrder.status === 'Cancelled' ? '#fef2f2' : '#eff6ff',
                   color: viewingOrder.status === 'Ready' || viewingOrder.status === 'Ready for Pickup' ? '#059669' :
-                         viewingOrder.status === 'Cooking' ? '#c2410c' :
                          viewingOrder.status === 'Preparing' ? '#b45309' :
                          viewingOrder.status === 'Completed' ? '#059669' :
                          viewingOrder.status === 'Cancelled' ? '#dc2626' : '#1d4ed8',
                   border: viewingOrder.status === 'Ready' || viewingOrder.status === 'Ready for Pickup' ? '1px solid #a7f3d0' :
-                          viewingOrder.status === 'Cooking' ? '1px solid #fed7aa' :
                           viewingOrder.status === 'Preparing' ? '1px solid #fde68a' :
                           viewingOrder.status === 'Completed' ? '1px solid #a7f3d0' :
                           viewingOrder.status === 'Cancelled' ? '1px solid #fecaca' : '1px solid #bfdbfe'

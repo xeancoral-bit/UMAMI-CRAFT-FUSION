@@ -202,9 +202,9 @@ function RestaurantView({ onReturnToKiosk }) {
   };
 
   // KPI Calculations
-  const totalRevenue = orders.reduce((sum, o) => sum + (o.totalPrice || 0), 0);
-  const activeOrders = orders.filter(o => o.status === 'Order Received' || o.status === 'Cooking');
-  const readyOrders = orders.filter(o => o.status === 'Order Ready');
+  const totalRevenue = orders.reduce((sum, o) => sum + Number(o.total || o.totalPrice || 0), 0);
+  const activeOrders = orders.filter(o => o.status !== 'Completed' && o.status !== 'Cancelled');
+  const readyOrders = orders.filter(o => o.status === 'Ready' || o.status === 'Order Ready' || o.status === 'Ready for Pickup');
   const completedOrders = orders.filter(o => o.status === 'Completed');
   
   // Tables breakdown
@@ -267,15 +267,15 @@ function RestaurantView({ onReturnToKiosk }) {
           </div>
         </header>
 
-        {/* ── 4 KPI Stats in a single row ── */}
-        <section className="ops-kpi-row" aria-label="Operations Key Metrics">
+        {/* ── 3 KPI Stats in a single row ── */}
+        <section className="ops-kpi-row" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))' }} aria-label="Operations Key Metrics">
           {/* Card 1: Gross Sales */}
           <div className="ops-kpi-card">
             <div className="ops-kpi-icon-circle peach">
-              <DollarSign size={24} />
+              <span style={{ fontSize: '22px', fontWeight: '800', lineHeight: 1, color: '#E45729' }}>₱</span>
             </div>
             <div className="ops-kpi-content">
-              <div className="ops-kpi-value">${totalRevenue.toFixed(2)}</div>
+              <div className="ops-kpi-value">₱{totalRevenue.toFixed(2)}</div>
               <div className="ops-kpi-label">TODAY'S GROSS SALES</div>
               <div className="ops-kpi-subtext sales-trend">
                 <span className="trend-arrow">↑</span>
@@ -312,28 +312,6 @@ function RestaurantView({ onReturnToKiosk }) {
                 {busserTables.length === 0
                   ? 'No tables waiting'
                   : `Tables ${busserTablesList}`}
-              </div>
-            </div>
-          </div>
-
-          {/* Card 4: Table Occupancy */}
-          <div className="ops-kpi-card">
-            <div className="ops-kpi-icon-circle mint">
-              <Users size={24} />
-            </div>
-            <div className="ops-kpi-content">
-              <div className="ops-kpi-value">{occupancyRate}%</div>
-              <div className="ops-kpi-label">TABLE OCCUPANCY</div>
-              <div className="ops-occupancy-progress-row">
-                <div className="ops-progress-track">
-                  <div
-                    className="ops-progress-fill"
-                    style={{ width: `${occupancyRate}%` }}
-                  ></div>
-                </div>
-                <span className="ops-progress-count">
-                  {occupiedTables.length} / {totalTables}
-                </span>
               </div>
             </div>
           </div>
@@ -393,8 +371,8 @@ function RestaurantView({ onReturnToKiosk }) {
                 ) : (
                   <div className="ops-pipeline-order-list">
                     {orders.slice(0, 8).map(order => {
-                      const isReady = order.status === 'Order Ready';
-                      const isPreparing = order.status === 'Cooking' || order.status === 'Preparing';
+                      const isReady = order.status === 'Ready' || order.status === 'Order Ready' || order.status === 'Ready for Pickup';
+                      const isPreparing = order.status === 'Preparing';
                       const isPlating = order.status === 'Plating';
 
                       let badgeClass = 'kitchen';

@@ -12,7 +12,13 @@ import {
   VolumeX,
   Receipt,
   Utensils,
-  Check
+  Check,
+  Calendar,
+  Monitor,
+  Smartphone,
+  Tablet,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 
 function playChime(type = 'new-order') {
@@ -56,15 +62,234 @@ function playChime(type = 'new-order') {
 function normalizeKitchenStatus(status) {
   if (!status) return 'New';
   if (status === 'Order Received') return 'New';
+  if (status === 'Cooking') return 'Ready for Pickup';
   if (status === 'Order Ready' || status === 'Ready') return 'Ready for Pickup';
   return status;
 }
 
+// Accurate detection of device or platform used (Desktop, Tablet, or Mobile)
+function getOrderDeviceInfo(order) {
+  if (!order) return { type: 'Mobile', label: 'Mobile', Icon: Smartphone };
+
+  // 1. Explicit properties on the order record
+  const explicit = (
+    order.device ||
+    order.platform ||
+    order.deviceType ||
+    order.gadgetType ||
+    order.sourcePlatform ||
+    ''
+  ).trim();
+
+  if (explicit) {
+    const lower = explicit.toLowerCase();
+    if (lower === 'desktop' || lower.includes('laptop') || lower.includes('pc') || lower.includes('workstation')) {
+      return { type: 'Desktop', label: 'Desktop', Icon: Monitor };
+    }
+    if (lower === 'tablet' || lower.includes('ipad') || lower.includes('tab')) {
+      return { type: 'Tablet', label: 'Tablet', Icon: Tablet };
+    }
+    if (lower === 'mobile' || lower.includes('phone') || lower.includes('smartphone') || lower.includes('customer device')) {
+      return { type: 'Mobile', label: 'Mobile', Icon: Smartphone };
+    }
+  }
+
+  // 2. Customer string cues
+  const cust = (order.customer || '').toLowerCase();
+  if (cust.includes('mobile') || cust.includes('phone') || cust.includes('app diner')) {
+    return { type: 'Mobile', label: 'Mobile', Icon: Smartphone };
+  }
+  if (cust.includes('tablet') || cust.includes('ipad')) {
+    return { type: 'Tablet', label: 'Tablet', Icon: Tablet };
+  }
+  if (cust.includes('desktop') || cust.includes('pc') || cust.includes('terminal')) {
+    return { type: 'Desktop', label: 'Desktop', Icon: Monitor };
+  }
+
+  // 3. Status history update metadata
+  if (Array.isArray(order.statusHistory) && order.statusHistory.length > 0) {
+    const origin = (order.statusHistory[0].updatedBy || '').toLowerCase();
+    if (origin.includes('customer app') || origin.includes('mobile')) {
+      return { type: 'Mobile', label: 'Mobile', Icon: Smartphone };
+    }
+    if (origin.includes('tablet')) {
+      return { type: 'Tablet', label: 'Tablet', Icon: Tablet };
+    }
+    if (origin.includes('kiosk') && !order.kioskId?.startsWith('T-')) {
+      return { type: 'Desktop', label: 'Desktop', Icon: Monitor };
+    }
+  }
+
+  // 4. Kiosk / Terminal / Table identification
+  const kiosk = String(order.kioskId || '').toUpperCase();
+  const loc = String(order.location || '').toLowerCase();
+
+  // Mobile QR session tokens: 6-character alphanumeric (e.g. 44KE0S) or containing MOBILE
+  if (kiosk.includes('MOBILE') || /^[A-Z0-9]{6}$/.test(kiosk)) {
+    return { type: 'Mobile', label: 'Mobile', Icon: Smartphone };
+  }
+
+  // Table ordering tablets (T-1, T-2, T-3, T-5, T-8 or location containing Table)
+  if (kiosk.startsWith('T-') || loc.includes('table')) {
+    return { type: 'Tablet', label: 'Tablet', Icon: Tablet };
+  }
+
+  // Self-ordering kiosks or counter POS workstations
+  if (kiosk.startsWith('K-') || kiosk === 'COUNTER' || loc.includes('kiosk') || loc.includes('counter')) {
+    return { type: 'Desktop', label: 'Desktop', Icon: Monitor };
+  }
+
+  return { type: 'Mobile', label: 'Mobile', Icon: Smartphone };
+}
+
+// Clean and formal formatting of record time (e.g., "11:14 PM")
+function formatOrderTime(dateVal) {
+  if (!dateVal) return '--:--';
+  const d = new Date(dateVal);
+  if (isNaN(d.getTime())) return '--:--';
+  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+}
+
+// Clean and formal formatting of record date (e.g., "Sep 21, 2026")
+function formatOrderDate(dateVal) {
+  if (!dateVal) return '--- --, ----';
+  const d = new Date(dateVal);
+  if (isNaN(d.getTime())) return '--- --, ----';
+  return d.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+// Comprehensive parser for item-level customization, variants, add-ons and instructions
+function getItemDetails(item) {
+  if (!item) return { name: '', qty: 1, variant: null, addons: [], instructions: [], tags: [], price: 0, lineTotal: 0 };
+
+  const qty = item.quantity || item.qty || 1;
+  const name = item.name || 'Unnamed Dish';
+
+  // 1. Variant or Size
+  let variant = item.selectedSize ||
+    item.size ||
+    item.selectedVariant ||
+    item.variant ||
+    (typeof item.sizes === 'string' && item.sizes.trim().toLowerCase() !== 'standard' ? item.sizes.trim() : null);
+
+  if (!variant && name) {
+    const match = name.match(/\(([^)]+)\)/);
+    if (match && match[1]) {
+      variant = match[1].trim();
+    }
+  }
+
+  const parseList = (val) => {
+    if (!val) return [];
+    if (Array.isArray(val)) {
+      return val
+        .map(v => (typeof v === 'object' && v ? (v.name || v.label || JSON.stringify(v)) : String(v).trim()))
+        .filter(Boolean);
+    }
+    if (typeof val === 'string' && val.trim()) {
+      return val.split(',').map(s => s.trim()).filter(Boolean);
+    }
+    return [];
+  };
+
+  // 2. Add-ons
+  const addons = [
+    ...parseList(item.addons),
+    ...parseList(item.addOns),
+    ...parseList(item.selectedAddons),
+    ...parseList(item.extra)
+  ];
+
+  // 3. Special Instructions
+  const instructions = [
+    ...parseList(item.specialInstructions),
+    ...parseList(item.instructions),
+    ...parseList(item.specialInstruction),
+    ...parseList(item.notes),
+    ...parseList(item.note)
+  ];
+
+  // 4. Customizations array categorization
+  if (Array.isArray(item.customizations)) {
+    item.customizations.forEach(c => {
+      if (typeof c === 'string' && c.trim()) {
+        const trimmed = c.trim();
+        const lower = trimmed.toLowerCase();
+        // If variant not yet extracted and this is a size/variant string
+        if (!variant && (lower.startsWith('size:') || lower.startsWith('variant:') || lower === 'large' || lower === 'medium' || lower === 'regular' || lower === 'small')) {
+          variant = trimmed.includes(':') ? trimmed.split(':')[1].trim() : trimmed;
+          return;
+        }
+        // If it's an add-on
+        if (
+          lower.startsWith('+') ||
+          lower.includes('+₱') ||
+          lower.startsWith('extra ') ||
+          lower.startsWith('add ') ||
+          lower.includes('boba') ||
+          lower.includes('pudding') ||
+          lower.includes('jelly') ||
+          lower.includes('topping')
+        ) {
+          if (!addons.some(a => a.toLowerCase() === lower)) {
+            addons.push(trimmed);
+          }
+        } else {
+          // It's a preparation instruction
+          if (
+            (!variant || lower !== variant.toLowerCase()) &&
+            !instructions.some(i => i.toLowerCase() === lower) &&
+            !addons.some(a => a.toLowerCase() === lower)
+          ) {
+            instructions.push(trimmed);
+          }
+        }
+      }
+    });
+  }
+
+  // 5. Tags
+  const tags = Array.isArray(item.tags)
+    ? item.tags
+    : (typeof item.tags === 'string' && item.tags.trim() ? [item.tags.trim()] : []);
+
+  // 6. Price
+  const price = typeof item.price === 'number' ? item.price : (parseFloat(item.price) || 0);
+
+  return {
+    name,
+    qty,
+    variant,
+    addons,
+    instructions,
+    tags,
+    price,
+    lineTotal: price * qty
+  };
+}
+
 function KitchenView({ onReturnToKiosk }) {
   const [orders, setOrders] = useState([]);
-  const [filter, setFilter] = useState('active'); // 'active' | 'received' | 'preparing' | 'cooking' | 'ready' | 'all'
+  const [filter, setFilter] = useState('active'); // 'active' | 'received' | 'preparing' | 'ready' | 'all'
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [currentTime, setCurrentTime] = useState(new Date());
+  // Compact by default: set of expanded card IDs (ORD-XXXX)
+  const [expandedOrders, setExpandedOrders] = useState(() => new Set());
+
+  const toggleOrderDetails = (orderId, e) => {
+    if (e) {
+      e.stopPropagation();
+    }
+    setExpandedOrders(prev => {
+      const next = new Set(prev);
+      if (next.has(orderId)) {
+        next.delete(orderId);
+      } else {
+        next.add(orderId);
+      }
+      return next;
+    });
+  };
   const [restaurantInfo, setRestaurantInfo] = useState({
     name: 'Restaurant Kitchen',
     cuisine: 'Culinary Station',
@@ -317,18 +542,16 @@ function KitchenView({ onReturnToKiosk }) {
   // Filtered orders list
   const filteredOrders = orders.filter(order => {
     const s = getNorm(order);
-    if (filter === 'active') return ['New', 'Preparing', 'Cooking', 'Ready for Pickup', 'Out for Delivery'].includes(s);
+    if (filter === 'active') return ['New', 'Preparing', 'Ready for Pickup', 'Out for Delivery'].includes(s);
     if (filter === 'received') return s === 'New';
     if (filter === 'preparing') return s === 'Preparing';
-    if (filter === 'cooking') return s === 'Cooking';
     if (filter === 'ready') return s === 'Ready for Pickup';
     return true; // 'all'
   });
 
-  const activeCount = orders.filter(o => ['New', 'Preparing', 'Cooking', 'Ready for Pickup', 'Out for Delivery'].includes(getNorm(o))).length;
+  const activeCount = orders.filter(o => ['New', 'Preparing', 'Ready for Pickup', 'Out for Delivery'].includes(getNorm(o))).length;
   const receivedCount = orders.filter(o => getNorm(o) === 'New').length;
   const preparingCount = orders.filter(o => getNorm(o) === 'Preparing').length;
-  const cookingCount = orders.filter(o => getNorm(o) === 'Cooking').length;
   const readyCount = orders.filter(o => getNorm(o) === 'Ready for Pickup').length;
 
   return (
@@ -410,13 +633,6 @@ function KitchenView({ onReturnToKiosk }) {
             {preparingCount > 0 && <span className="tab-pill tab-pill-warning">{preparingCount}</span>}
           </button>
           <button
-            className={`kitchen-tab ${filter === 'cooking' ? 'active' : ''}`}
-            onClick={() => setFilter('cooking')}
-          >
-            🍳 Cooking
-            {cookingCount > 0 && <span className="tab-pill">{cookingCount}</span>}
-          </button>
-          <button
             className={`kitchen-tab ${filter === 'ready' ? 'active' : ''}`}
             onClick={() => setFilter('ready')}
           >
@@ -444,58 +660,110 @@ function KitchenView({ onReturnToKiosk }) {
             const normStatus = getNorm(order);
             const elapsed = getElapsedMinutes(order.createdAt);
             const isLate = elapsed >= 10 && normStatus !== 'Ready for Pickup' && normStatus !== 'Completed';
-            const items = order.items || (order.item ? [order.item] : []);
+            const items = (Array.isArray(order.items) && order.items.length > 0) ? order.items : (order.item ? [order.item] : []);
+            const isExpanded = expandedOrders.has(ordId);
 
             return (
               <div
                 key={ordId}
                 className={`kitchen-ticket-card status-${normStatus.toLowerCase().replace(/\s+/g, '-')} ${isLate ? 'ticket-late' : ''}`}
               >
-                {/* Ticket Top Header */}
+                {/* Ticket Top Header: ID, Table/Kiosk, Customer & Status */}
                 <div className="ticket-header">
-                  <div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span className="ticket-id">{ordId}</span>
-                      <span className="ticket-kiosk">
-                        {order.location || (order.tableNumber ? `Table #${order.tableNumber}` : (order.kioskId && order.kioskId.startsWith('K-') ? `Kiosk #${order.kioskId}` : `Table #${order.kioskId}` || 'Counter'))}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                    <span className="ticket-id">{ordId}</span>
+                    <span className="ticket-kiosk">
+                      {order.location || (order.tableNumber ? `Table #${order.tableNumber}` : (order.kioskId && order.kioskId.startsWith('K-') ? `Kiosk #${order.kioskId}` : `Table #${order.kioskId}` || 'Counter'))}
+                    </span>
+                    {order.orderType && (
+                      <span style={{
+                        fontSize: '10px',
+                        fontWeight: 700,
+                        padding: '1px 6px',
+                        borderRadius: '4px',
+                        background: order.orderType === 'Dine-In' ? 'rgba(234, 88, 12, 0.15)' : 'rgba(37, 99, 235, 0.15)',
+                        color: order.orderType === 'Dine-In' ? '#ea580c' : '#2563eb',
+                        border: order.orderType === 'Dine-In' ? '1px solid rgba(234, 88, 12, 0.3)' : '1px solid rgba(37, 99, 235, 0.3)'
+                      }}>
+                        {order.orderType}
                       </span>
-                      {order.orderType && (
-                        <span style={{
-                          fontSize: '10px',
-                          fontWeight: 700,
-                          padding: '1px 6px',
-                          borderRadius: '4px',
-                          background: order.orderType === 'Dine-In' ? 'rgba(234, 88, 12, 0.15)' : 'rgba(37, 99, 235, 0.15)',
-                          color: order.orderType === 'Dine-In' ? '#ea580c' : '#2563eb',
-                          border: order.orderType === 'Dine-In' ? '1px solid rgba(234, 88, 12, 0.3)' : '1px solid rgba(37, 99, 235, 0.3)'
-                        }}>
-                          {order.orderType}
-                        </span>
-                      )}
-                    </div>
-                    <div className="ticket-time-row">
-                      <Clock size={12} />
-                      <span style={{ color: isLate ? '#ef4444' : 'inherit', fontWeight: isLate ? 800 : 500 }}>
-                        {elapsed === 0 ? 'Just now' : `${elapsed}m ago`} {isLate ? '⚠️ LATE' : ''}
+                    )}
+                    {order.customer && order.customer !== 'Guest' && !order.customer.toLowerCase().includes('mobile') && !order.customer.toLowerCase().includes('tablet') && (
+                      <span style={{
+                        fontSize: '11px',
+                        fontWeight: 600,
+                        color: '#d1d5db',
+                        background: 'rgba(255, 255, 255, 0.05)',
+                        padding: '1px 6px',
+                        borderRadius: '4px'
+                      }}>
+                        👤 {order.customer}
                       </span>
-                      <span>•</span>
-                      <span>{order.customer || 'Guest'}</span>
-                      <span>•</span>
-                      <span>{new Date(order.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                    </div>
+                    )}
                   </div>
 
                   {/* Status Badge */}
                   <span className={`ticket-status-badge badge-${normStatus.toLowerCase().replace(/\s+/g, '-')}`}>
                     {normStatus === 'New' && '📋 Received'}
                     {normStatus === 'Preparing' && '👨‍🍳 Preparing'}
-                    {normStatus === 'Cooking' && '🍳 Cooking'}
                     {normStatus === 'Ready for Pickup' && '🔔 Ready for Pickup'}
                     {normStatus === 'Out for Delivery' && `🏃 Runner: ${order.busserName || 'Dispatched'}`}
                     {normStatus === 'Completed' && '✓ Completed'}
                     {normStatus === 'Cancelled' && '✕ Cancelled'}
                   </span>
                 </div>
+
+                {/* Professional Formal Three-Column Order Information Strip */}
+                {(() => {
+                  const deviceInfo = getOrderDeviceInfo(order);
+                  const DeviceIcon = deviceInfo.Icon;
+                  return (
+                    <div className="ticket-meta-strip" role="group" aria-label="Order Time, Platform, and Date">
+                      {/* Left Column: Time */}
+                      <div
+                        className="ticket-meta-col ticket-meta-left"
+                        title={`Time placed: ${formatOrderTime(order.createdAt)}`}
+                      >
+                        <Clock size={12} className="ticket-meta-icon" style={{ color: isLate ? '#ef4444' : undefined }} />
+                        <span className="ticket-meta-text" style={{ color: isLate ? '#ef4444' : undefined }}>
+                          {formatOrderTime(order.createdAt)}
+                        </span>
+                        {isLate && (
+                          <span style={{
+                            fontSize: '9px',
+                            fontWeight: 800,
+                            padding: '1px 4px',
+                            borderRadius: '3px',
+                            background: 'rgba(239, 68, 68, 0.2)',
+                            color: '#ef4444',
+                            border: '1px solid rgba(239, 68, 68, 0.35)',
+                            marginLeft: '2px'
+                          }}>
+                            LATE
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Center Column: Device or Platform Used */}
+                      <div
+                        className={`ticket-meta-col ticket-meta-center device-badge-${deviceInfo.type.toLowerCase()}`}
+                        title={`Platform used: ${deviceInfo.label}`}
+                      >
+                        <DeviceIcon size={12} className="ticket-meta-icon" />
+                        <span className="ticket-meta-text">{deviceInfo.label}</span>
+                      </div>
+
+                      {/* Right Column: Date */}
+                      <div
+                        className="ticket-meta-col ticket-meta-right"
+                        title={`Date placed: ${formatOrderDate(order.createdAt)}`}
+                      >
+                        <Calendar size={12} className="ticket-meta-icon" />
+                        <span className="ticket-meta-text">{formatOrderDate(order.createdAt)}</span>
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 {/* Dietary & Allergen Warnings Strip */}
                 {((order.allergens && order.allergens.length > 0) || (order.orderedTags && order.orderedTags.length > 0)) && (
@@ -524,78 +792,136 @@ function KitchenView({ onReturnToKiosk }) {
                   </div>
                 )}
 
-                {/* Special customer note */}
-                {order.note && (
-                  <div style={{
-                    margin: '8px 12px 0',
-                    padding: '6px 10px',
-                    borderRadius: '6px',
-                    background: order.isAllergy ? 'rgba(239, 68, 68, 0.1)' : 'rgba(255, 255, 255, 0.05)',
-                    border: order.isAllergy ? '1px solid rgba(239, 68, 68, 0.3)' : '1px solid rgba(255, 255, 255, 0.1)',
-                    fontSize: '11px',
-                    color: order.isAllergy ? '#ef4444' : 'var(--text-muted)',
-                    fontWeight: 600
-                  }}>
-                    💬 Note: {order.note}
-                  </div>
-                )}
+                {/* View / Hide Order Details Toggle Button */}
+                <button
+                  type="button"
+                  id={`toggle-details-${ordId}`}
+                  aria-expanded={isExpanded}
+                  aria-controls={`order-details-${ordId}`}
+                  aria-label={isExpanded ? `Hide order details for order ${ordId}` : `View order details for order ${ordId}`}
+                  onClick={(e) => toggleOrderDetails(ordId, e)}
+                  className={`ticket-toggle-details-btn ${isExpanded ? 'is-expanded' : ''}`}
+                >
+                  <span>{isExpanded ? 'Hide Order Details' : 'View Order Details'}</span>
+                  {isExpanded ? (
+                    <ChevronUp size={16} className="ticket-toggle-icon" aria-hidden="true" />
+                  ) : (
+                    <ChevronDown size={16} className="ticket-toggle-icon" aria-hidden="true" />
+                  )}
+                </button>
 
-                {/* Itemized Order List */}
-                <div className="ticket-items-list">
-                  {items.map((item, idx) => {
-                    const itemImage = getItemImage(item);
-                    return (
-                      <div key={idx} className="ticket-item-row">
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, minWidth: 0 }}>
-                          <span className="ticket-item-qty">{item.quantity || item.qty || 1}x</span>
-                          
-                          {/* Food / Beverage Image Thumbnail with Fallback */}
-                          <div className="ticket-item-thumb-container">
-                            {itemImage ? (
-                              <img
-                                src={itemImage}
-                                alt={item.name}
-                                className="ticket-item-thumb"
-                                onError={(e) => {
-                                  e.target.style.display = 'none';
-                                  const fallback = e.target.parentElement.querySelector('.ticket-item-thumb-fallback');
-                                  if (fallback) fallback.style.display = 'flex';
-                                }}
-                              />
-                            ) : null}
-                            <div
-                              className="ticket-item-thumb-fallback"
-                              style={{ display: itemImage ? 'none' : 'flex' }}
-                            >
-                              <span>{item.emoji || (item.isDrink ? '🧋' : '🍽️')}</span>
+                {/* Expandable Order Details Panel */}
+                <div
+                  id={`order-details-${ordId}`}
+                  role="region"
+                  aria-labelledby={`toggle-details-${ordId}`}
+                  className={`ticket-expandable-details ${isExpanded ? 'is-expanded' : ''}`}
+                >
+                  <div className="ticket-expandable-inner">
+                    {/* Special customer note */}
+                    {order.note && (
+                      <div style={{
+                        margin: '2px 0 10px 0',
+                        padding: '6px 10px',
+                        borderRadius: '6px',
+                        background: order.isAllergy ? 'rgba(239, 68, 68, 0.1)' : 'rgba(255, 255, 255, 0.05)',
+                        border: order.isAllergy ? '1px solid rgba(239, 68, 68, 0.3)' : '1px solid rgba(255, 255, 255, 0.1)',
+                        fontSize: '11px',
+                        color: order.isAllergy ? '#ef4444' : 'var(--text-muted)',
+                        fontWeight: 600
+                      }}>
+                        💬 Note: {order.note}
+                      </div>
+                    )}
+
+                    {/* Itemized Order List */}
+                    <div className="ticket-items-list">
+                      {items.map((item, idx) => {
+                        const itemImage = getItemImage(item);
+                        const details = getItemDetails(item);
+
+                        return (
+                          <div key={idx} className="ticket-item-row">
+                            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', flex: 1, minWidth: 0 }}>
+                              <span className="ticket-item-qty">{details.qty}x</span>
+
+                              {/* Food / Beverage Image Thumbnail with Fallback */}
+                              <div className="ticket-item-thumb-container">
+                                {itemImage ? (
+                                  <img
+                                    src={itemImage}
+                                    alt={details.name}
+                                    className="ticket-item-thumb"
+                                    onError={(e) => {
+                                      e.target.style.display = 'none';
+                                      const fallback = e.target.parentElement.querySelector('.ticket-item-thumb-fallback');
+                                      if (fallback) fallback.style.display = 'flex';
+                                    }}
+                                  />
+                                ) : null}
+                                <div
+                                  className="ticket-item-thumb-fallback"
+                                  style={{ display: itemImage ? 'none' : 'flex' }}
+                                >
+                                  <span>{item.emoji || (item.isDrink ? '🧋' : '🍽️')}</span>
+                                </div>
+                              </div>
+
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <div className="ticket-item-name" title={details.name}>{details.name}</div>
+
+                                {/* Selected size or variant */}
+                                {details.variant && (
+                                  <div className="ticket-item-meta-row variant-badge">
+                                    <span className="ticket-item-meta-label">Size / Variant:</span>
+                                    <span className="ticket-item-meta-value">{details.variant}</span>
+                                  </div>
+                                )}
+
+                                {/* Add-ons */}
+                                {details.addons.length > 0 && (
+                                  <div className="ticket-item-meta-row addons-badge">
+                                    <span className="ticket-item-meta-label">Add-ons:</span>
+                                    <span className="ticket-item-meta-value">{details.addons.join(' • ')}</span>
+                                  </div>
+                                )}
+
+                                {/* Special instructions */}
+                                {details.instructions.length > 0 && (
+                                  <div className="ticket-item-meta-row instructions-box">
+                                    <span className="ticket-item-meta-label">Instructions:</span>
+                                    <span className="ticket-item-meta-value">{details.instructions.join(' • ')}</span>
+                                  </div>
+                                )}
+
+                                {/* Dietary Tags */}
+                                {details.tags.length > 0 && (
+                                  <div className="ticket-item-tags">
+                                    {details.tags.map((tag, tIdx) => (
+                                      <span key={tIdx} className="ticket-item-tag-pill">
+                                        {tag}
+                                      </span>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+
+                            <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                              <span className="ticket-item-price">
+                                ₱{details.lineTotal.toFixed(2)}
+                              </span>
+                              {details.qty > 1 && (
+                                <div style={{ fontSize: '10.5px', color: '#9ca3af', marginTop: '2px' }}>
+                                  ₱{details.price.toFixed(2)} ea
+                                </div>
+                              )}
                             </div>
                           </div>
-
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <div className="ticket-item-name" title={item.name}>{item.name}</div>
-                            {item.customizations && item.customizations.length > 0 && (
-                              <div className="ticket-item-customizations">
-                                {item.customizations.join(' • ')}
-                              </div>
-                            )}
-                            {item.tags && item.tags.length > 0 && (
-                              <div className="ticket-item-tags">
-                                {(Array.isArray(item.tags) ? item.tags : [item.tags]).map((tag, tIdx) => (
-                                  <span key={tIdx} className="ticket-item-tag-pill">
-                                    {tag}
-                                  </span>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-
-                        <span className="ticket-item-price">
-                          ₱{((item.price || 0) * (item.quantity || item.qty || 1)).toFixed(2)}
-                        </span>
-                      </div>
-                    );
-                  })}
+                        );
+                      })}
+                    </div>
+                  </div>
                 </div>
 
                 {/* Ticket Footer / Summary */}
@@ -616,7 +942,7 @@ function KitchenView({ onReturnToKiosk }) {
                       <button
                         type="button"
                         onClick={() => handleUpdateStatus(order.orderId || order.id, 'Preparing')}
-                        className="ticket-btn btn-start-cooking"
+                        className="ticket-btn btn-start-prep"
                         style={{
                           width: '100%',
                           background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
@@ -640,17 +966,17 @@ function KitchenView({ onReturnToKiosk }) {
                         </button>
                         <button
                           type="button"
-                          onClick={() => handleUpdateStatus(order.orderId || order.id, 'Cooking')}
-                          className="ticket-btn btn-start-cooking"
+                          onClick={() => handleUpdateStatus(order.orderId || order.id, 'Ready for Pickup')}
+                          className="ticket-btn btn-mark-ready"
                           style={{ flex: 1 }}
                         >
-                          <Flame size={15} />
-                          <span>Start Cooking 🍳</span>
+                          <BellRing size={15} />
+                          <span>Ready for Pickup 🔔</span>
                         </button>
                       </div>
                     )}
 
-                    {normStatus === 'Cooking' && (
+                    {normStatus === 'Ready for Pickup' && (
                       <div style={{ display: 'flex', gap: '8px', width: '100%' }}>
                         <button
                           type="button"
@@ -660,20 +986,6 @@ function KitchenView({ onReturnToKiosk }) {
                         >
                           ↩
                         </button>
-                        <button
-                          type="button"
-                          onClick={() => handleUpdateStatus(order.orderId || order.id, 'Ready for Pickup')}
-                          className="ticket-btn btn-mark-ready"
-                          style={{ flex: 1 }}
-                        >
-                          <BellRing size={15} />
-                          <span>Mark Ready 🔔</span>
-                        </button>
-                      </div>
-                    )}
-
-                    {normStatus === 'Ready for Pickup' && (
-                      <div style={{ display: 'flex', gap: '8px', width: '100%' }}>
                         <button
                           type="button"
                           onClick={() => handleBuzzGadget(order.orderId || order.id)}

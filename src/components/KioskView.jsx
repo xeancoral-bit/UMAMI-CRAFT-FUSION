@@ -19,15 +19,29 @@ import {
   Sparkles,
   Tag,
   Utensils,
-  CheckCircle2
+  CheckCircle2,
+  Wifi,
+  Radio,
+  RefreshCw,
+  Signal
 } from 'lucide-react';
 
 function generateKioskId() {
   return Math.random().toString(36).substring(2, 8).toUpperCase();
 }
 
-function KioskView({ onOpenKitchen }) {
-  const [kioskId, setKioskId] = useState(generateKioskId());
+function KioskView({ onOpenKitchen, initialKioskId }) {
+  const [kioskId, setKioskId] = useState(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const paramId = urlParams.get('kioskId');
+    return initialKioskId || paramId || generateKioskId();
+  });
+
+  useEffect(() => {
+    if (initialKioskId) {
+      setKioskId(initialKioskId);
+    }
+  }, [initialKioskId]);
   const [state, setState] = useState('standby'); // 'standby' | 'connected' | 'success'
   const [allergens, setAllergens] = useState([]);
   const [preferences, setPreferences] = useState([]);
@@ -43,6 +57,16 @@ function KioskView({ onOpenKitchen }) {
   const [drinksMenu, setDrinksMenu] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [lanIp, setLanIp] = useState(null);
+  const [wifiInfo, setWifiInfo] = useState({
+    ssid: '',
+    wifiConnected: false,
+    signal: '',
+    interfaceName: '',
+    band: '',
+    isDynamic: true
+  });
+  const [networkSyncNotice, setNetworkSyncNotice] = useState(null);
+  const [isRefreshingNetwork, setIsRefreshingNetwork] = useState(false);
   const [customHost, setCustomHost] = useState('');
   const [showIpConfig, setShowIpConfig] = useState(false);
   const [restaurantInfo, setRestaurantInfo] = useState({
@@ -57,6 +81,12 @@ function KioskView({ onOpenKitchen }) {
   // Active Promotions for Kiosk Terminal Display
   const [promos, setPromos] = useState([]);
   const [activePromoIndex, setActivePromoIndex] = useState(0);
+  const [kioskPromoClock, setKioskPromoClock] = useState(Date.now());
+
+  useEffect(() => {
+    const timer = setInterval(() => setKioskPromoClock(Date.now()), 1500);
+    return () => clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     fetch('/api/promos')
@@ -68,8 +98,13 @@ function KioskView({ onOpenKitchen }) {
   }, []);
 
   const activePromos = useMemo(() => {
-    return (promos || []).filter(p => p.status === 'active' && (p.bannerImage || p.imageUrl || p.image));
-  }, [promos]);
+    const now = kioskPromoClock;
+    return (promos || []).filter(p => {
+      if (p.status !== 'active') return false;
+      if (p.expiresAt && new Date(p.expiresAt).getTime() <= now) return false;
+      return !!(p.bannerImage || p.imageUrl || p.image);
+    });
+  }, [promos, kioskPromoClock]);
 
   // 5-second smooth promo cycling timer
   useEffect(() => {
@@ -118,13 +153,23 @@ function KioskView({ onOpenKitchen }) {
       });
   }, []);
 
-  // Fetch host LAN IP for dynamic Wi-Fi QR code generation
-  useEffect(() => {
-    fetch('/api/network-info')
+  // Fetch dynamic Wi-Fi & LAN IP with optional forced re-detection
+  const fetchNetworkInfo = (forceRefresh = false) => {
+    fetch(`/api/network-info${forceRefresh ? '?refresh=true' : ''}`)
       .then(res => res.json())
       .then(data => {
         if (data && data.ip && data.ip !== 'localhost') {
           setLanIp(data.ip);
+        }
+        if (data) {
+          setWifiInfo({
+            ssid: data.ssid || '',
+            wifiConnected: !!data.wifiConnected,
+            signal: data.signal || '',
+            interfaceName: data.interfaceName || '',
+            band: data.band || '',
+            isDynamic: true
+          });
         }
         if (data && data.restaurant) {
           setRestaurantInfo(prev => ({
@@ -136,7 +181,22 @@ function KioskView({ onOpenKitchen }) {
           }));
         }
       })
-      .catch(err => console.error("Error fetching network info:", err));
+      .catch(err => console.error('[Kiosk] Error fetching network info:', err));
+  };
+
+  const handleForceRedetect = () => {
+    setIsRefreshingNetwork(true);
+    if (socketRef.current) {
+      socketRef.current.emit('request-network-refresh');
+    }
+    fetchNetworkInfo(true);
+    setTimeout(() => setIsRefreshingNetwork(false), 900);
+  };
+
+  useEffect(() => {
+    fetchNetworkInfo(); // Initial fetch on mount
+    const ipRefreshInterval = setInterval(() => fetchNetworkInfo(false), 15000); // Polling backup every 15 s
+    return () => clearInterval(ipRefreshInterval);
   }, []);
 
   // Initialize Socket.io Connection
@@ -150,6 +210,41 @@ function KioskView({ onOpenKitchen }) {
       socket.emit('join-session', { kioskId, role: 'kiosk' });
     });
 
+    // Auto-update LAN IP, Wi-Fi network, and QR code whenever the network changes in real time
+    socket.on('network-ip-changed', (data) => {
+      if (data && data.ip && data.ip !== 'localhost') {
+        console.log('[Kiosk] Dynamic Wi-Fi updated via socket:', data.ip, data.ssid);
+        setLanIp(data.ip);
+      }
+      if (data) {
+        setWifiInfo({
+          ssid: data.ssid || '',
+          wifiConnected: !!data.wifiConnected,
+          signal: data.signal || '',
+          interfaceName: data.interfaceName || '',
+          band: data.band || '',
+          isDynamic: true
+        });
+
+        // Flash live sync notice toast so operators visually see dynamic network lock update
+        if (data.ip && data.ip !== 'localhost') {
+          setNetworkSyncNotice({
+            ip: data.ip,
+            ssid: data.ssid || 'Wi-Fi Network',
+            signal: data.signal || '',
+            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+          });
+          setTimeout(() => setNetworkSyncNotice(null), 4500);
+        }
+
+        setRestaurantInfo(prev => ({
+          ...prev,
+          backendPort: data.backendPort || prev.backendPort,
+          frontendPort: data.port || prev.frontendPort,
+          mobileFrontendPort: data.mobileFrontendPort || prev.mobileFrontendPort
+        }));
+      }
+    });
     socket.on('disconnect', () => {
       setSocketConnected(false);
       console.log("[Kiosk] Disconnected from socket server");
@@ -270,8 +365,10 @@ function KioskView({ onOpenKitchen }) {
     setState('standby');
   };
 
-  // Generate mobile scanner URL pointing to auto-detected LAN IP and specific restaurant socket port
-  const targetHost = customHost || lanIp || window.location.hostname || 'localhost';
+  // Generate mobile scanner URL pointing to network-independent public tunnel or auto-detected dynamic LAN IP
+  const isLoopback = !window.location.hostname || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+  // Use customHost, or active network host IP if accessing externally, or dynamically detected LAN IP
+  const targetHost = customHost || (!isLoopback ? window.location.hostname : (lanIp || 'localhost'));
   const currentFrontendPort = restaurantInfo.frontendPort || window.location.port || '3000';
   const mobileTargetPort = restaurantInfo.mobileFrontendPort || currentFrontendPort;
   const currentBackendPort = restaurantInfo.backendPort || (currentFrontendPort === '3010' ? 3002 : (currentFrontendPort === '3020' ? 3003 : 3001));
@@ -279,9 +376,9 @@ function KioskView({ onOpenKitchen }) {
   let clientUrl = '';
   if (customHost && (customHost.startsWith('http://') || customHost.startsWith('https://'))) {
     const cleanHost = customHost.replace(/\/$/, '');
-    clientUrl = `${cleanHost}/?kioskId=${kioskId}&kioskPort=${currentBackendPort}&restaurant=${restaurantInfo.id || 'umami'}`;
+    clientUrl = `${cleanHost}/?view=mobile&kioskId=${kioskId}&kioskPort=${currentBackendPort}&restaurant=${restaurantInfo.id || 'umami'}`;
   } else {
-    clientUrl = `http://${targetHost}:${mobileTargetPort}/?kioskId=${kioskId}&kioskPort=${currentBackendPort}&restaurant=${restaurantInfo.id || 'umami'}`;
+    clientUrl = `http://${targetHost}:${mobileTargetPort}/?view=mobile&kioskId=${kioskId}&kioskPort=${currentBackendPort}&restaurant=${restaurantInfo.id || 'umami'}`;
   }
 
   // Formatting & Combining Menu Items and Drinks
@@ -306,7 +403,7 @@ function KioskView({ onOpenKitchen }) {
         name: d.name,
         category: d.category || 'Drinks & Boba',
         price: price,
-        image: d.image || 'https://images.unsplash.com/photo-1558857563-b37cf5a0f12c?auto=format&fit=crop&w=600&q=80',
+        image: d.image || 'https://images.unsplash.com/photo-1536256263959-770b48d82b0a?auto=format&fit=crop&w=600&q=80',
         description: d.description || `${d.name} crafted fresh with artisanal ingredients.`,
         allergens: itemAllergens,
         tags: tags,
@@ -396,12 +493,28 @@ function KioskView({ onOpenKitchen }) {
         </div>
         
         <div className="kiosk-header-actions">
+          {/* Dynamic Wi-Fi Status Pill */}
+          <div 
+            className="kiosk-pill-btn kiosk-pill-wifi"
+            onClick={() => setShowIpConfig(prev => !prev)}
+            title="Dynamic Wi-Fi & Real-Time Sync Status (Click to inspect)"
+            style={{ cursor: 'pointer' }}
+          >
+            <div className={`pulse-indicator ${wifiInfo.wifiConnected || lanIp ? 'active' : 'warning'}`}></div>
+            <Wifi size={13} color={wifiInfo.wifiConnected || lanIp ? '#059669' : '#D97706'} />
+            <span className="kiosk-pill-label">
+              {wifiInfo.ssid ? `Wi-Fi: ${wifiInfo.ssid}` : (lanIp ? `IP: ${lanIp}` : 'Detecting Wi-Fi…')}
+            </span>
+          </div>
 
-
-          <div className="kiosk-pill-btn kiosk-pill-port">
+          {/* Real-Time Sync Status Pill */}
+          <div 
+            className="kiosk-pill-btn kiosk-pill-sync"
+            title="Real-Time Socket & Network Synchronization Status"
+          >
             <div className={`pulse-indicator ${socketConnected ? 'active' : 'disconnected'}`}></div>
             <span className="kiosk-pill-label">
-              {socketConnected ? `Port : ${currentBackendPort}` : 'Connecting Server...'}
+              Real-Time Sync: {socketConnected ? 'Active' : 'Offline'}
             </span>
           </div>
           
@@ -422,6 +535,22 @@ function KioskView({ onOpenKitchen }) {
           </button>
         </div>
       </header>
+
+      {/* Dynamic Network Synchronization Notification Toast */}
+      {networkSyncNotice && (
+        <div className="dynamic-network-sync-toast slide-down">
+          <div className="sync-toast-icon">
+            <Wifi size={14} color="#ffffff" />
+          </div>
+          <div className="sync-toast-content">
+            <span className="sync-toast-title">Dynamic Wi-Fi Synchronized</span>
+            <span className="sync-toast-details">
+              SSID: <strong>{networkSyncNotice.ssid || 'Wi-Fi Network'}</strong> • IP: <strong>{networkSyncNotice.ip}</strong>
+            </span>
+          </div>
+          <span className="sync-toast-time">{networkSyncNotice.time}</span>
+        </div>
+      )}
 
       {/* Main Content Area */}
       <main style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
@@ -621,7 +750,7 @@ function KioskView({ onOpenKitchen }) {
               </div>
             </div>
 
-            {/* Center Column: Polished QR Code Card */}
+            {/* Center Column: Polished QR Code Card with Dynamic Wi-Fi & Live Sync */}
             <div style={{ display: 'flex', justifyContent: 'center' }}>
               <div className="kiosk-qr-card">
                 <div className="qr-top-pill">
@@ -673,28 +802,77 @@ function KioskView({ onOpenKitchen }) {
                     width: '100%',
                     textAlign: 'left'
                   }}>
-                    <label style={{ fontSize: '10px', fontWeight: '700', color: 'var(--text-secondary)', textTransform: 'uppercase', display: 'block', marginBottom: '6px' }}>
-                      Custom IP / Host:
+                    {/* Live Dynamic Status Grid */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <div style={{
+                          width: '7px', height: '7px', borderRadius: '50%',
+                          background: lanIp ? '#10b981' : '#f59e0b',
+                          flexShrink: 0
+                        }} />
+                        <span style={{ fontSize: '10px', fontWeight: '800', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
+                          Dynamic Wi-Fi System
+                        </span>
+                      </div>
+                      <button
+                        onClick={handleForceRedetect}
+                        disabled={isRefreshingNetwork}
+                        style={{
+                          background: 'rgba(5, 150, 105, 0.1)',
+                          border: '1px solid rgba(5, 150, 105, 0.25)',
+                          color: '#059669',
+                          borderRadius: '6px',
+                          padding: '3px 7px',
+                          fontSize: '10px',
+                          fontWeight: '700',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px'
+                        }}
+                      >
+                        <RefreshCw size={10} className={isRefreshingNetwork ? 'spin' : ''} />
+                        <span>{isRefreshingNetwork ? 'Scanning…' : 'Re-detect'}</span>
+                      </button>
+                    </div>
+
+                    <div style={{ fontSize: '11px', display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '10px', color: '#443831' }}>
+                      <div>SSID: <strong style={{ color: '#1C1917' }}>{wifiInfo.ssid || 'Auto-Sync / Local LAN'}</strong> {wifiInfo.signal && <span style={{ color: '#059669' }}>({wifiInfo.signal})</span>}</div>
+                      <div>Active IP: <strong style={{ color: '#059669', fontFamily: 'monospace' }}>{lanIp || 'Detecting…'}</strong></div>
+                      <div>Adapter: <span style={{ color: '#786456' }}>{wifiInfo.interfaceName || 'Wi-Fi'}</span></div>
+                      <div>Mode: <span style={{ color: '#059669', fontWeight: 600 }}>Dynamic Real-Time Lock</span></div>
+                    </div>
+
+                    <label style={{ fontSize: '10px', fontWeight: '700', color: 'var(--text-secondary)', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>
+                      Override IP / Host (Emergency debug):
                     </label>
                     <input
                       type="text"
                       value={customHost}
-                      placeholder={lanIp || '192.168.1.14'}
+                      placeholder={lanIp ? `Leave blank for auto dynamic: ${lanIp}` : '192.168.x.x'}
                       onChange={(e) => setCustomHost(e.target.value)}
                       style={{
                         width: '100%',
-                        padding: '7px 10px',
+                        padding: '6px 10px',
                         borderRadius: '8px',
                         border: '1px solid var(--border-glass)',
-                        fontSize: '12px',
+                        fontSize: '11px',
                         marginBottom: '6px',
                         fontFamily: 'var(--font-sans)',
                         background: '#ffffff',
                         color: 'var(--text-primary)'
                       }}
                     />
-                    <p style={{ fontSize: '10px', color: 'var(--text-muted)', lineHeight: '1.3' }}>
-                      💡 Set Wi-Fi to <strong>Private Network</strong> in Windows if phone cannot connect.
+                    {customHost && (
+                      <button
+                        onClick={() => setCustomHost('')}
+                        style={{ fontSize: '10px', color: '#C24522', background: 'none', border: 'none', cursor: 'pointer', fontWeight: '700', padding: '0 0 4px 0' }}
+                      >
+                        ✕ Clear override — return to Dynamic Wi-Fi
+                      </button>
+                    )}
+                    <p style={{ fontSize: '10px', color: 'var(--text-muted)', lineHeight: '1.3', margin: 0 }}>
+                      ⚡ Network Lock auto-detects Wi-Fi router changes. Customers connect to <strong>{wifiInfo.ssid || 'the local Wi-Fi network'}</strong> to scan and order.
                     </p>
                   </div>
                 )}
@@ -858,7 +1036,7 @@ function KioskView({ onOpenKitchen }) {
                         onError={(e) => {
                           e.target.onerror = null;
                           e.target.src = item.isDrink 
-                            ? 'https://images.unsplash.com/photo-1558857563-b37cf5a0f12c?auto=format&fit=crop&w=600&q=80'
+                            ? 'https://images.unsplash.com/photo-1536256263959-770b48d82b0a?auto=format&fit=crop&w=600&q=80'
                             : 'https://images.unsplash.com/photo-1546069901-ba9599a7e63?auto=format&fit=crop&w=600&q=80';
                         }}
                         style={{

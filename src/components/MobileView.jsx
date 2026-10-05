@@ -110,7 +110,7 @@ const DEFAULT_DRINKS = [
     allergens: ['dairy'],
     tags: ['sweet', 'drinks'],
     emoji: '🧋',
-    image: 'https://images.unsplash.com/photo-1558857563-b37cf53f7c19?auto=format&fit=crop&w=600&q=80'
+    image: 'https://images.unsplash.com/photo-1536256263959-770b48d82b0a?auto=format&fit=crop&w=600&q=80'
   },
   {
     id: 'DRK-002',
@@ -331,9 +331,79 @@ function MobileView({ kioskId, onResetSession }) {
   const [activePromoIndex, setActivePromoIndex] = useState(0);
   const [isPromoPaused, setIsPromoPaused] = useState(false);
   const [promoToast, setPromoToast] = useState(null);
+  const [expiredPromoUrlAlert, setExpiredPromoUrlAlert] = useState(null);
+  const [promoClock, setPromoClock] = useState(Date.now());
 
+  // Real-time clock tick every 1.5 seconds so reaching expiration immediately hides the banner
+  useEffect(() => {
+    const timer = setInterval(() => setPromoClock(Date.now()), 1500);
+    return () => clearInterval(timer);
+  }, []);
+
+  // Filter only strictly ACTIVE and NON-EXPIRED promotions for customer banner displays
   const activePromos = useMemo(() => {
-    return (promos || []).filter(p => p.status === 'active' && (p.bannerImage || p.imageUrl || p.image));
+    const now = promoClock;
+    return (promos || []).filter(p => {
+      if (p.status !== 'active') return false;
+      if (p.expiresAt && new Date(p.expiresAt).getTime() <= now) return false;
+      return !!(p.bannerImage || p.imageUrl || p.image);
+    });
+  }, [promos, promoClock]);
+
+  // Synchronously auto-eject any applied promo code if it becomes expired in real time
+  useEffect(() => {
+    if (!promoApplied) return;
+    const now = promoClock;
+    const matched = promos.find(p => p.code?.toUpperCase() === promoApplied.code?.toUpperCase());
+    const isNowExpired = !matched || matched.status === 'expired' || (matched.expiresAt && new Date(matched.expiresAt).getTime() <= now);
+    if (isNowExpired) {
+      setPromoApplied(null);
+      setPromoCode('');
+      setPromoMsg({
+        text: `⚠️ Promo "${promoApplied.name}" [${promoApplied.code}] has expired and was removed.`,
+        ok: false
+      });
+      setExpiredPromoUrlAlert({
+        code: promoApplied.code,
+        message: `Promotion code "${promoApplied.code}" reached its expiration date and is no longer valid.`
+      });
+    }
+  }, [promos, promoApplied, promoClock]);
+
+  // Handle URL promo link or scanned QR code on mount / navigation
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const targetCode = params.get('promo') || params.get('code');
+    if (!targetCode) return;
+
+    const clean = targetCode.trim().toUpperCase();
+    const validateUrlCode = async () => {
+      try {
+        const res = await fetch(`/api/promos/validate/${encodeURIComponent(clean)}`);
+        const data = await res.json();
+        if (!res.ok || !data.valid || data.status === 'expired' || data.isRetired) {
+          setExpiredPromoUrlAlert({
+            code: clean,
+            message: data.error || `Scanned promotional link with code "${clean}" has expired and is no longer valid.`
+          });
+          setPromoApplied(null);
+        } else if (data.promo && data.promo.status === 'active') {
+          setPromoCode(data.promo.code);
+          setPromoToast(`Scanned promo code "${data.promo.code}" applied!`);
+          setTimeout(() => setPromoToast(null), 3500);
+        }
+      } catch (err) {
+        const localMatch = promos.find(p => p.code?.toUpperCase() === clean || p.originalCode?.toUpperCase() === clean);
+        if (localMatch && (localMatch.status === 'expired' || (localMatch.expiresAt && new Date(localMatch.expiresAt).getTime() <= Date.now()))) {
+          setExpiredPromoUrlAlert({
+            code: clean,
+            message: `Promotion code "${clean}" has expired and is no longer valid.`
+          });
+        }
+      }
+    };
+
+    validateUrlCode();
   }, [promos]);
 
   // Automatically advance to the next active promotion every 5 seconds
@@ -460,13 +530,47 @@ function MobileView({ kioskId, onResetSession }) {
   const [restaurantMeta, setRestaurantMeta] = useState(null);
   const [captiveParams, setCaptiveParams] = useState(null);
 
+  // Setup effective kiosk identification early so hooks can safely reference it
+  const effectiveKioskId = kioskId || (activeOrder ? activeOrder.kioskId : 'COUNTER_01');
 
   // Extract kioskPort parameter from URL to target the correct restaurant instance
   const urlParams = new URLSearchParams(window.location.search);
   const kioskPort = urlParams.get('kioskPort');
-  const backendTargetUrl = (kioskPort && kioskPort !== window.location.port)
-    ? `http://${window.location.hostname}:${kioskPort}`
-    : '';
+  // Always use Vite proxy ('') when running on port 3000 or matching port to prevent external firewall blocks
+  const isViteProxyAvailable = window.location.port === '3000' || !kioskPort || kioskPort === window.location.port;
+  const backendTargetUrl = isViteProxyAvailable ? '' : `http://${window.location.hostname}:${kioskPort}`;
+
+  // Live mirroring of connected customer phone battery
+  const [deviceBattery, setDeviceBattery] = useState(() => {
+    try {
+      const saved = localStorage.getItem('synapse_device_battery');
+      if (saved) return parseInt(saved, 10);
+    } catch (_) {}
+    return 88;
+  });
+  const [isCharging, setIsCharging] = useState(() => {
+    try {
+      return localStorage.getItem('synapse_device_charging') === 'true';
+    } catch (_) {}
+    return false;
+  });
+
+  // Battery change callback
+  const handleBatteryChange = useCallback(({ level, charging }) => {
+    setDeviceBattery(level);
+    setIsCharging(charging);
+    try {
+      localStorage.setItem('synapse_device_battery', String(level));
+      localStorage.setItem('synapse_device_charging', String(charging));
+    } catch (_) {}
+    if (socketRef.current && effectiveKioskId) {
+      socketRef.current.emit('device-battery-update', {
+        kioskId: effectiveKioskId,
+        batteryLevel: level,
+        isCharging: charging
+      });
+    }
+  }, [effectiveKioskId]);
 
   // Request notification + vibration permission proactively
   const requestAlertPermissions = useCallback(async () => {
@@ -717,15 +821,13 @@ function MobileView({ kioskId, onResetSession }) {
   }, [kioskId, activeOrder]);
 
   // Setup WebSocket connection targeting the specific restaurant port
-  const effectiveKioskId = kioskId || (activeOrder ? activeOrder.kioskId : 'COUNTER_01');
-
   useEffect(() => {
     const socket = io(backendTargetUrl || undefined, {
       transports: ['websocket', 'polling']
     });
     socketRef.current = socket;
 
-    socket.on('connect', () => {
+      socket.on('connect', () => {
       setSocketConnected(true);
       console.log(`[Mobile] Connected to server (${backendTargetUrl || 'local proxy'}), joining session:`, effectiveKioskId);
       socket.emit('join-session', { kioskId: effectiveKioskId, role: 'mobile' });
@@ -733,6 +835,25 @@ function MobileView({ kioskId, onResetSession }) {
       // Push current preferences if onboarded
       if (isOnboarded && effectiveKioskId) {
         socket.emit('project-preferences', { kioskId: effectiveKioskId, allergens, preferences });
+      }
+
+      // Sync current battery level to kiosk room
+      if (deviceBattery) {
+        socket.emit('device-battery-update', {
+          kioskId: effectiveKioskId,
+          batteryLevel: deviceBattery,
+          isCharging
+        });
+      }
+    });
+
+    socket.on('device-battery-synced', (data) => {
+      if (data && typeof data.batteryLevel === 'number') {
+        console.log('[Mobile] Received synced battery from room:', data);
+        setDeviceBattery(data.batteryLevel);
+        if (data.isCharging !== undefined) {
+          setIsCharging(Boolean(data.isCharging));
+        }
       }
     });
 
@@ -840,7 +961,51 @@ function MobileView({ kioskId, onResetSession }) {
       socketRef.current = null;
       setSocketConnected(false);
     };
-  }, [effectiveKioskId, isOnboarded, backendTargetUrl, triggerReadyAlert]);
+  }, [effectiveKioskId, isOnboarded, backendTargetUrl, triggerReadyAlert, deviceBattery, isCharging]);
+
+  // Auto-detect phone hardware battery via Web Battery API where supported (e.g. Android Chrome)
+  useEffect(() => {
+    let batObj = null;
+    let handleLevel = null;
+    let handleCharging = null;
+
+    if (typeof navigator !== 'undefined' && 'getBattery' in navigator) {
+      navigator.getBattery().then(bat => {
+        batObj = bat;
+        const update = () => {
+          const lvl = Math.round(bat.level * 100);
+          const chg = Boolean(bat.charging);
+          setDeviceBattery(lvl);
+          setIsCharging(chg);
+          try {
+            localStorage.setItem('synapse_device_battery', String(lvl));
+            localStorage.setItem('synapse_device_charging', String(chg));
+          } catch (_) {}
+          if (socketRef.current && effectiveKioskId) {
+            socketRef.current.emit('device-battery-update', {
+              kioskId: effectiveKioskId,
+              batteryLevel: lvl,
+              isCharging: chg
+            });
+          }
+        };
+        update();
+        handleLevel = update;
+        handleCharging = update;
+        bat.addEventListener('levelchange', handleLevel);
+        bat.addEventListener('chargingchange', handleCharging);
+      }).catch(err => {
+        console.warn('[Mobile] Battery API unavailable/denied:', err);
+      });
+    }
+
+    return () => {
+      if (batObj) {
+        if (handleLevel) batObj.removeEventListener('levelchange', handleLevel);
+        if (handleCharging) batObj.removeEventListener('chargingchange', handleCharging);
+      }
+    };
+  }, [effectiveKioskId]);
 
   // Listen for local buzzer alerts and storage events across tabs
   useEffect(() => {
@@ -989,7 +1154,7 @@ function MobileView({ kioskId, onResetSession }) {
           drinkCategory: d.category || 'Beverage',
           catalogType: 'drink',
           emoji: d.emoji || '🧋',
-          image: d.image || 'https://images.unsplash.com/photo-1558857563-b37cf53f7c19?auto=format&fit=crop&w=600&q=80'
+          image: d.image || 'https://images.unsplash.com/photo-1536256263959-770b48d82b0a?auto=format&fit=crop&w=600&q=80'
         };
       });
 
@@ -1258,19 +1423,41 @@ function MobileView({ kioskId, onResetSession }) {
       Notification.requestPermission().catch(() => {});
     }
 
+    const detectClientDevice = () => {
+      const w = window.innerWidth;
+      const ua = navigator.userAgent || '';
+      if (/iPad|Tablet/i.test(ua) || (w >= 768 && w < 1024)) return 'Tablet';
+      if (/Mobi|Android|iPhone/i.test(ua) || w < 768) return 'Mobile';
+      return 'Desktop';
+    };
+    const currentDeviceType = detectClientDevice();
+
     const orderId = `ORD-${Math.floor(1000 + Math.random() * 9000)}`;
+    const scannedTableParam = urlParams.get('tableId') || urlParams.get('table') || 'T-01';
+    const effectiveTableNum = scannedTableParam.startsWith('T-')
+      ? `Table ${scannedTableParam.replace('T-', '').replace(/^0+/, '')}`
+      : scannedTableParam;
+
     const newActiveOrder = {
       orderId,
       kioskId: kioskId || 'MOBILE_01',
+      tableNumber: effectiveTableNum,
+      tableId: scannedTableParam,
+      location: effectiveTableNum,
+      customer: 'Mobile Diner',
+      diningOption: 'Dine-In',
       items: cartItems,
       itemCount: getCartCount(),
       totalPrice,
+      total: totalPrice,
       discountAmount: discountAmount || 0,
       promoCode: promoApplied ? promoApplied.code : null,
       orderedTags: allOrderedTags,
       allergens,
       status: 'Order Received',
       gadgetType: 'Customer Device',
+      device: currentDeviceType,
+      platform: currentDeviceType,
       createdAt: new Date().toISOString()
     };
 
@@ -1292,8 +1479,12 @@ function MobileView({ kioskId, onResetSession }) {
         kioskId: kioskId || 'MOBILE_01',
         customer: 'Mobile Diner',
         diningOption: 'Dine-In',
-        tableNumber: 'Table 4',
+        tableNumber: effectiveTableNum,
+        tableId: scannedTableParam,
+        location: effectiveTableNum,
         payment: 'GCash',
+        device: currentDeviceType,
+        platform: currentDeviceType,
         items: cartItems,
         itemCount: getCartCount(),
         totalPrice,
@@ -1349,9 +1540,55 @@ function MobileView({ kioskId, onResetSession }) {
 
   // 5-Second Cycling Customer-Facing Promotional Banner Carousel Component
   const renderPromoBannerCarousel = () => {
-    if (!activePromos || activePromos.length === 0) return null;
+    const expiredAlertElement = expiredPromoUrlAlert ? (
+      <div
+        id="expired-link-alert-banner"
+        style={{
+          background: '#fef2f2',
+          border: '1.5px solid #fecaca',
+          borderRadius: '14px',
+          padding: '12px 14px',
+          marginBottom: '12px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '10px',
+          boxShadow: '0 2px 8px rgba(220, 38, 38, 0.08)'
+        }}
+      >
+        <div style={{
+          width: '32px',
+          height: '32px',
+          borderRadius: '8px',
+          background: '#fee2e2',
+          color: '#dc2626',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          flexShrink: 0
+        }}>
+          <XCircle size={18} />
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: '12.5px', fontWeight: 800, color: '#991b1b' }}>
+            Promotion Code Expired
+          </div>
+          <div style={{ fontSize: '11px', color: '#b91c1c', marginTop: '2px', lineHeight: 1.3 }}>
+            {expiredPromoUrlAlert.message || `Code "${expiredPromoUrlAlert.code}" is no longer valid.`}
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={() => setExpiredPromoUrlAlert(null)}
+          style={{ background: 'none', border: 'none', color: '#991b1b', cursor: 'pointer', padding: '4px' }}
+        >
+          <X size={16} />
+        </button>
+      </div>
+    ) : null;
+
+    if (!activePromos || activePromos.length === 0) return expiredAlertElement;
     const currentPromo = activePromos[activePromoIndex % activePromos.length];
-    if (!currentPromo) return null;
+    if (!currentPromo) return expiredAlertElement;
 
     const discountBadge = currentPromo.discountType === 'percent'
       ? `${currentPromo.discountValue}% OFF`
@@ -1360,8 +1597,10 @@ function MobileView({ kioskId, onResetSession }) {
     const bannerImgSrc = currentPromo.bannerImage || currentPromo.imageUrl || currentPromo.image || '/ramen_promo_banner.png';
 
     return (
-      <div
-        className="customer-promo-carousel"
+      <div style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
+        {expiredAlertElement}
+        <div
+          className="customer-promo-carousel"
         onMouseEnter={() => setIsPromoPaused(true)}
         onMouseLeave={() => setIsPromoPaused(false)}
         onTouchStart={() => setIsPromoPaused(true)}
@@ -1638,6 +1877,7 @@ function MobileView({ kioskId, onResetSession }) {
             })}
           </div>
         )}
+        </div>
       </div>
     );
   };
@@ -1824,7 +2064,7 @@ function MobileView({ kioskId, onResetSession }) {
                 width:
                   (activeOrder.status === 'Out for Delivery' || activeOrder.status === 'Delivered' || activeOrder.status === 'Completed') ? 'calc(100% - 60px)' :
                   (activeOrder.status === 'Order Ready' || activeOrder.status === 'Ready for Pickup' || activeOrder.status === 'Ready') ? 'calc(66% - 20px)' :
-                  (activeOrder.status === 'Cooking' || activeOrder.status === 'Preparing') ? 'calc(33% - 20px)' : '0%'
+                  (activeOrder.status === 'Preparing') ? 'calc(33% - 20px)' : '0%'
               }}></div>
 
               {/* Step 1: Order Placed */}
@@ -1833,9 +2073,9 @@ function MobileView({ kioskId, onResetSession }) {
                 <span className="fp-step-label">Order Placed</span>
               </div>
 
-              {/* Step 2: Cooking / Preparing */}
-              <div className={`fp-step-item ${(activeOrder.status === 'Cooking' || activeOrder.status === 'Preparing') ? 'active' : (activeOrder.status === 'Order Ready' || activeOrder.status === 'Ready for Pickup' || activeOrder.status === 'Ready' || activeOrder.status === 'Out for Delivery' || activeOrder.status === 'Completed' ? 'completed' : '')}`}>
-                <div className="fp-step-circle">🍳</div>
+              {/* Step 2: Preparing */}
+              <div className={`fp-step-item ${(activeOrder.status === 'Preparing') ? 'active' : (activeOrder.status === 'Order Ready' || activeOrder.status === 'Ready for Pickup' || activeOrder.status === 'Ready' || activeOrder.status === 'Out for Delivery' || activeOrder.status === 'Completed' ? 'completed' : '')}`}>
+                <div className="fp-step-circle">👨‍🍳</div>
                 <span className="fp-step-label">Preparing</span>
               </div>
 
@@ -1866,13 +2106,13 @@ function MobileView({ kioskId, onResetSession }) {
                 </div>
               )}
 
-              {(activeOrder.status === 'Cooking' || activeOrder.status === 'Preparing') && (
+              {(activeOrder.status === 'Preparing') && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <span style={{ fontSize: '24px' }}>🍳</span>
+                  <span style={{ fontSize: '24px' }}>👨‍🍳</span>
                   <div>
                     <h5 style={{ fontSize: '14px', fontWeight: '800', color: '#B45309' }}>Chefs Are Preparing Your Meal!</h5>
                     <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>
-                      Your personalized order is sizzling in the kitchen right now. Almost there!
+                      Your personalized order is being prepared in the kitchen right now. Almost there!
                     </p>
                   </div>
                 </div>
@@ -2141,6 +2381,34 @@ function MobileView({ kioskId, onResetSession }) {
                   <span style={{ fontSize: '11px', color: socketConnected ? 'var(--text-secondary)' : 'var(--accent-danger)' }}>
                     {socketConnected ? 'Live' : 'Offline'}
                   </span>
+                </div>
+                {/* Battery percentage sync badge */}
+                <div 
+                  style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: '4px', 
+                    background: 'rgba(0,0,0,0.05)', 
+                    padding: '3px 8px', 
+                    borderRadius: '6px',
+                    fontSize: '11px',
+                    fontWeight: '700',
+                    color: 'var(--text-secondary)',
+                    cursor: 'pointer'
+                  }}
+                  title="Phone Battery • Tap status bar battery to calibrate"
+                  onClick={() => {
+                    const promptVal = window.prompt("Enter customer phone battery percentage (1-100):", String(deviceBattery));
+                    if (promptVal !== null) {
+                      const num = parseInt(promptVal, 10);
+                      if (!isNaN(num) && num >= 1 && num <= 100) {
+                        handleBatteryChange({ level: num, charging: isCharging });
+                      }
+                    }
+                  }}
+                >
+                  <span>{isCharging ? '⚡' : '🔋'}</span>
+                  <span>{deviceBattery}%</span>
                 </div>
               </div>
             </div>
@@ -2858,7 +3126,7 @@ function MobileView({ kioskId, onResetSession }) {
                     <div style={{ display: 'flex', gap: '6px' }}>
                       <input
                         type="text"
-                        placeholder="Enter promo code (e.g. GRAND15)"
+                        placeholder="Enter promo code (e.g. UMAMI20)"
                         value={promoCode}
                         onChange={e => {
                           setPromoCode(e.target.value.toUpperCase().replace(/\s/g, ''));
@@ -2888,9 +3156,27 @@ function MobileView({ kioskId, onResetSession }) {
                               if (!source || source.length === 0) {
                                 source = JSON.parse(localStorage.getItem('umami_promos') || '[]');
                               }
+
+                              // Check if code was permanently retired
+                              const isRetired = source.some(p =>
+                                (Array.isArray(p.retiredCodes) && p.retiredCodes.includes(codeToTry)) ||
+                                (p.originalCode?.toUpperCase() === codeToTry && p.code?.toUpperCase() !== codeToTry)
+                              );
+                              if (isRetired) {
+                                setPromoMsg({ text: `❌ Promotion code "${codeToTry}" has expired and cannot be reused.`, ok: false });
+                                return;
+                              }
+
                               const match = source.find(p => p.code?.toUpperCase() === codeToTry);
                               if (!match) {
                                 setPromoMsg({ text: `❌ Invalid promo code "${codeToTry}". Please check the code.`, ok: false });
+                                return;
+                              }
+
+                              // Check status and expiration date/time
+                              const isExp = match.status === 'expired' || (match.expiresAt && new Date(match.expiresAt).getTime() <= Date.now());
+                              if (isExp) {
+                                setPromoMsg({ text: `❌ Promotion code "${codeToTry}" has reached its expiration date and is no longer valid.`, ok: false });
                                 return;
                               }
 
@@ -3358,6 +3644,9 @@ function MobileView({ kioskId, onResetSession }) {
           showToolbar={!kioskId}
           isBuzzing={isBuzzing}
           title={kioskId ? `Umami Craft Fusion • Kiosk #${kioskId}` : "Umami Craft Fusion Local Dietary Vault"}
+          deviceBattery={deviceBattery}
+          isCharging={isCharging}
+          onBatteryChange={handleBatteryChange}
         >
           {phoneContent}
         </DeviceMockup>

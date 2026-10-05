@@ -7,6 +7,11 @@ import { fileURLToPath } from 'url';
 import fs from 'fs/promises';
 import os from 'os';
 import crypto from 'crypto';
+import dgram from 'dgram';
+import { exec } from 'child_process';
+import { promisify } from 'util';
+
+const execAsync = promisify(exec);
 
 
 const __filename = fileURLToPath(import.meta.url);
@@ -304,8 +309,59 @@ const io = new Server(server, {
   }
 });
 
+// Active phone battery mirroring cache { [kioskId]: { batteryLevel, isCharging, updatedAt } }
+const sessionBatteries = {};
+
 io.on('connection', (socket) => {
   console.log(`[Socket] User connected: ${socket.id}`);
+
+  // Push current dynamic network info immediately so the kiosk QR is correct from the first render
+  const netInfo = getCachedDynamicNetwork();
+  socket.emit('network-ip-changed', {
+    ip: netInfo.ip,
+    ssid: netInfo.ssid,
+    wifiConnected: netInfo.wifiConnected,
+    signal: netInfo.signal,
+    interfaceName: netInfo.interfaceName,
+    band: netInfo.band,
+    isDynamic: true,
+    port: FRONTEND_PORT,
+    backendPort: PORT,
+    mobileFrontendPort: MOBILE_FRONTEND_PORT
+  });
+
+  // Allow kiosk or admin to trigger immediate network re-detection
+  socket.on('request-network-refresh', async () => {
+    console.log(`[Socket] Network refresh requested by client ${socket.id}`);
+    const updated = await refreshDynamicNetwork(true);
+    socket.emit('network-ip-changed', {
+      ip: updated.ip,
+      ssid: updated.ssid,
+      wifiConnected: updated.wifiConnected,
+      signal: updated.signal,
+      interfaceName: updated.interfaceName,
+      band: updated.band,
+      isDynamic: true,
+      port: FRONTEND_PORT,
+      backendPort: PORT,
+      mobileFrontendPort: MOBILE_FRONTEND_PORT
+    });
+  });
+
+  // Relay real customer phone battery percentage to kiosk and mockup displays
+  socket.on('device-battery-update', (data) => {
+    if (!data) return;
+    const { kioskId, batteryLevel, isCharging } = data;
+    if (!kioskId) return;
+    const numericLevel = Math.max(1, Math.min(100, Math.round(Number(batteryLevel) || 85)));
+    sessionBatteries[kioskId] = {
+      batteryLevel: numericLevel,
+      isCharging: Boolean(isCharging),
+      updatedAt: Date.now()
+    };
+    console.log(`[Battery Sync] Kiosk #${kioskId} phone battery updated: ${numericLevel}% (charging: ${Boolean(isCharging)})`);
+    io.to(kioskId).emit('device-battery-synced', sessionBatteries[kioskId]);
+  });
 
   // Send current PIN length so all unlock screens display the exact number of indicator dots
   socket.emit('admin-pin-updated', {
@@ -322,6 +378,10 @@ io.on('connection', (socket) => {
     if (kioskId) {
       socket.join(kioskId);
       socket.kioskId = kioskId;
+      // If a battery level was already calibrated or detected for this kiosk, sync it immediately
+      if (sessionBatteries[kioskId]) {
+        socket.emit('device-battery-synced', sessionBatteries[kioskId]);
+      }
     }
     socket.role = role;
     if (role === 'admin') {
@@ -437,6 +497,8 @@ io.on('connection', (socket) => {
       note: note || (allergens && allergens.length > 0 ? `Exclude: ${allergens.map(a => a.toUpperCase()).join(', ')}` : ''),
       isAllergy: Array.isArray(allergens) && allergens.length > 0,
       busserName: null,
+      device: orderPayload?.device || orderPayload?.platform || (socket.role === 'mobile' ? 'Mobile' : 'Desktop'),
+      platform: orderPayload?.platform || orderPayload?.device || (socket.role === 'mobile' ? 'Mobile' : 'Desktop'),
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       statusHistory: [
@@ -483,7 +545,7 @@ io.on('connection', (socket) => {
       // Normalize status aliases
       let normalizedStatus = status;
       if (status === 'Order Received') normalizedStatus = 'New';
-      if (status === 'Order Ready' || status === 'Ready') normalizedStatus = 'Ready for Pickup';
+      if (status === 'Cooking' || status === 'Order Ready' || status === 'Ready') normalizedStatus = 'Ready for Pickup';
 
       // Determine next status and stripe color
       let nextStatus = 'Completed';
@@ -492,11 +554,8 @@ io.on('connection', (socket) => {
         nextStatus = 'Start Preparing';
         stripeColor = '#2563eb';
       } else if (normalizedStatus === 'Preparing') {
-        nextStatus = 'Move to Cooking';
-        stripeColor = '#b45309';
-      } else if (normalizedStatus === 'Cooking') {
         nextStatus = 'Mark as Ready';
-        stripeColor = '#c2410c';
+        stripeColor = '#b45309';
       } else if (normalizedStatus === 'Ready for Pickup') {
         nextStatus = 'Mark as Completed';
         stripeColor = '#15803d';
@@ -628,35 +687,266 @@ io.on('connection', (socket) => {
   });
 });
 
-// Helper to detect current LAN IPv4 address on active Wi-Fi / Ethernet interface
-function getLocalIpAddress() {
-  const interfaces = os.networkInterfaces();
-  const candidates = [];
+// ══════════════════════════════════════════════════════════════════════════
+// DYNAMIC WI-FI & IP DISCOVERY SYSTEM
+// Automatically detects active Wi-Fi / LAN IP, SSID, connection state,
+// filters out virtual adapters (VirtualBox, VMware, Docker, Hyper-V, WSL),
+// and broadcasts live updates whenever the network changes.
+// ══════════════════════════════════════════════════════════════════════════
 
+let _cachedNetworkInfo = {
+  ip: '127.0.0.1',
+  ssid: '',
+  wifiConnected: false,
+  signal: '',
+  interfaceName: '',
+  band: '',
+  isDynamic: true,
+  lastUpdated: new Date().toISOString()
+};
+
+let _lastNetworkFingerprint = '';
+
+// Check active default route using non-transmitting UDP probe
+function getActiveRouteIp() {
+  return new Promise((resolve) => {
+    try {
+      const probeSocket = dgram.createSocket('udp4');
+      probeSocket.connect(80, '1.1.1.1', () => {
+        const addr = probeSocket.address().address;
+        probeSocket.close();
+        resolve(addr);
+      });
+      probeSocket.on('error', () => resolve(null));
+      setTimeout(() => {
+        try { probeSocket.close(); } catch (_) {}
+        resolve(null);
+      }, 500);
+    } catch (_) {
+      resolve(null);
+    }
+  });
+}
+
+// Windows Wi-Fi interface discovery via netsh wlan
+async function getWindowsWifiInfo() {
+  try {
+    const { stdout } = await execAsync('netsh wlan show interfaces', { timeout: 1500 });
+    if (!stdout) return null;
+    const res = { connected: false, ssid: '', signal: '', mac: '', name: '', band: '' };
+    for (const line of stdout.split('\n')) {
+      const trimmed = line.trim();
+      if (trimmed.startsWith('State')) {
+        res.connected = trimmed.includes('connected') && !trimmed.includes('disconnected');
+      } else if (trimmed.startsWith('SSID') && !trimmed.startsWith('SSID name') && !trimmed.startsWith('BSSID')) {
+        const parts = trimmed.split(':');
+        if (parts.length > 1) res.ssid = parts.slice(1).join(':').trim();
+      } else if (trimmed.startsWith('Signal')) {
+        const parts = trimmed.split(':');
+        if (parts.length > 1) res.signal = parts[1].trim();
+      } else if (trimmed.startsWith('Band')) {
+        const parts = trimmed.split(':');
+        if (parts.length > 1) res.band = parts[1].trim();
+      } else if (trimmed.startsWith('Name')) {
+        const parts = trimmed.split(':');
+        if (parts.length > 1) res.name = parts[1].trim();
+      } else if (trimmed.startsWith('Physical address')) {
+        const parts = trimmed.split(':');
+        if (parts.length > 1) res.mac = parts.slice(1).join(':').trim().toLowerCase().replace(/-/g, ':');
+      }
+    }
+    return res;
+  } catch (_) {
+    return null;
+  }
+}
+
+// Check if IP or MAC is a virtual/internal adapter
+function isVirtualOrInvalid(ip, mac = '', name = '') {
+  if (!ip) return true;
+  if (ip.startsWith('127.') || ip.startsWith('169.254.') || ip === '0.0.0.0') return true;
+  // VirtualBox Host-Only Ethernet adapter default subnet
+  if (ip.startsWith('192.168.56.')) return true;
+  // Common virtual MAC OUI prefixes
+  const lowerMac = (mac || '').toLowerCase();
+  if (lowerMac.startsWith('0a:00:27')) return true; // VirtualBox
+  if (lowerMac.startsWith('00:05:69') || lowerMac.startsWith('00:0c:29') || lowerMac.startsWith('00:50:56')) return true; // VMware
+  if (lowerMac.startsWith('00:15:5d')) return true; // Hyper-V
+  // Virtual adapter name patterns
+  const lowerName = (name || '').toLowerCase();
+  if (/vethernet|virtual|wsl|docker|vmnet|loopback|npcap|tap|tun|tailscale|zerotier/i.test(lowerName)) return true;
+  return false;
+}
+
+// Resolve current dynamic network state across Wi-Fi, Ethernet, and routing tables
+async function detectDynamicNetwork() {
+  const interfaces = os.networkInterfaces();
+  const routeIp = await getActiveRouteIp();
+  let wifiInfo = null;
+
+  if (process.platform === 'win32') {
+    wifiInfo = await getWindowsWifiInfo();
+  }
+
+  // 1. If Wi-Fi is actively connected, find the matching IP
+  if (wifiInfo && wifiInfo.connected) {
+    let wifiIp = null;
+    
+    // Attempt exact match by MAC address
+    if (wifiInfo.mac) {
+      for (const [ifName, ifList] of Object.entries(interfaces)) {
+        if (!ifList) continue;
+        for (const iface of ifList) {
+          if (iface.family === 'IPv4' && !iface.internal) {
+            const ifMac = (iface.mac || '').toLowerCase();
+            if (ifMac === wifiInfo.mac && !isVirtualOrInvalid(iface.address, ifMac, ifName)) {
+              wifiIp = iface.address;
+              wifiInfo.name = ifName;
+              break;
+            }
+          }
+        }
+        if (wifiIp) break;
+      }
+    }
+
+    // Fallback: match by interface name or default route IP
+    if (!wifiIp && wifiInfo.name && interfaces[wifiInfo.name]) {
+      const match = interfaces[wifiInfo.name].find(i => i.family === 'IPv4' && !i.internal && !isVirtualOrInvalid(i.address, i.mac, wifiInfo.name));
+      if (match) wifiIp = match.address;
+    }
+
+    if (!wifiIp && routeIp && !isVirtualOrInvalid(routeIp)) {
+      wifiIp = routeIp;
+    }
+
+    if (wifiIp) {
+      return {
+        ip: wifiIp,
+        ssid: wifiInfo.ssid || 'Wi-Fi Network',
+        wifiConnected: true,
+        signal: wifiInfo.signal || 'Strong',
+        interfaceName: wifiInfo.name || 'Wi-Fi',
+        band: wifiInfo.band || '',
+        isDynamic: true,
+        lastUpdated: new Date().toISOString()
+      };
+    }
+  }
+
+  // 2. Wi-Fi not connected or couldn't resolve Wi-Fi IP: Check active default route IP
+  if (routeIp && !isVirtualOrInvalid(routeIp)) {
+    let matchedName = 'Local Network';
+    for (const [ifName, ifList] of Object.entries(interfaces)) {
+      if (ifList && ifList.some(i => i.address === routeIp)) {
+        matchedName = ifName;
+        break;
+      }
+    }
+    return {
+      ip: routeIp,
+      ssid: wifiInfo?.ssid || '',
+      wifiConnected: !!(wifiInfo && wifiInfo.connected),
+      signal: wifiInfo?.signal || '',
+      interfaceName: matchedName,
+      band: wifiInfo?.band || '',
+      isDynamic: true,
+      lastUpdated: new Date().toISOString()
+    };
+  }
+
+  // 3. Fallback: Scan physical interfaces, prioritizing Wi-Fi then physical Ethernet
+  const candidates = [];
   for (const [name, ifaceList] of Object.entries(interfaces)) {
     if (!ifaceList) continue;
     for (const iface of ifaceList) {
-      if (iface.family === 'IPv4' && !iface.internal && !iface.address.startsWith('127.') && !iface.address.startsWith('169.254.')) {
+      if (iface.family === 'IPv4' && !iface.internal && !isVirtualOrInvalid(iface.address, iface.mac, name)) {
         const lowerName = name.toLowerCase();
-        let priority = 1;
-        if (lowerName.includes('wi-fi') || lowerName.includes('wifi') || lowerName.includes('wireless') || lowerName.includes('wlan')) {
-          priority = 10;
-        } else if (lowerName.includes('ethernet') || lowerName.includes('eth') || lowerName.includes('en0')) {
-          priority = 8;
-        } else if (lowerName.includes('vethernet') || lowerName.includes('virtual') || lowerName.includes('docker') || lowerName.includes('wsl')) {
-          priority = 0;
-        }
-        candidates.push({ address: iface.address, priority });
+        let priority = 5;
+        if (/wi-fi|wifi|wireless|wlan/i.test(lowerName)) priority = 10;
+        else if (/ethernet|eth|en0/i.test(lowerName)) priority = 7;
+        candidates.push({ address: iface.address, name, priority });
       }
     }
   }
 
   if (candidates.length > 0) {
     candidates.sort((a, b) => b.priority - a.priority);
-    return candidates[0].address;
+    return {
+      ip: candidates[0].address,
+      ssid: wifiInfo?.ssid || '',
+      wifiConnected: !!(wifiInfo && wifiInfo.connected),
+      signal: wifiInfo?.signal || '',
+      interfaceName: candidates[0].name,
+      band: wifiInfo?.band || '',
+      isDynamic: true,
+      lastUpdated: new Date().toISOString()
+    };
   }
 
-  return 'localhost';
+  return {
+    ip: 'localhost',
+    ssid: '',
+    wifiConnected: false,
+    signal: '',
+    interfaceName: 'Loopback',
+    band: '',
+    isDynamic: true,
+    lastUpdated: new Date().toISOString()
+  };
+}
+
+// Refresh dynamic network info and broadcast if changed
+async function refreshDynamicNetwork(forceBroadcast = false) {
+  try {
+    const detected = await detectDynamicNetwork();
+    const fingerprint = `${detected.ip}__${detected.ssid}__${detected.wifiConnected}__${detected.signal}`;
+    
+    _cachedNetworkInfo = detected;
+
+    if (fingerprint !== _lastNetworkFingerprint || forceBroadcast) {
+      _lastNetworkFingerprint = fingerprint;
+      console.log(`[Dynamic Wi-Fi] Network state: SSID="${detected.ssid || 'LAN'}", IP=${detected.ip}, Signal=${detected.signal || 'N/A'}`);
+      
+      if (io) {
+        io.emit('network-ip-changed', {
+          ip: detected.ip,
+          ssid: detected.ssid,
+          wifiConnected: detected.wifiConnected,
+          signal: detected.signal,
+          interfaceName: detected.interfaceName,
+          band: detected.band,
+          isDynamic: true,
+          port: FRONTEND_PORT,
+          backendPort: PORT,
+          mobileFrontendPort: MOBILE_FRONTEND_PORT
+        });
+      }
+    }
+    return detected;
+  } catch (err) {
+    console.warn('[Dynamic Wi-Fi] Detection error:', err.message);
+    return _cachedNetworkInfo;
+  }
+}
+
+// Synchronous helper for legacy call sites
+function getLocalIpAddress() {
+  return _cachedNetworkInfo.ip || 'localhost';
+}
+
+function getCachedDynamicNetwork() {
+  return _cachedNetworkInfo;
+}
+
+// High-frequency polling watcher (checks every 2.5 seconds asynchronously)
+function startIpWatcher() {
+  // Initial immediate detection
+  refreshDynamicNetwork(true);
+  
+  setInterval(() => {
+    refreshDynamicNetwork(false);
+  }, 2500);
 }
 
 // Restaurant profile metadata endpoint
@@ -665,8 +955,27 @@ app.get('/api/restaurant', (req, res) => {
     ...activeRestaurant,
     backendPort: PORT,
     frontendPort: FRONTEND_PORT,
-    mobileFrontendPort: MOBILE_FRONTEND_PORT
+    mobileFrontendPort: MOBILE_FRONTEND_PORT,
+    lanIp: getLocalIpAddress(),
+    wifiInfo: getCachedDynamicNetwork()
   });
+});
+
+// Dynamic Network & Wi-Fi IP discovery endpoint for mobile scanners and kiosks
+app.get('/api/network-info', async (req, res) => {
+  try {
+    const force = req.query.refresh === 'true';
+    const info = force ? await refreshDynamicNetwork(true) : getCachedDynamicNetwork();
+    res.json({
+      ...info,
+      port: FRONTEND_PORT,
+      backendPort: PORT,
+      mobileFrontendPort: MOBILE_FRONTEND_PORT,
+      restaurant: activeRestaurant
+    });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to retrieve network info', message: err.message });
+  }
 });
 
 app.post('/api/restaurant', (req, res) => {
@@ -699,10 +1008,17 @@ app.post('/api/restaurant', (req, res) => {
 });
 
 // Network info endpoint for dynamic Kiosk QR code generation
-app.get('/api/network-info', (req, res) => {
-  const lanIp = getLocalIpAddress();
+app.get('/api/network-info', async (req, res) => {
+  const isRefresh = req.query.refresh === 'true';
+  const info = isRefresh ? await refreshDynamicNetwork(true) : getCachedDynamicNetwork();
   res.json({
-    ip: lanIp,
+    ip: info.ip,
+    ssid: info.ssid,
+    wifiConnected: info.wifiConnected,
+    signal: info.signal,
+    interfaceName: info.interfaceName,
+    band: info.band,
+    isDynamic: true,
     port: FRONTEND_PORT,
     backendPort: PORT,
     mobileFrontendPort: MOBILE_FRONTEND_PORT,
@@ -713,6 +1029,30 @@ app.get('/api/network-info', (req, res) => {
       mobileFrontendPort: MOBILE_FRONTEND_PORT
     }
   });
+});
+
+// Device battery synchronization endpoints
+app.get('/api/device-battery', (req, res) => {
+  const kioskId = req.query.kioskId;
+  if (kioskId && sessionBatteries[kioskId]) {
+    return res.json(sessionBatteries[kioskId]);
+  }
+  res.json({ batteryLevel: null, isCharging: false });
+});
+
+app.post('/api/device-battery', (req, res) => {
+  const { kioskId, batteryLevel, isCharging } = req.body || {};
+  if (kioskId && batteryLevel !== undefined) {
+    const numericLevel = Math.max(1, Math.min(100, Math.round(Number(batteryLevel) || 85)));
+    sessionBatteries[kioskId] = {
+      batteryLevel: numericLevel,
+      isCharging: Boolean(isCharging),
+      updatedAt: Date.now()
+    };
+    io.to(kioskId).emit('device-battery-synced', sessionBatteries[kioskId]);
+    return res.json({ success: true, battery: sessionBatteries[kioskId] });
+  }
+  res.status(400).json({ error: 'Missing kioskId or batteryLevel' });
 });
 
 // Kitchen and Admin orders list endpoint
@@ -766,6 +1106,8 @@ app.post('/api/orders', async (req, res) => {
       allergens: payload.allergens || [],
       note: payload.note || '',
       isAllergy: Array.isArray(payload.allergens) && payload.allergens.length > 0,
+      device: payload.device || payload.platform || 'Desktop',
+      platform: payload.platform || payload.device || 'Desktop',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       statusHistory: [
@@ -807,7 +1149,7 @@ app.patch('/api/orders/:orderId/status', async (req, res) => {
   // Normalize status aliases
   let normalizedStatus = status;
   if (status === 'Order Received') normalizedStatus = 'New';
-  if (status === 'Order Ready' || status === 'Ready') normalizedStatus = 'Ready for Pickup';
+  if (status === 'Cooking' || status === 'Order Ready' || status === 'Ready') normalizedStatus = 'Ready for Pickup';
 
   let nextStatus = 'Completed';
   let stripeColor = '#3b82f6';
@@ -815,11 +1157,8 @@ app.patch('/api/orders/:orderId/status', async (req, res) => {
     nextStatus = 'Start Preparing';
     stripeColor = '#2563eb';
   } else if (normalizedStatus === 'Preparing') {
-    nextStatus = 'Move to Cooking';
-    stripeColor = '#b45309';
-  } else if (normalizedStatus === 'Cooking') {
     nextStatus = 'Mark as Ready';
-    stripeColor = '#c2410c';
+    stripeColor = '#b45309';
   } else if (normalizedStatus === 'Ready for Pickup') {
     nextStatus = 'Mark as Completed';
     stripeColor = '#15803d';
@@ -1418,10 +1757,73 @@ app.post('/api/upload-image', async (req, res) => {
 });
 
 // ══════════════════════════════════════════════════════════════════════════
-// PROMOTIONS & DISCOUNTS ENDPOINTS (JSON Database + Realtime Sync)
+// PROMOTIONS & DISCOUNTS ENDPOINTS (Expiration, Archive, Restoration & Live Sync)
 // ══════════════════════════════════════════════════════════════════════════
 const PROMOS_FILE = path.join(__dirname, 'data', 'promos.json');
 let promosList = [];
+const retiredCodesSet = new Set();
+
+// Helper to determine exact expiration timestamp in milliseconds
+function getPromoExpiresAt(promo) {
+  if (promo.expiresAt) {
+    const t = new Date(promo.expiresAt).getTime();
+    if (!isNaN(t)) return t;
+  }
+  if (promo.dateRange) {
+    const parts = String(promo.dateRange).split(/–|-|to/i);
+    if (parts.length >= 2) {
+      const endStr = parts[parts.length - 1].trim();
+      const d = new Date(endStr);
+      if (!isNaN(d.getTime())) {
+        d.setHours(23, 59, 59, 999);
+        return d.getTime();
+      }
+    }
+  }
+  return null;
+}
+
+// Background & On-Demand Automatic Expiration Processor
+function checkAndExpirePromos() {
+  const now = Date.now();
+  let hasChanges = false;
+
+  for (const promo of promosList) {
+    // Populate retired codes blacklist
+    if (Array.isArray(promo.retiredCodes)) {
+      promo.retiredCodes.forEach(c => {
+        if (c) retiredCodesSet.add(c.trim().toUpperCase());
+      });
+    }
+
+    if (promo.status === 'active' || promo.status === 'scheduled') {
+      const expTime = getPromoExpiresAt(promo);
+      if (expTime && now >= expTime) {
+        promo.status = 'expired';
+        promo.expiredAt = promo.expiredAt || now;
+        promo.expiredReason = 'Automatic expiration: date and time reached';
+        if (!promo.originalCode) {
+          promo.originalCode = promo.code;
+        }
+        retiredCodesSet.add(promo.code.trim().toUpperCase());
+        if (promo.originalCode) {
+          retiredCodesSet.add(promo.originalCode.trim().toUpperCase());
+        }
+        hasChanges = true;
+        console.log(`[Promos] Auto-expired promo "${promo.name}" [${promo.code}] at ${new Date(now).toISOString()}`);
+      }
+    } else if (promo.status === 'expired') {
+      if (promo.code) retiredCodesSet.add(promo.code.trim().toUpperCase());
+      if (promo.originalCode) retiredCodesSet.add(promo.originalCode.trim().toUpperCase());
+    }
+  }
+
+  if (hasChanges) {
+    savePromosToDb();
+    io.emit('promos-updated', promosList);
+  }
+  return hasChanges;
+}
 
 async function loadPromosFromDb() {
   try {
@@ -1430,6 +1832,7 @@ async function loadPromosFromDb() {
     if (Array.isArray(data)) {
       promosList = data;
       console.log(`[DB] Promos loaded: ${promosList.length} promotions from data/promos.json`);
+      checkAndExpirePromos();
       return;
     }
   } catch (err) {
@@ -1447,28 +1850,139 @@ async function savePromosToDb() {
 
 loadPromosFromDb();
 
-// GET /api/promos - Retrieve all promotions
+// Periodic timer to auto-expire promos while server is running
+setInterval(() => {
+  try {
+    checkAndExpirePromos();
+  } catch (err) {
+    console.error('[Promos] Error during periodic expiration check:', err);
+  }
+}, 3000);
+
+// GET /api/promos - Retrieve all promotions (runs expiration check first)
 app.get('/api/promos', (req, res) => {
+  checkAndExpirePromos();
   res.json(promosList);
 });
+
+// GET /api/promos/expired - Retrieve only expired promotions for admin archive
+app.get('/api/promos/expired', (req, res) => {
+  checkAndExpirePromos();
+  const expired = promosList.filter(p => p.status === 'expired');
+  res.json(expired);
+});
+
+// GET & POST /api/promos/validate/:code - Validate a promo code from a link, QR code, or checkout input
+const handleValidatePromo = (req, res) => {
+  checkAndExpirePromos();
+  const codeParam = (req.params.code || req.body.code || '').trim().toUpperCase();
+  if (!codeParam) {
+    return res.status(400).json({ valid: false, error: 'Promo code parameter required.' });
+  }
+
+  // 1. Check if the code is in the retired/expired codes blacklist
+  if (retiredCodesSet.has(codeParam)) {
+    const matchedRecord = promosList.find(p =>
+      p.code?.toUpperCase() === codeParam ||
+      p.originalCode?.toUpperCase() === codeParam ||
+      (Array.isArray(p.retiredCodes) && p.retiredCodes.map(c => c.toUpperCase()).includes(codeParam))
+    );
+    return res.status(400).json({
+      valid: false,
+      status: 'expired',
+      error: `Promotion code "${codeParam}" has reached its expiration date and is no longer valid. Old or expired links and QR codes cannot be reused.`,
+      promo: matchedRecord || null
+    });
+  }
+
+  // 2. Find matching active promo
+  const promo = promosList.find(p => p.code?.toUpperCase() === codeParam);
+  if (!promo) {
+    return res.status(404).json({
+      valid: false,
+      error: `Promotion code "${codeParam}" was not found.`
+    });
+  }
+
+  // 3. Check status
+  if (promo.status === 'expired') {
+    return res.status(400).json({
+      valid: false,
+      status: 'expired',
+      error: `Promotion "${promo.name}" [${codeParam}] has expired and is no longer valid.`,
+      promo
+    });
+  }
+
+  if (promo.status !== 'active') {
+    return res.status(400).json({
+      valid: false,
+      status: promo.status,
+      error: `Promotion "${promo.name}" is currently ${promo.status}.`,
+      promo
+    });
+  }
+
+  // 4. Check date expiration
+  const expTime = getPromoExpiresAt(promo);
+  if (expTime && Date.now() >= expTime) {
+    checkAndExpirePromos();
+    return res.status(400).json({
+      valid: false,
+      status: 'expired',
+      error: `Promotion code "${codeParam}" has reached its expiration date and is no longer valid.`,
+      promo
+    });
+  }
+
+  return res.json({ valid: true, promo });
+};
+
+app.get('/api/promos/validate/:code', handleValidatePromo);
+app.post('/api/promos/validate', handleValidatePromo);
 
 // POST /api/promos - Create new promotion
 app.post('/api/promos', async (req, res) => {
   try {
+    checkAndExpirePromos();
     const p = req.body || {};
     if (!p.name || !p.code) {
       return res.status(400).json({ error: 'Promo name and code are required.' });
     }
     const cleanCode = p.code.trim().toUpperCase().replace(/\s/g, '');
+
+    // Prevent reusing previously retired/expired codes
+    if (retiredCodesSet.has(cleanCode)) {
+      return res.status(400).json({
+        error: `Code "${cleanCode}" was previously used and retired. Expired codes can never be reused. Please provide a new unique code.`
+      });
+    }
+
+    // Check for collision with existing promos
+    const duplicate = promosList.find(x => x.code?.toUpperCase() === cleanCode);
+    if (duplicate) {
+      return res.status(400).json({
+        error: `Promo code "${cleanCode}" is already in use by campaign "${duplicate.name}".`
+      });
+    }
+
+    const defaultExpiresAt = p.expiresAt
+      ? new Date(p.expiresAt).toISOString()
+      : new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString();
+
     const newPromo = {
       id: p.id || `PR-${Date.now().toString().slice(-4)}`,
       name: p.name.trim(),
       code: cleanCode,
+      originalCode: cleanCode,
       discountType: p.discountType || 'percent',
       discountValue: Number(p.discountValue) || 15,
       discountLabel: p.discountLabel || (p.discountType === 'percent' ? `${p.discountValue}% Off (Automatic)` : `₱${p.discountValue} Off`),
       targetLabel: p.targetLabel || (p.applyToAll ? 'All Menu Items' : (p.applicableItems && p.applicableItems.length > 0 ? p.applicableItems.slice(0, 2).join(', ') : 'Selected Items')),
+      associatedItem: p.associatedItem || (p.applyToAll ? 'All Menu Items' : (p.applicableItems && p.applicableItems.length > 0 ? p.applicableItems.join(', ') : 'Selected Items')),
+      associatedTable: p.associatedTable || 'All Tables (Storewide)',
       dateRange: p.dateRange || 'Jan 1, 2025 – Dec 31, 2026',
+      expiresAt: defaultExpiresAt,
       maxRedemptions: Number(p.maxRedemptions) || 500,
       currentRedemptions: Number(p.currentRedemptions) || 0,
       status: p.status || 'active',
@@ -1480,16 +1994,11 @@ app.post('/api/promos', async (req, res) => {
       bannerBg: p.bannerBg || '#8c2411',
       applicableItems: Array.isArray(p.applicableItems) ? p.applicableItems : [],
       applyToAll: !!p.applyToAll,
-      createdAt: p.createdAt || Date.now()
+      createdAt: p.createdAt || Date.now(),
+      retiredCodes: []
     };
 
-    const existingIdx = promosList.findIndex(x => x.id === newPromo.id || x.code === newPromo.code);
-    if (existingIdx !== -1) {
-      promosList[existingIdx] = newPromo;
-    } else {
-      promosList.push(newPromo);
-    }
-
+    promosList.push(newPromo);
     await savePromosToDb();
     io.emit('promos-updated', promosList);
     res.json({ success: true, promo: newPromo, promos: promosList });
@@ -1502,6 +2011,7 @@ app.post('/api/promos', async (req, res) => {
 // PUT /api/promos/:id - Update existing promotion
 app.put('/api/promos/:id', async (req, res) => {
   try {
+    checkAndExpirePromos();
     const { id } = req.params;
     const updates = req.body || {};
     const idx = promosList.findIndex(p => p.id === id);
@@ -1509,13 +2019,33 @@ app.put('/api/promos/:id', async (req, res) => {
       return res.status(404).json({ error: 'Promotion not found' });
     }
 
+    if (updates.code) {
+      const cleanCode = updates.code.trim().toUpperCase().replace(/\s/g, '');
+      if (cleanCode !== promosList[idx].code) {
+        if (retiredCodesSet.has(cleanCode)) {
+          return res.status(400).json({
+            error: `Code "${cleanCode}" was previously used and retired. Expired codes can never be reused.`
+          });
+        }
+        const duplicate = promosList.find(x => x.id !== id && x.code?.toUpperCase() === cleanCode);
+        if (duplicate) {
+          return res.status(400).json({
+            error: `Promo code "${cleanCode}" is already in use by campaign "${duplicate.name}".`
+          });
+        }
+      }
+      updates.code = cleanCode;
+    }
+
     promosList[idx] = {
       ...promosList[idx],
       ...updates,
       id,
-      code: updates.code ? updates.code.trim().toUpperCase().replace(/\s/g, '') : promosList[idx].code,
       updatedAt: Date.now()
     };
+
+    // If updated expiration date is now in the past or status set to expired
+    checkAndExpirePromos();
 
     await savePromosToDb();
     io.emit('promos-updated', promosList);
@@ -1526,10 +2056,153 @@ app.put('/api/promos/:id', async (req, res) => {
   }
 });
 
+// POST /api/promos/expire/:id - Manually mark a promo as Expired
+app.post('/api/promos/expire/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const idx = promosList.findIndex(p => p.id === id);
+    if (idx === -1) {
+      return res.status(404).json({ error: 'Promotion not found' });
+    }
+
+    const promo = promosList[idx];
+    const oldCode = promo.code.trim().toUpperCase();
+    retiredCodesSet.add(oldCode);
+
+    promo.status = 'expired';
+    promo.expiredAt = Date.now();
+    promo.expiredReason = req.body?.reason || 'Expired by Administrator';
+    if (!promo.originalCode) {
+      promo.originalCode = oldCode;
+    }
+    if (!Array.isArray(promo.retiredCodes)) {
+      promo.retiredCodes = [];
+    }
+    if (!promo.retiredCodes.includes(oldCode)) {
+      promo.retiredCodes.push(oldCode);
+    }
+
+    await savePromosToDb();
+    io.emit('promos-updated', promosList);
+    console.log(`[Promos] Admin manually expired promo "${promo.name}" [${oldCode}]`);
+    res.json({ success: true, message: `Promo "${promo.name}" marked as expired.`, promo, promos: promosList });
+  } catch (err) {
+    console.error('[Promos] Error expiring promo:', err);
+    res.status(500).json({ error: 'Failed to expire promotion' });
+  }
+});
+
+// POST /api/promos/restore - Restore an expired promo with a new unique code and new expiration date
+app.post('/api/promos/restore', async (req, res) => {
+  try {
+    const { promoId, newCode, newExpiresAt, newDateRange, restoredBy } = req.body || {};
+    if (!promoId || !newCode || !newExpiresAt) {
+      return res.status(400).json({ error: 'promoId, newCode, and newExpiresAt are required.' });
+    }
+
+    const idx = promosList.findIndex(p => p.id === promoId);
+    if (idx === -1) {
+      return res.status(404).json({ error: 'Promotion record not found.' });
+    }
+
+    const promo = promosList[idx];
+    if (promo.status !== 'expired') {
+      return res.status(400).json({ error: `Promotion "${promo.name}" is not expired (${promo.status}).` });
+    }
+
+    // Validate new expiration date is in the future
+    const expDate = new Date(newExpiresAt);
+    if (isNaN(expDate.getTime()) || expDate.getTime() <= Date.now()) {
+      return res.status(400).json({ error: 'New expiration date must be a valid future date and time.' });
+    }
+
+    // Validate clean new code
+    const cleanNewCode = newCode.trim().toUpperCase().replace(/\s/g, '');
+    if (!cleanNewCode) {
+      return res.status(400).json({ error: 'A valid new unique code is required.' });
+    }
+
+    const oldCode = promo.code.trim().toUpperCase();
+
+    // Enforce that old expired code can NEVER be reused
+    if (cleanNewCode === oldCode) {
+      return res.status(400).json({
+        error: `Cannot reuse old expired code "${oldCode}". A new unique code must be generated.`
+      });
+    }
+
+    if (promo.originalCode && cleanNewCode === promo.originalCode.toUpperCase()) {
+      return res.status(400).json({
+        error: `Cannot reuse original expired code "${promo.originalCode}". A new unique code must be generated.`
+      });
+    }
+
+    if (retiredCodesSet.has(cleanNewCode)) {
+      return res.status(400).json({
+        error: `Code "${cleanNewCode}" was previously used and retired. Expired codes cannot be reused.`
+      });
+    }
+
+    // Ensure no collision with another active promo
+    const duplicate = promosList.find(x => x.id !== promoId && x.code?.toUpperCase() === cleanNewCode);
+    if (duplicate) {
+      return res.status(400).json({
+        error: `Code "${cleanNewCode}" is already active in campaign "${duplicate.name}".`
+      });
+    }
+
+    // Permanently retire old code
+    retiredCodesSet.add(oldCode);
+    if (!promo.originalCode) {
+      promo.originalCode = oldCode;
+    }
+    if (!Array.isArray(promo.retiredCodes)) {
+      promo.retiredCodes = [];
+    }
+    if (!promo.retiredCodes.includes(oldCode)) {
+      promo.retiredCodes.push(oldCode);
+    }
+
+    // Apply restoration
+    promo.code = cleanNewCode;
+    promo.status = 'active';
+    promo.expiresAt = expDate.toISOString();
+    promo.dateRange = newDateRange || `Restored – ${expDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
+    promo.restoredAt = Date.now();
+    promo.restoredBy = (restoredBy || 'Administrator').trim();
+    promo.restoredFromCode = oldCode;
+    promo.updatedAt = Date.now();
+
+    // Clear expired markers
+    delete promo.expiredAt;
+    delete promo.expiredReason;
+
+    await savePromosToDb();
+    io.emit('promos-updated', promosList);
+
+    console.log(`[Promos] Successfully restored promo "${promo.name}": Old Code "${oldCode}" retired, New Code "${cleanNewCode}" active until ${expDate.toISOString()} by ${promo.restoredBy}`);
+
+    res.json({
+      success: true,
+      message: `Promotion "${promo.name}" successfully restored! New code "${cleanNewCode}" is now active. Old code "${oldCode}" is permanently retired.`,
+      promo,
+      promos: promosList
+    });
+  } catch (err) {
+    console.error('[Promos] Error restoring promo:', err);
+    res.status(500).json({ error: 'Failed to restore promotion' });
+  }
+});
+
 // DELETE /api/promos/:id - Delete promotion
 app.delete('/api/promos/:id', async (req, res) => {
   try {
     const { id } = req.params;
+    const promo = promosList.find(p => p.id === id);
+    if (promo) {
+      if (promo.code) retiredCodesSet.add(promo.code.trim().toUpperCase());
+      if (promo.originalCode) retiredCodesSet.add(promo.originalCode.trim().toUpperCase());
+    }
     promosList = promosList.filter(p => p.id !== id);
     await savePromosToDb();
     io.emit('promos-updated', promosList);
@@ -1543,18 +2216,38 @@ app.delete('/api/promos/:id', async (req, res) => {
 // POST /api/promos/redeem - Redeem promotion code
 app.post('/api/promos/redeem', async (req, res) => {
   try {
+    checkAndExpirePromos();
     const { promoCode, orderId, discountAmount } = req.body || {};
     if (!promoCode) {
       return res.status(400).json({ error: 'Promo code required' });
     }
     const cleanCode = promoCode.trim().toUpperCase();
+
+    // Check if code was retired or expired
+    if (retiredCodesSet.has(cleanCode)) {
+      return res.status(400).json({
+        error: `Promotion code "${cleanCode}" has expired and is no longer valid. Old codes cannot be redeemed.`
+      });
+    }
+
     const promo = promosList.find(p => p.code === cleanCode);
     if (!promo) {
       return res.status(404).json({ error: 'Promotion code not found' });
     }
 
+    if (promo.status === 'expired') {
+      return res.status(400).json({ error: `Promotion code "${cleanCode}" has expired and is no longer valid.` });
+    }
+
     if (promo.status !== 'active') {
       return res.status(400).json({ error: `Promotion is ${promo.status}, cannot be redeemed.` });
+    }
+
+    // Check date expiration
+    const expTime = getPromoExpiresAt(promo);
+    if (expTime && Date.now() >= expTime) {
+      checkAndExpirePromos();
+      return res.status(400).json({ error: `Promotion code "${cleanCode}" has reached its expiration date and is no longer valid.` });
     }
 
     const maxRedemptions = Number(promo.maxRedemptions) || 500;
@@ -1570,6 +2263,9 @@ app.post('/api/promos/redeem', async (req, res) => {
 
     if (promo.currentRedemptions >= maxRedemptions) {
       promo.status = 'expired';
+      promo.expiredAt = Date.now();
+      promo.expiredReason = 'Maximum redemptions limit reached';
+      retiredCodesSet.add(promo.code.toUpperCase());
     }
 
     await savePromosToDb();
@@ -2143,6 +2839,7 @@ app.get(/.*/, (req, res) => {
 
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`==================================================`);
+  startIpWatcher(); // Begin monitoring network interface changes
   console.log(`  [${activeRestaurant.name}] Backend running on port ${PORT}`);
   console.log(`  Cuisine: ${activeRestaurant.cuisine}`);
   console.log(`  WebSocket Server ready for client connections`);

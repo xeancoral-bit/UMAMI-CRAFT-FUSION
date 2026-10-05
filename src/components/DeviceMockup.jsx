@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Laptop, Tablet, Smartphone, RotateCcw, Sparkles } from 'lucide-react';
+import { Laptop, Tablet, Smartphone, RotateCcw, Sparkles, Zap, X } from 'lucide-react';
 
 /**
  * ResponsiveDeviceMockup
@@ -8,21 +8,43 @@ import { Laptop, Tablet, Smartphone, RotateCcw, Sparkles } from 'lucide-react';
  * - Tablet mockup for tablet displays
  * - Smartphone mockup for mobile displays
  * 
- * Also provides an interactive toolbar to manually preview any device mockup.
+ * Also provides an interactive toolbar to manually preview any device mockup,
+ * and live customer phone battery synchronization.
  */
 export default function DeviceMockup({
   children,
   defaultDevice = 'auto',
   showToolbar = true,
   isBuzzing = false,
-  title = 'System Interface Preview'
+  title = 'System Interface Preview',
+  deviceBattery = null,
+  isCharging = null,
+  onBatteryChange = null
 }) {
   const [detectedMode, setDetectedMode] = useState('laptop');
   const [selectedDevice, setSelectedDevice] = useState(defaultDevice); // 'auto' | 'laptop' | 'tablet' | 'smartphone'
   const [orientation, setOrientation] = useState('portrait'); // 'portrait' | 'landscape'
   const [phoneTime, setPhoneTime] = useState('12:00');
-  const [batteryLevel, setBatteryLevel] = useState(88);
-  const [batteryCharging, setBatteryCharging] = useState(false);
+  
+  // Real or calibrated customer phone battery percentage
+  const [batteryLevel, setBatteryLevel] = useState(() => {
+    if (typeof deviceBattery === 'number' && !isNaN(deviceBattery)) return deviceBattery;
+    try {
+      const saved = localStorage.getItem('synapse_device_battery');
+      if (saved) return parseInt(saved, 10);
+    } catch (_) {}
+    return 88;
+  });
+  const [batteryCharging, setBatteryCharging] = useState(() => {
+    if (typeof isCharging === 'boolean') return isCharging;
+    try {
+      return localStorage.getItem('synapse_device_charging') === 'true';
+    } catch (_) {}
+    return false;
+  });
+  const [isBatteryApiAvailable, setIsBatteryApiAvailable] = useState(false);
+  const [showBatteryPopover, setShowBatteryPopover] = useState(false);
+
   const containerRef = useRef(null);
 
   // ── Auto-Detect Screen Size & Orientation ──
@@ -58,24 +80,73 @@ export default function DeviceMockup({
     return () => clearInterval(interval);
   }, []);
 
-  // ── Battery Status API ──
+  // ── Battery Status API: Auto-detect real device hardware battery where supported ──
   useEffect(() => {
-    if ('getBattery' in navigator) {
+    let batObj = null;
+    let handleLevel = null;
+    let handleCharging = null;
+
+    if (typeof navigator !== 'undefined' && 'getBattery' in navigator) {
       navigator.getBattery().then(bat => {
+        batObj = bat;
+        setIsBatteryApiAvailable(true);
         const update = () => {
-          setBatteryLevel(Math.round(bat.level * 100));
-          setBatteryCharging(bat.charging);
+          const lvl = Math.round(bat.level * 100);
+          const chg = Boolean(bat.charging);
+          setBatteryLevel(lvl);
+          setBatteryCharging(chg);
+          try {
+            localStorage.setItem('synapse_device_battery', String(lvl));
+            localStorage.setItem('synapse_device_charging', String(chg));
+          } catch (_) {}
+          if (onBatteryChange) {
+            onBatteryChange({ level: lvl, charging: chg });
+          }
         };
         update();
-        bat.addEventListener('levelchange', update);
-        bat.addEventListener('chargingchange', update);
-        return () => {
-          bat.removeEventListener('levelchange', update);
-          bat.removeEventListener('chargingchange', update);
-        };
-      }).catch(() => {});
+        handleLevel = update;
+        handleCharging = update;
+        bat.addEventListener('levelchange', handleLevel);
+        bat.addEventListener('chargingchange', handleCharging);
+      }).catch(err => {
+        console.warn('[DeviceMockup] Battery API unavailable/denied:', err);
+      });
     }
+
+    return () => {
+      if (batObj) {
+        if (handleLevel) batObj.removeEventListener('levelchange', handleLevel);
+        if (handleCharging) batObj.removeEventListener('chargingchange', handleCharging);
+      }
+    };
   }, []);
+
+  // ── Sync external props when provided ──
+  useEffect(() => {
+    if (typeof deviceBattery === 'number' && !isNaN(deviceBattery)) {
+      setBatteryLevel(deviceBattery);
+    }
+  }, [deviceBattery]);
+
+  useEffect(() => {
+    if (typeof isCharging === 'boolean') {
+      setBatteryCharging(isCharging);
+    }
+  }, [isCharging]);
+
+  // Handle manual battery calibration from popover
+  const handleManualBatteryUpdate = (newLevel, newCharging = batteryCharging) => {
+    const clamped = Math.max(1, Math.min(100, Math.round(newLevel)));
+    setBatteryLevel(clamped);
+    setBatteryCharging(newCharging);
+    try {
+      localStorage.setItem('synapse_device_battery', String(clamped));
+      localStorage.setItem('synapse_device_charging', String(newCharging));
+    } catch (_) {}
+    if (onBatteryChange) {
+      onBatteryChange({ level: clamped, charging: newCharging });
+    }
+  };
 
   const activeDevice = selectedDevice === 'auto' ? detectedMode : selectedDevice;
 
@@ -270,21 +341,107 @@ export default function DeviceMockup({
                     <path d="M3.6 6.2C4.6 5.2 5.75 4.7 7 4.7s2.4.5 3.4 1.5l1.1-1.1C10.2 3.8 8.7 3 7 3s-3.2.8-4.5 2.1l1.1 1.1z" opacity="0.85"/>
                     <path d="M.6 3.3C2.1 1.8 4.4.9 7 .9s4.9.9 6.4 2.4l1-1C12.6.5 9.95-.4 7-.4S1.4.5-.4 2.3l1 1z" opacity="0.65"/>
                   </svg>
-                  {/* Battery */}
-                  <svg width="25" height="12" viewBox="0 0 25 12" fill="none" aria-hidden="true">
-                    <rect x="0.5" y="0.5" width="21" height="11" rx="2.5" stroke="currentColor" strokeOpacity="0.7"/>
-                    <rect
-                      x="2" y="2"
-                      width={Math.max(2, Math.round(((batteryLevel ?? 85) / 100) * 18))}
-                      height="8"
-                      rx="1.5"
-                      fill={batteryCharging ? '#10B981' : (batteryLevel !== null && batteryLevel <= 20) ? '#EF4444' : 'currentColor'}
-                    />
-                    <path d="M23 4v4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeOpacity="0.6"/>
-                  </svg>
-                  <span className="phone-sb-pct">{batteryLevel}%</span>
+                  {/* Battery with Tap-to-Calibrate and Live Status */}
+                  <div
+                    className="phone-sb-battery-btn"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowBatteryPopover(prev => !prev);
+                    }}
+                    role="button"
+                    tabIndex={0}
+                    title="Tap to calibrate / match customer phone battery"
+                    aria-label={`Battery ${batteryLevel}%, ${batteryCharging ? 'charging' : 'not charging'}. Tap to calibrate.`}
+                  >
+                    <svg width="25" height="12" viewBox="0 0 25 12" fill="none" aria-hidden="true">
+                      <rect x="0.5" y="0.5" width="21" height="11" rx="2.5" stroke="currentColor" strokeOpacity="0.7"/>
+                      <rect
+                        x="2" y="2"
+                        width={Math.max(2, Math.round(((batteryLevel ?? 85) / 100) * 18))}
+                        height="8"
+                        rx="1.5"
+                        fill={batteryCharging ? '#10B981' : (batteryLevel !== null && batteryLevel <= 20) ? '#EF4444' : 'currentColor'}
+                      />
+                      <path d="M23 4v4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeOpacity="0.6"/>
+                    </svg>
+                    {batteryCharging && (
+                      <span className="phone-sb-charging-bolt" title="Charging">⚡</span>
+                    )}
+                    <span className="phone-sb-pct">{batteryLevel}%</span>
+                  </div>
                 </div>
               </div>
+
+              {/* Battery Calibration & Mirroring Popover */}
+              {showBatteryPopover && (
+                <div className="phone-battery-popover" onClick={e => e.stopPropagation()}>
+                  <div className="pbp-header">
+                    <div className="pbp-title-row">
+                      <span className="pbp-icon">🔋</span>
+                      <strong className="pbp-title">Mirror Customer Battery</strong>
+                    </div>
+                    <button
+                      type="button"
+                      className="pbp-close-btn"
+                      onClick={() => setShowBatteryPopover(false)}
+                      aria-label="Close battery settings"
+                    >
+                      <X size={15} />
+                    </button>
+                  </div>
+
+                  <p className="pbp-desc">
+                    {isBatteryApiAvailable 
+                      ? '🟢 Auto-detecting live from connected phone hardware.' 
+                      : 'Set percentage to match the customer’s phone.'}
+                  </p>
+
+                  <div className="pbp-level-display">
+                    <span className="pbp-level-num">{batteryLevel}%</span>
+                    <button
+                      type="button"
+                      className={`pbp-charging-toggle ${batteryCharging ? 'active' : ''}`}
+                      onClick={() => handleManualBatteryUpdate(batteryLevel, !batteryCharging)}
+                    >
+                      {batteryCharging ? '⚡ Charging (Plugged In)' : '🔋 On Battery'}
+                    </button>
+                  </div>
+
+                  <div className="pbp-slider-row">
+                    <span className="pbp-slider-label">1%</span>
+                    <input
+                      type="range"
+                      min="1"
+                      max="100"
+                      value={batteryLevel}
+                      onChange={(e) => handleManualBatteryUpdate(Number(e.target.value))}
+                      className="pbp-slider"
+                    />
+                    <span className="pbp-slider-label">100%</span>
+                  </div>
+
+                  <div className="pbp-presets">
+                    {[100, 90, 88, 75, 50, 25].map(pct => (
+                      <button
+                        key={pct}
+                        type="button"
+                        className={`pbp-preset-chip ${batteryLevel === pct ? 'selected' : ''}`}
+                        onClick={() => handleManualBatteryUpdate(pct)}
+                      >
+                        {pct}%
+                      </button>
+                    ))}
+                  </div>
+
+                  <button
+                    type="button"
+                    className="pbp-done-btn"
+                    onClick={() => setShowBatteryPopover(false)}
+                  >
+                    ✓ Done / Synchronized
+                  </button>
+                </div>
+              )}
 
               {/* Screen Viewport with generous modern phone width */}
               <div className="phone-screen-viewport">
