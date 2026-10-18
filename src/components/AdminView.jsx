@@ -489,6 +489,11 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
 
   const handleExpirePromo = async (promo) => {
     if (window.confirm(`Are you sure you want to expire promo "${promo.name}" [${promo.code}] immediately? It will be removed from customer displays and moved to the archive.`)) {
+      const updatedPromos = promos.map(p => p.id === promo.id ? { ...p, status: 'expired', expiredAt: Date.now() } : p);
+      setPromos(updatedPromos);
+      try { localStorage.setItem('umami_promos', JSON.stringify(updatedPromos)); } catch (_) {}
+      window.dispatchEvent(new CustomEvent('umami_catalog_updated'));
+
       try {
         const res = await fetch(`/api/promos/expire/${promo.id}`, {
           method: 'POST',
@@ -497,6 +502,11 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
         });
         const data = await res.json();
         if (data.success) {
+          if (Array.isArray(data.promos)) {
+            setPromos(data.promos);
+            try { localStorage.setItem('umami_promos', JSON.stringify(data.promos)); } catch (_) {}
+            window.dispatchEvent(new CustomEvent('umami_catalog_updated'));
+          }
           showNotify(`Campaign "${promo.name}" is now Expired and moved to archive.`, 'warning');
           addAuditLog('Promo Expired', `Expired "${promo.name}" [${promo.code}]`);
         } else {
@@ -10489,7 +10499,11 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
                 };
 
                 if (editingPromo) {
-                  setPromos(prev => prev.map(p => p.id === editingPromo.id ? promoPayload : p));
+                  const updated = promos.map(p => p.id === editingPromo.id ? promoPayload : p);
+                  setPromos(updated);
+                  try { localStorage.setItem('umami_promos', JSON.stringify(updated)); } catch (_) {}
+                  window.dispatchEvent(new CustomEvent('umami_catalog_updated'));
+
                   try {
                     await fetch(`/api/promos/${editingPromo.id}`, {
                       method: 'PUT',
@@ -10506,7 +10520,11 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
                   return;
                 }
 
-                setPromos(prev => [...prev, promoPayload]);
+                const updated = [...promos, promoPayload];
+                setPromos(updated);
+                try { localStorage.setItem('umami_promos', JSON.stringify(updated)); } catch (_) {}
+                window.dispatchEvent(new CustomEvent('umami_catalog_updated'));
+
                 try {
                   await fetch('/api/promos', {
                     method: 'POST',

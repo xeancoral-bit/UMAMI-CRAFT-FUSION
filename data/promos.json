@@ -49,7 +49,7 @@
     "expiresAt": "2026-12-31T23:59:59.000Z",
     "maxRedemptions": 300,
     "currentRedemptions": 0,
-    "status": "active",
+    "status": "expired",
     "type": "discount",
     "bannerTitle": "SUMMER FRUIT REFRESH",
     "bannerHighlight": "₱10 OFF",
@@ -64,8 +64,8 @@
     "retiredCodes": [
       "MANGO10"
     ],
-    "expiredAt": 1790712666015,
-    "expiredReason": "Manually expired by administrator",
+    "expiredAt": 1792081683449,
+    "expiredReason": "Manual test expiration",
     "updatedAt": 1790712988203
   }
 ]

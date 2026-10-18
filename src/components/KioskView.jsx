@@ -88,20 +88,76 @@ function KioskView({ onOpenKitchen, initialKioskId }) {
     return () => clearInterval(timer);
   }, []);
 
+  // Helper to determine if a promo is currently active and unexpired
+  const isPromoCurrentlyActive = (p, clockNow = Date.now()) => {
+    if (!p) return false;
+    if (p.status !== 'active') return false;
+
+    // 1. Scheduled expiration timestamp check
+    if (p.expiresAt) {
+      const expT = new Date(p.expiresAt).getTime();
+      if (!isNaN(expT) && expT <= clockNow) return false;
+    }
+
+    // 2. Date range string check (e.g. "Jan 1, 2025 – Dec 31, 2026")
+    if (p.dateRange) {
+      const parts = String(p.dateRange).split(/–|-|to/i);
+      if (parts.length >= 2) {
+        const endD = new Date(parts[parts.length - 1].trim());
+        if (!isNaN(endD.getTime())) {
+          endD.setHours(23, 59, 59, 999);
+          if (endD.getTime() <= clockNow) return false;
+        }
+      }
+    }
+
+    // 3. Max redemptions cap check
+    if (p.maxRedemptions && p.currentRedemptions !== undefined && p.currentRedemptions >= p.maxRedemptions) {
+      return false;
+    }
+
+    return true;
+  };
+
+  // Poll for promo updates every 3 seconds and sync with localStorage
   useEffect(() => {
-    fetch('/api/promos')
-      .then(res => res.json())
-      .then(data => {
-        if (Array.isArray(data)) setPromos(data);
-      })
-      .catch(() => {});
+    const fetchPromos = () => {
+      fetch('/api/promos')
+        .then(res => res.json())
+        .then(data => {
+          if (Array.isArray(data)) {
+            setPromos(data);
+            try { localStorage.setItem('umami_promos', JSON.stringify(data)); } catch (_) {}
+          }
+        })
+        .catch(() => {});
+    };
+
+    fetchPromos();
+    const pollInterval = setInterval(fetchPromos, 3000);
+
+    const handleStorageSync = (e) => {
+      if (!e || e.key === 'umami_promos') {
+        try {
+          const saved = localStorage.getItem('umami_promos');
+          if (saved) setPromos(JSON.parse(saved));
+        } catch (_) {}
+      }
+    };
+    window.addEventListener('storage', handleStorageSync);
+    window.addEventListener('umami_catalog_updated', handleStorageSync);
+
+    return () => {
+      clearInterval(pollInterval);
+      window.removeEventListener('storage', handleStorageSync);
+      window.removeEventListener('umami_catalog_updated', handleStorageSync);
+    };
   }, []);
 
   const activePromos = useMemo(() => {
     const now = kioskPromoClock;
     return (promos || []).filter(p => {
-      if (p.status !== 'active') return false;
-      if (p.expiresAt && new Date(p.expiresAt).getTime() <= now) return false;
+      if (!isPromoCurrentlyActive(p, now)) return false;
       return !!(p.bannerImage || p.imageUrl || p.image);
     });
   }, [promos, kioskPromoClock]);
@@ -251,7 +307,10 @@ function KioskView({ onOpenKitchen, initialKioskId }) {
     });
 
     socket.on('promos-updated', (data) => {
-      if (Array.isArray(data)) setPromos(data);
+      if (Array.isArray(data)) {
+        setPromos(data);
+        try { localStorage.setItem('umami_promos', JSON.stringify(data)); } catch (_) {}
+      }
     });
 
     socket.on('initial-menu', (data) => {
@@ -673,8 +732,8 @@ function KioskView({ onOpenKitchen, initialKioskId }) {
 
                       {/* Header Badge */}
                       <div style={{ position: 'absolute', top: '10px', left: '12px', right: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span style={{ background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(6px)', border: '1px solid rgba(255,255,255,0.2)', padding: '3px 10px', borderRadius: '999px', fontSize: '11px', fontWeight: 800, color: '#fff' }}>
-                          🔥 SPECIAL OFFERS • 5S AUTO-ROTATE
+                        <span style={{ background: 'rgba(0,0,0,0.7)', border: '1px solid rgba(255,255,255,0.2)', padding: '3px 10px', borderRadius: '6px', fontSize: '11px', fontWeight: 800, color: '#fff', letterSpacing: '0.04em' }}>
+                          SPECIAL OFFERS
                         </span>
                         <span style={{ background: 'linear-gradient(135deg, #f97316, #dc2626)', color: '#fff', padding: '4px 10px', borderRadius: '8px', fontSize: '12px', fontWeight: 900, display: 'flex', alignItems: 'center', gap: '4px' }}>
                           <Sparkles size={11} />
@@ -872,7 +931,7 @@ function KioskView({ onOpenKitchen, initialKioskId }) {
                       </button>
                     )}
                     <p style={{ fontSize: '10px', color: 'var(--text-muted)', lineHeight: '1.3', margin: 0 }}>
-                      ⚡ Network Lock auto-detects Wi-Fi router changes. Customers connect to <strong>{wifiInfo.ssid || 'the local Wi-Fi network'}</strong> to scan and order.
+                      Network Lock auto-detects Wi-Fi router changes. Customers connect to <strong>{wifiInfo.ssid || 'the local Wi-Fi network'}</strong> to scan and order.
                     </p>
                   </div>
                 )}
@@ -1071,7 +1130,7 @@ function KioskView({ onOpenKitchen, initialKioskId }) {
                         alignItems: 'center',
                         gap: '4px'
                       }}>
-                        <span>{item.emoji || (item.isDrink ? '🧋' : '🍽️')}</span>
+                        <Tag size={12} color="#c2410c" />
                         <span>{item.category}</span>
                       </div>
 
@@ -1240,22 +1299,46 @@ function KioskView({ onOpenKitchen, initialKioskId }) {
               {/* Items List */}
               <div className="kiosk-receipt-items">
                 {orderReceipt && orderReceipt.items && orderReceipt.items.length > 0 ? (
-                  orderReceipt.items.map((item, idx) => (
-                    <div key={idx} className="kiosk-receipt-row">
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span style={{ fontSize: '18px' }}>{item.emoji || '🍽️'}</span>
-                        <div>
-                          <span style={{ fontWeight: '600' }}>{item.name}</span>
-                          <span style={{ fontSize: '12px', color: 'var(--text-muted)', marginLeft: '6px' }}>
-                            (x{item.quantity || 1})
-                          </span>
+                  orderReceipt.items.map((item, idx) => {
+                    const itemImg = item.image || (masterMenu.find(m => String(m.id) === String(item.id))?.image) || (drinksMenu.find(d => String(d.id) === String(item.id))?.image);
+                    return (
+                      <div key={idx} className="kiosk-receipt-row">
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          <div style={{
+                            width: '32px',
+                            height: '32px',
+                            borderRadius: '8px',
+                            overflow: 'hidden',
+                            flexShrink: 0,
+                            background: 'rgba(0,0,0,0.04)',
+                            border: '1px solid rgba(0,0,0,0.08)'
+                          }}>
+                            {itemImg ? (
+                              <img
+                                src={itemImg}
+                                alt={item.name}
+                                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                onError={e => { e.currentTarget.style.display = 'none'; }}
+                              />
+                            ) : (
+                              <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#c2410c' }}>
+                                <Utensils size={14} />
+                              </div>
+                            )}
+                          </div>
+                          <div>
+                            <span style={{ fontWeight: '600' }}>{item.name}</span>
+                            <span style={{ fontSize: '12px', color: 'var(--text-muted)', marginLeft: '6px' }}>
+                              (x{item.quantity || 1})
+                            </span>
+                          </div>
                         </div>
+                        <span style={{ fontWeight: '700' }}>
+                          ₱{((item.price || 0) * (item.quantity || 1)).toFixed(2)}
+                        </span>
                       </div>
-                      <span style={{ fontWeight: '700' }}>
-                        ₱{((item.price || 0) * (item.quantity || 1)).toFixed(2)}
-                      </span>
-                    </div>
-                  ))
+                    );
+                  })
                 ) : (
                   <div className="kiosk-receipt-row">
                     <span>{orderedItem?.name || 'Custom Meal'}</span>
@@ -1281,7 +1364,7 @@ function KioskView({ onOpenKitchen, initialKioskId }) {
                   <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                     {combinedReceiptTags.map(tag => (
                       <span key={tag} className="badge badge-recommend" style={{ fontSize: '10px' }}>
-                        ✨ {tag}
+                        {tag}
                       </span>
                     ))}
                   </div>
@@ -1308,25 +1391,15 @@ function KioskView({ onOpenKitchen, initialKioskId }) {
       {/* Footer */}
       <footer className="kiosk-footer">
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span style={{ fontSize: '16px' }}>🌿</span>
           <span style={{ fontWeight: '500' }}>© 2026 Umami Craft Fusion. All rights reserved.</span>
         </div>
 
         <div style={{ flex: 1, height: '1px', background: 'rgba(226, 214, 200, 0.6)', margin: '0 28px' }}></div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '24px', fontSize: '11px', fontWeight: '700', letterSpacing: '0.06em', color: '#8A7D73' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span>🍜</span>
-            <span>FRESH INGREDIENTS</span>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span>🍃</span>
-            <span>BOLD FLAVORS</span>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span>👥</span>
-            <span>A SMARTER DINING EXPERIENCE</span>
-          </div>
+          <div>FRESH INGREDIENTS</div>
+          <div>BOLD FLAVORS</div>
+          <div>PERSONALIZED DINING</div>
         </div>
       </footer>
     </div>

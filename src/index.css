@@ -109,15 +109,13 @@ body {
   min-height: 100vh;
 }
 
-/* Glassmorphism Cards */
+/* Clean Solid Cards */
 .glass-card {
-  background: var(--bg-glass);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  background: var(--bg-surface);
   border: 1px solid var(--border-glass);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-lg);
-  transition: transform var(--transition-normal), border-color var(--transition-normal), box-shadow var(--transition-normal);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  transition: border-color var(--transition-normal), box-shadow var(--transition-normal);
 }
 
 .glass-card:hover {
@@ -313,15 +311,12 @@ button {
   font-weight: bold;
 }
 
-/* Kiosk Layout - Elegant Warm Craft Culinary Atmosphere */
+/* Kiosk Layout - Clean Warm Culinary Background */
 .kiosk-container {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
-  background: 
-    radial-gradient(ellipse 900px 600px at 85% 35%, rgba(228, 87, 41, 0.08) 0%, rgba(251, 248, 243, 0.4) 50%, transparent 80%),
-    radial-gradient(circle at 15% 20%, rgba(245, 158, 11, 0.04) 0%, transparent 50%),
-    linear-gradient(180deg, #FAF7F2 0%, #F6EFE7 50%, #F2E7DB 100%);
+  background: var(--bg-base);
   padding: 24px 44px 20px;
   position: relative;
   overflow-x: hidden;
@@ -1761,7 +1756,7 @@ button {
   background: linear-gradient(90deg, #10b981 0%, #f59e0b 50%, #d9383a 100%);
   border-radius: 999px;
   z-index: 2;
-  transition: width 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: width 0.3s ease;
 }
 
 .step-node {
@@ -1877,12 +1872,12 @@ button {
 
 .celebration-modal {
   background: #ffffff;
-  border-radius: 28px;
+  border-radius: 20px;
   padding: 32px 24px;
   text-align: center;
   max-width: 380px;
   width: 100%;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
   animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
@@ -4528,9 +4523,9 @@ button {
     max-width: 480px;
     margin: 0 auto;
     min-height: auto;
-    border-radius: 24px;
+    border-radius: 16px;
     padding: 40px 32px 48px;
-    box-shadow: 0 20px 60px rgba(44, 26, 17, 0.12);
+    box-shadow: 0 8px 24px rgba(44, 26, 17, 0.08);
   }
   .mobile-wrapper .mvault-root {
     margin: 0 auto;
@@ -4618,7 +4613,7 @@ button {
   color: #1C1409;
   letter-spacing: -0.02em;
   margin: 0 0 8px;
-  font-family: var(--font-serif, 'Playfair Display', serif);
+  font-family: var(--font-sans);
 }
 
 .mv-hero-accent {
@@ -4644,15 +4639,7 @@ button {
 
 /* ── Background: subtle sun circle top-right ── */
 .mv-hero-bg-sun {
-  position: absolute;
-  top: -60px;
-  right: 40px;
-  width: 240px;
-  height: 240px;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(235, 150, 100, 0.35) 0%, rgba(235, 150, 100, 0.08) 60%, transparent 100%);
-  pointer-events: none;
-  z-index: 0;
+  display: none;
 }
 
 /* ── Background: watermark mountains ── */
@@ -4720,13 +4707,11 @@ button {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 6px 14px;
-  background: rgba(255, 255, 255, 0.92);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  border: 1px solid rgba(214, 196, 175, 0.75);
-  border-radius: 9999px;
-  box-shadow: 0 4px 18px rgba(44, 26, 17, 0.08);
+  padding: 8px 16px;
+  background: #ffffff;
+  border: 1px solid rgba(214, 196, 175, 0.85);
+  border-radius: 12px;
+  box-shadow: 0 2px 10px rgba(44, 26, 17, 0.06);
   width: fit-content;
   max-width: 96vw;
   flex-wrap: wrap;
@@ -7814,12 +7799,12 @@ button {
 
 @keyframes buzzer-glow-pulse {
   0%, 100% {
-    box-shadow: 0 0 25px rgba(225, 29, 72, 0.7), 0 0 60px rgba(249, 115, 22, 0.4);
+    box-shadow: 0 2px 8px rgba(225, 29, 72, 0.3);
     border-color: #e11d48;
   }
   50% {
-    box-shadow: 0 0 45px rgba(239, 68, 68, 0.95), 0 0 90px rgba(249, 115, 22, 0.75);
-    border-color: #ff2a5f;
+    box-shadow: 0 4px 16px rgba(225, 29, 72, 0.5);
+    border-color: #ef4444;
   }
 }
 

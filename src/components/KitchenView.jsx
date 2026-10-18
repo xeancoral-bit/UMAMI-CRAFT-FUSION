@@ -614,29 +614,37 @@ function KitchenView({ onReturnToKiosk }) {
           <button
             className={`kitchen-tab ${filter === 'active' ? 'active' : ''}`}
             onClick={() => setFilter('active')}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
           >
-            🔥 Active Queue
+            <Flame size={15} />
+            <span>Active Queue</span>
             {activeCount > 0 && <span className="tab-pill tab-pill-warning">{activeCount}</span>}
           </button>
           <button
             className={`kitchen-tab ${filter === 'received' ? 'active' : ''}`}
             onClick={() => setFilter('received')}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
           >
-            📋 Received
+            <Receipt size={15} />
+            <span>Received</span>
             {receivedCount > 0 && <span className="tab-pill">{receivedCount}</span>}
           </button>
           <button
             className={`kitchen-tab ${filter === 'preparing' ? 'active' : ''}`}
             onClick={() => setFilter('preparing')}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
           >
-            👨‍🍳 Preparing
+            <ChefHat size={15} />
+            <span>Preparing</span>
             {preparingCount > 0 && <span className="tab-pill tab-pill-warning">{preparingCount}</span>}
           </button>
           <button
             className={`kitchen-tab ${filter === 'ready' ? 'active' : ''}`}
             onClick={() => setFilter('ready')}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
           >
-            🔔 Ready for Pickup
+            <BellRing size={15} />
+            <span>Ready for Pickup</span>
             {readyCount > 0 && <span className="tab-pill tab-pill-success">{readyCount}</span>}
           </button>
           <button
@@ -695,19 +703,23 @@ function KitchenView({ onReturnToKiosk }) {
                         color: '#d1d5db',
                         background: 'rgba(255, 255, 255, 0.05)',
                         padding: '1px 6px',
-                        borderRadius: '4px'
+                        borderRadius: '4px',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px'
                       }}>
-                        👤 {order.customer}
+                        <Utensils size={11} style={{ opacity: 0.7 }} />
+                        <span>{order.customer}</span>
                       </span>
                     )}
                   </div>
 
                   {/* Status Badge */}
                   <span className={`ticket-status-badge badge-${normStatus.toLowerCase().replace(/\s+/g, '-')}`}>
-                    {normStatus === 'New' && '📋 Received'}
-                    {normStatus === 'Preparing' && '👨‍🍳 Preparing'}
-                    {normStatus === 'Ready for Pickup' && '🔔 Ready for Pickup'}
-                    {normStatus === 'Out for Delivery' && `🏃 Runner: ${order.busserName || 'Dispatched'}`}
+                    {normStatus === 'New' && 'Received'}
+                    {normStatus === 'Preparing' && 'Preparing'}
+                    {normStatus === 'Ready for Pickup' && 'Ready for Pickup'}
+                    {normStatus === 'Out for Delivery' && `Runner: ${order.busserName || 'Dispatched'}`}
                     {normStatus === 'Completed' && '✓ Completed'}
                     {normStatus === 'Cancelled' && '✕ Cancelled'}
                   </span>
@@ -830,7 +842,7 @@ function KitchenView({ onReturnToKiosk }) {
                         color: order.isAllergy ? '#ef4444' : 'var(--text-muted)',
                         fontWeight: 600
                       }}>
-                        💬 Note: {order.note}
+                        Note: {order.note}
                       </div>
                     )}
 
@@ -929,7 +941,7 @@ function KitchenView({ onReturnToKiosk }) {
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
                     <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
                       Items: <strong>{order.itemCount || items.reduce((s, i) => s + (i.quantity || i.qty || 1), 0)}</strong>
-                      {order.payment && <span style={{ marginLeft: '8px', padding: '2px 6px', background: 'rgba(255,255,255,0.06)', borderRadius: '4px', fontSize: '11px' }}>💳 {order.payment}</span>}
+                      {order.payment && <span style={{ marginLeft: '8px', padding: '2px 6px', background: 'rgba(255,255,255,0.06)', borderRadius: '4px', fontSize: '11px' }}>{order.payment}</span>}
                     </span>
                     <span style={{ fontSize: '15px', fontWeight: '800', color: 'var(--text-primary)' }}>
                       ₱{(order.totalPrice || order.total || 0).toFixed(2)}
@@ -950,7 +962,7 @@ function KitchenView({ onReturnToKiosk }) {
                         }}
                       >
                         <ChefHat size={15} />
-                        <span>Start Preparing 👨‍🍳</span>
+                        <span>Start Preparing</span>
                       </button>
                     )}
 
@@ -971,7 +983,7 @@ function KitchenView({ onReturnToKiosk }) {
                           style={{ flex: 1 }}
                         >
                           <BellRing size={15} />
-                          <span>Ready for Pickup 🔔</span>
+                          <span>Ready for Pickup</span>
                         </button>
                       </div>
                     )}

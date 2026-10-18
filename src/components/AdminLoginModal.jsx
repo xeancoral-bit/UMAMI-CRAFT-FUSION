@@ -108,10 +108,10 @@ export default function AdminLoginModal({ isOpen, onClose, onLoginSuccess }) {
             </div>
           </div>
 
-          <div className="admin-demo-box" onClick={handleDemoFill} title="Click to auto-fill demo admin credentials">
+          <div className="admin-demo-box" onClick={handleDemoFill} title="Click to auto-fill admin credentials">
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
               <KeyRound size={14} color="#C24522" />
-              <span style={{ fontSize: '11px', fontWeight: '700', color: '#C24522' }}>Demo Admin Login:</span>
+              <span style={{ fontSize: '11px', fontWeight: '700', color: '#C24522' }}>Admin Login:</span>
             </div>
             <span style={{ fontSize: '11px', color: '#666', fontFamily: 'monospace' }}>admin@umamicraft.com / admin123</span>
           </div>

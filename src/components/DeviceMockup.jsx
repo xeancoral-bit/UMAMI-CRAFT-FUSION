@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Laptop, Tablet, Smartphone, RotateCcw, Sparkles, Zap, X } from 'lucide-react';
+import { Laptop, Tablet, Smartphone, RotateCcw, Sparkles, Zap, X, BellRing, Battery } from 'lucide-react';
 
 /**
  * ResponsiveDeviceMockup
@@ -239,14 +239,15 @@ export default function DeviceMockup({
       {/* ── Mockup Stage ── */}
       <div className={`device-stage-container device-type-${activeDevice} orientation-${orientation}`}>
 
-        {/* ═══════════════════════════════════════
-            1. LAPTOP MOCKUP
-            ═══════════════════════════════════════ */}
+        {/* --- Laptop Mockup --- */}
         {activeDevice === 'laptop' && (
           <div className={`mockup-laptop-unit ${isBuzzing ? 'gadget-buzzing' : ''}`} style={{ position: 'relative' }}>
             {isBuzzing && (
               <div className="gadget-buzzer-beacon">
-                <span>🚨 LAPTOP BUZZING — ORDER READY!</span>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                  <BellRing size={15} />
+                  <span>LAPTOP BUZZING — ORDER READY!</span>
+                </span>
               </div>
             )}
             {/* Top Display Lid */}
@@ -274,14 +275,15 @@ export default function DeviceMockup({
           </div>
         )}
 
-        {/* ═══════════════════════════════════════
-            2. TABLET MOCKUP
-            ═══════════════════════════════════════ */}
+        {/* --- Tablet Mockup --- */}
         {activeDevice === 'tablet' && (
           <div className={`mockup-tablet-unit tablet-${orientation} ${isBuzzing ? 'gadget-buzzing' : ''}`} style={{ position: 'relative' }}>
             {isBuzzing && (
               <div className="gadget-buzzer-beacon">
-                <span>🚨 TABLET BUZZING — ORDER READY!</span>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                  <BellRing size={15} />
+                  <span>TABLET BUZZING — ORDER READY!</span>
+                </span>
               </div>
             )}
             <div className="tablet-frame">
@@ -305,14 +307,15 @@ export default function DeviceMockup({
           </div>
         )}
 
-        {/* ═══════════════════════════════════════
-            3. SMARTPHONE MOCKUP
-            ═══════════════════════════════════════ */}
+        {/* --- Smartphone Mockup --- */}
         {activeDevice === 'smartphone' && (
           <div className={`mockup-smartphone-unit phone-${orientation} ${isBuzzing ? 'gadget-buzzing' : ''}`} style={{ position: 'relative' }}>
             {isBuzzing && (
               <div className="gadget-buzzer-beacon">
-                <span>🚨 PHONE BUZZING — ORDER READY!</span>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                  <BellRing size={15} />
+                  <span>PHONE BUZZING — ORDER READY!</span>
+                </span>
               </div>
             )}
             <div className="phone-chassis">
@@ -365,7 +368,9 @@ export default function DeviceMockup({
                       <path d="M23 4v4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeOpacity="0.6"/>
                     </svg>
                     {batteryCharging && (
-                      <span className="phone-sb-charging-bolt" title="Charging">⚡</span>
+                      <span className="phone-sb-charging-bolt" title="Charging" style={{ display: 'inline-flex', alignItems: 'center' }}>
+                        <Zap size={11} />
+                      </span>
                     )}
                     <span className="phone-sb-pct">{batteryLevel}%</span>
                   </div>
@@ -377,7 +382,7 @@ export default function DeviceMockup({
                 <div className="phone-battery-popover" onClick={e => e.stopPropagation()}>
                   <div className="pbp-header">
                     <div className="pbp-title-row">
-                      <span className="pbp-icon">🔋</span>
+                      <Battery size={16} className="pbp-icon" />
                       <strong className="pbp-title">Mirror Customer Battery</strong>
                     </div>
                     <button
@@ -392,7 +397,7 @@ export default function DeviceMockup({
 
                   <p className="pbp-desc">
                     {isBatteryApiAvailable 
-                      ? '🟢 Auto-detecting live from connected phone hardware.' 
+                      ? 'Auto-detecting live from connected phone hardware.' 
                       : 'Set percentage to match the customer’s phone.'}
                   </p>
 
@@ -403,7 +408,7 @@ export default function DeviceMockup({
                       className={`pbp-charging-toggle ${batteryCharging ? 'active' : ''}`}
                       onClick={() => handleManualBatteryUpdate(batteryLevel, !batteryCharging)}
                     >
-                      {batteryCharging ? '⚡ Charging (Plugged In)' : '🔋 On Battery'}
+                      {batteryCharging ? 'Charging (Plugged In)' : 'On Battery'}
                     </button>
                   </div>
 

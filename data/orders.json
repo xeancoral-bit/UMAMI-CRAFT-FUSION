@@ -1,5 +1,634 @@
 [
   {
+    "id": "ORD-8163",
+    "orderId": "ORD-8163",
+    "customer": "Mobile Diner",
+    "orderType": "Dine-In",
+    "diningOption": "Dine-In",
+    "location": "Table 1",
+    "tableId": "Table 1",
+    "tableNumber": "Table 1",
+    "kioskId": "MOBILE_01",
+    "restaurantId": "umami",
+    "item": {
+      "id": "106",
+      "sku": "DES-001",
+      "name": "Mango Sticky Rice",
+      "category": "Desserts",
+      "price": 281,
+      "promoPrice": null,
+      "available": true,
+      "status": "Available",
+      "stock": 25,
+      "reorderLevel": 5,
+      "lastUpdated": "Oct 26, 2024 10:24 AM",
+      "image": "https://images.unsplash.com/photo-1562440499-64c9a111f713?auto=format&fit=crop&w=600&q=80",
+      "description": "Sweet glutinous rice infused with rich coconut cream, paired with fresh ripe mango slices.",
+      "allergens": [],
+      "tags": [
+        "vegan",
+        "sweet"
+      ],
+      "prepTime": "8 mins",
+      "sizes": "Standard",
+      "addons": "",
+      "subcategory": "Signature",
+      "ingredients": "Glutinous rice, coconut cream, fresh mango",
+      "emoji": "🥭",
+      "catalogType": "food",
+      "isExplicitlyUnavailable": false,
+      "isOutOfStock": false,
+      "quantity": 1
+    },
+    "items": [
+      {
+        "id": "106",
+        "name": "Mango Sticky Rice",
+        "qty": 1,
+        "quantity": 1,
+        "price": 281,
+        "image": "https://images.unsplash.com/photo-1562440499-64c9a111f713?auto=format&fit=crop&w=600&q=80",
+        "emoji": "🥭",
+        "tags": [
+          "vegan",
+          "sweet"
+        ],
+        "customizations": []
+      },
+      {
+        "id": "DRK-005-Medium",
+        "name": "Calamansi Iced Tea (Medium)",
+        "qty": 1,
+        "quantity": 1,
+        "price": 70,
+        "image": "data:image/webp;base64,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",
+        "emoji": "🍋",
+        "tags": [
+          "vegan",
+          "healthy",
+          "drinks"
+        ],
+        "customizations": []
+      }
+    ],
+    "itemCount": 2,
+    "total": 351,
+    "totalPrice": 351,
+    "payment": "GCash",
+    "paymentStatus": "Paid Online",
+    "status": "New",
+    "nextStatus": "Start Preparing",
+    "stripeColor": "#2563eb",
+    "priority": "Normal",
+    "isWaitAlert": false,
+    "waitTime": "0 min",
+    "orderedTags": [
+      "vegan",
+      "sweet",
+      "vegan",
+      "healthy",
+      "drinks"
+    ],
+    "allergens": [
+      "peanuts"
+    ],
+    "note": "Exclude: PEANUTS",
+    "isAllergy": true,
+    "busserName": null,
+    "device": "Desktop",
+    "platform": "Desktop",
+    "createdAt": "2026-10-15T16:32:46.860Z",
+    "updatedAt": "2026-10-15T16:32:46.860Z",
+    "statusHistory": [
+      {
+        "status": "New",
+        "timestamp": "2026-10-15T16:32:46.860Z",
+        "updatedBy": "Customer App",
+        "note": "Order submitted and routed to kitchen queue"
+      }
+    ]
+  },
+  {
+    "id": "ORD-2632",
+    "orderId": "ORD-2632",
+    "customer": "Mobile Diner",
+    "orderType": "Dine-In",
+    "diningOption": "Dine-In",
+    "location": "Table 1",
+    "tableId": "Table 1",
+    "tableNumber": "Table 1",
+    "kioskId": "MOBILE_01",
+    "restaurantId": "umami",
+    "item": {
+      "id": "106",
+      "sku": "DES-001",
+      "name": "Mango Sticky Rice",
+      "category": "Desserts",
+      "price": 281,
+      "promoPrice": null,
+      "available": true,
+      "status": "Available",
+      "stock": 25,
+      "reorderLevel": 5,
+      "lastUpdated": "Oct 26, 2024 10:24 AM",
+      "image": "https://images.unsplash.com/photo-1562440499-64c9a111f713?auto=format&fit=crop&w=600&q=80",
+      "description": "Sweet glutinous rice infused with rich coconut cream, paired with fresh ripe mango slices.",
+      "allergens": [],
+      "tags": [
+        "vegan",
+        "sweet"
+      ],
+      "prepTime": "8 mins",
+      "sizes": "Standard",
+      "addons": "",
+      "subcategory": "Signature",
+      "ingredients": "Glutinous rice, coconut cream, fresh mango",
+      "emoji": "🥭",
+      "catalogType": "food",
+      "isExplicitlyUnavailable": false,
+      "isOutOfStock": false,
+      "quantity": 1
+    },
+    "items": [
+      {
+        "id": "106",
+        "name": "Mango Sticky Rice",
+        "qty": 1,
+        "quantity": 1,
+        "price": 281,
+        "image": "https://images.unsplash.com/photo-1562440499-64c9a111f713?auto=format&fit=crop&w=600&q=80",
+        "emoji": "🥭",
+        "tags": [
+          "vegan",
+          "sweet"
+        ],
+        "customizations": []
+      }
+    ],
+    "itemCount": 1,
+    "total": 281,
+    "totalPrice": 281,
+    "payment": "GCash",
+    "paymentStatus": "Paid Online",
+    "status": "Completed",
+    "nextStatus": "Completed",
+    "stripeColor": "#059669",
+    "priority": "Normal",
+    "isWaitAlert": false,
+    "waitTime": "0 min",
+    "orderedTags": [
+      "vegan",
+      "sweet"
+    ],
+    "allergens": [],
+    "note": "",
+    "isAllergy": false,
+    "busserName": null,
+    "device": "Desktop",
+    "platform": "Desktop",
+    "createdAt": "2026-10-15T16:18:19.211Z",
+    "updatedAt": "2026-10-15T16:18:50.668Z",
+    "statusHistory": [
+      {
+        "status": "New",
+        "timestamp": "2026-10-15T16:18:19.211Z",
+        "updatedBy": "Customer App",
+        "note": "Order submitted and routed to kitchen queue"
+      },
+      {
+        "status": "Preparing",
+        "timestamp": "2026-10-15T16:18:31.931Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Order advanced to Preparing"
+      },
+      {
+        "status": "Preparing",
+        "timestamp": "2026-10-15T16:18:31.959Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Status updated to Preparing"
+      },
+      {
+        "status": "Ready for Pickup",
+        "timestamp": "2026-10-15T16:18:40.864Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Plated & Ready for pickup"
+      },
+      {
+        "status": "Ready for Pickup",
+        "timestamp": "2026-10-15T16:18:40.890Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Order ready for customer pickup"
+      },
+      {
+        "status": "Completed",
+        "timestamp": "2026-10-15T16:18:50.635Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Order advanced to Completed"
+      },
+      {
+        "status": "Completed",
+        "timestamp": "2026-10-15T16:18:50.668Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Status updated to Completed"
+      }
+    ],
+    "completedAt": "2026-10-15T16:18:50.635Z"
+  },
+  {
+    "id": "ORD-3804",
+    "orderId": "ORD-3804",
+    "customer": "Mobile Diner",
+    "orderType": "Dine-In",
+    "diningOption": "Dine-In",
+    "location": "Table 1",
+    "tableId": "Table 1",
+    "tableNumber": "Table 1",
+    "kioskId": "MOBILE_01",
+    "restaurantId": "umami",
+    "item": {
+      "id": "MIX-03",
+      "name": "Twin Boba & Dessert Feast",
+      "description": "Any 2 specialty iced milk teas or fruit shakes + Mango Sticky Rice dessert.",
+      "price": 319,
+      "originalPrice": 420,
+      "badge": "Save ₱101",
+      "allergens": [],
+      "tags": [
+        "mixmatch",
+        "sweet"
+      ],
+      "emoji": "🍧",
+      "image": "https://images.unsplash.com/photo-1562440499-64c9a111f713?auto=format&fit=crop&w=600&q=80",
+      "available": true,
+      "category": "Mix & Match Deals",
+      "catalogType": "mixmatch",
+      "quantity": 1
+    },
+    "items": [
+      {
+        "id": "MIX-03",
+        "name": "Twin Boba & Dessert Feast",
+        "qty": 1,
+        "quantity": 1,
+        "price": 319,
+        "image": "https://images.unsplash.com/photo-1562440499-64c9a111f713?auto=format&fit=crop&w=600&q=80",
+        "emoji": "🍧",
+        "tags": [
+          "mixmatch",
+          "sweet"
+        ],
+        "customizations": []
+      }
+    ],
+    "itemCount": 1,
+    "total": 319,
+    "totalPrice": 319,
+    "payment": "GCash",
+    "paymentStatus": "Paid Online",
+    "status": "Completed",
+    "nextStatus": "Completed",
+    "stripeColor": "#059669",
+    "priority": "Normal",
+    "isWaitAlert": false,
+    "waitTime": "0 min",
+    "orderedTags": [
+      "mixmatch",
+      "sweet"
+    ],
+    "allergens": [],
+    "note": "",
+    "isAllergy": false,
+    "busserName": null,
+    "device": "Desktop",
+    "platform": "Desktop",
+    "createdAt": "2026-10-15T16:15:28.654Z",
+    "updatedAt": "2026-10-15T16:18:49.607Z",
+    "statusHistory": [
+      {
+        "status": "New",
+        "timestamp": "2026-10-15T16:15:28.655Z",
+        "updatedBy": "Customer App",
+        "note": "Order submitted and routed to kitchen queue"
+      },
+      {
+        "status": "Preparing",
+        "timestamp": "2026-10-15T16:17:17.771Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Order advanced to Preparing"
+      },
+      {
+        "status": "Preparing",
+        "timestamp": "2026-10-15T16:17:17.796Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Status updated to Preparing"
+      },
+      {
+        "status": "Ready for Pickup",
+        "timestamp": "2026-10-15T16:18:43.785Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Plated & Ready for pickup"
+      },
+      {
+        "status": "Ready for Pickup",
+        "timestamp": "2026-10-15T16:18:43.820Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Order ready for customer pickup"
+      },
+      {
+        "status": "Completed",
+        "timestamp": "2026-10-15T16:18:49.572Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Order advanced to Completed"
+      },
+      {
+        "status": "Completed",
+        "timestamp": "2026-10-15T16:18:49.607Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Status updated to Completed"
+      }
+    ],
+    "completedAt": "2026-10-15T16:18:49.572Z"
+  },
+  {
+    "id": "ORD-4328",
+    "orderId": "ORD-4328",
+    "customer": "Mobile Diner",
+    "orderType": "Dine-In",
+    "diningOption": "Dine-In",
+    "location": "Table 1",
+    "tableId": "Table 1",
+    "tableNumber": "Table 1",
+    "kioskId": "RXA5MH",
+    "restaurantId": "umami",
+    "item": {
+      "id": "104",
+      "sku": "APP-003",
+      "name": "Crispy Five-Spice Tofu Bites",
+      "category": "Appetizers",
+      "price": 320,
+      "promoPrice": null,
+      "available": true,
+      "status": "Available",
+      "stock": 25,
+      "reorderLevel": 5,
+      "lastUpdated": "Oct 26, 2024 10:24 AM",
+      "image": "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=600&q=80",
+      "description": "Flash-fried tofu cubes with fiery five-spice pepper salt and sweet tamarind dip.",
+      "allergens": [
+        "soy"
+      ],
+      "tags": [
+        "spicy",
+        "vegan"
+      ],
+      "prepTime": "10 mins",
+      "sizes": "Standard",
+      "addons": "",
+      "subcategory": "Signature",
+      "ingredients": "Tofu, five-spice, pepper",
+      "emoji": "🥢",
+      "catalogType": "food",
+      "isExplicitlyUnavailable": false,
+      "isOutOfStock": false,
+      "quantity": 1
+    },
+    "items": [
+      {
+        "id": "104",
+        "name": "Crispy Five-Spice Tofu Bites",
+        "qty": 1,
+        "quantity": 1,
+        "price": 320,
+        "image": "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=600&q=80",
+        "emoji": "🥢",
+        "tags": [
+          "spicy",
+          "vegan"
+        ],
+        "customizations": []
+      }
+    ],
+    "itemCount": 1,
+    "total": 320,
+    "totalPrice": 320,
+    "payment": "GCash",
+    "paymentStatus": "Paid Online",
+    "status": "Completed",
+    "nextStatus": "Completed",
+    "stripeColor": "#059669",
+    "priority": "Normal",
+    "isWaitAlert": false,
+    "waitTime": "0 min",
+    "orderedTags": [
+      "spicy",
+      "vegan"
+    ],
+    "allergens": [],
+    "note": "",
+    "isAllergy": false,
+    "busserName": null,
+    "device": "Desktop",
+    "platform": "Desktop",
+    "createdAt": "2026-10-15T16:12:46.904Z",
+    "updatedAt": "2026-10-15T16:14:13.709Z",
+    "statusHistory": [
+      {
+        "status": "New",
+        "timestamp": "2026-10-15T16:12:46.904Z",
+        "updatedBy": "Customer App",
+        "note": "Order submitted and routed to kitchen queue"
+      },
+      {
+        "status": "Preparing",
+        "timestamp": "2026-10-15T16:13:25.587Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Order advanced to Preparing"
+      },
+      {
+        "status": "Preparing",
+        "timestamp": "2026-10-15T16:13:25.641Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Status updated to Preparing"
+      },
+      {
+        "status": "Ready for Pickup",
+        "timestamp": "2026-10-15T16:13:35.177Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Plated & Ready for pickup"
+      },
+      {
+        "status": "Ready for Pickup",
+        "timestamp": "2026-10-15T16:13:35.209Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Order ready for customer pickup"
+      },
+      {
+        "status": "Completed",
+        "timestamp": "2026-10-15T16:14:13.634Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Order advanced to Completed"
+      },
+      {
+        "status": "Completed",
+        "timestamp": "2026-10-15T16:14:13.709Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Status updated to Completed"
+      }
+    ],
+    "completedAt": "2026-10-15T16:14:13.634Z"
+  },
+  {
+    "id": "ORD-5563",
+    "orderId": "ORD-5563",
+    "customer": "Mobile Diner",
+    "orderType": "Dine-In",
+    "diningOption": "Dine-In",
+    "location": "Table 1",
+    "tableId": "Table 1",
+    "tableNumber": "Table 1",
+    "kioskId": "MOBILE_01",
+    "restaurantId": "umami",
+    "item": {
+      "id": "101",
+      "sku": "APP-001",
+      "name": "Spicy Szechuan Dumplings",
+      "category": "Appetizers",
+      "price": 380,
+      "promoPrice": null,
+      "available": true,
+      "status": "Available",
+      "stock": 25,
+      "reorderLevel": 5,
+      "lastUpdated": "Oct 26, 2024 10:24 AM",
+      "image": "https://images.unsplash.com/photo-1563245372-f21724e3856d?auto=format&fit=crop&w=600&q=80",
+      "description": "Handmade pork dumplings tossed in fiery Sichuan chili crisp and toasted sesame.",
+      "allergens": [
+        "soy",
+        "gluten"
+      ],
+      "tags": [
+        "spicy",
+        "savory"
+      ],
+      "prepTime": "10 mins",
+      "sizes": "Standard",
+      "addons": "",
+      "subcategory": "Signature",
+      "ingredients": "Pork, chili oil, sesame",
+      "emoji": "🥟",
+      "catalogType": "food",
+      "isExplicitlyUnavailable": false,
+      "isOutOfStock": false,
+      "quantity": 1
+    },
+    "items": [
+      {
+        "id": "101",
+        "name": "Spicy Szechuan Dumplings",
+        "qty": 1,
+        "quantity": 1,
+        "price": 380,
+        "image": "https://images.unsplash.com/photo-1563245372-f21724e3856d?auto=format&fit=crop&w=600&q=80",
+        "emoji": "🥟",
+        "tags": [
+          "spicy",
+          "savory"
+        ],
+        "customizations": []
+      },
+      {
+        "id": "DRK-004-Large",
+        "name": "Mango Shake (Large)",
+        "qty": 1,
+        "quantity": 1,
+        "price": 105,
+        "image": "data:image/webp;base64,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",
+        "emoji": "🥭",
+        "tags": [
+          "vegan",
+          "sweet",
+          "healthy",
+          "drinks"
+        ],
+        "customizations": []
+      }
+    ],
+    "itemCount": 2,
+    "total": 485,
+    "totalPrice": 485,
+    "payment": "GCash",
+    "paymentStatus": "Paid Online",
+    "status": "Completed",
+    "nextStatus": "Completed",
+    "stripeColor": "#059669",
+    "priority": "Normal",
+    "isWaitAlert": false,
+    "waitTime": "0 min",
+    "orderedTags": [
+      "spicy",
+      "savory",
+      "vegan",
+      "sweet",
+      "healthy",
+      "drinks"
+    ],
+    "allergens": [
+      "peanuts"
+    ],
+    "note": "Exclude: PEANUTS",
+    "isAllergy": true,
+    "busserName": null,
+    "device": "Desktop",
+    "platform": "Desktop",
+    "createdAt": "2026-10-15T16:11:18.776Z",
+    "updatedAt": "2026-10-15T16:14:11.429Z",
+    "statusHistory": [
+      {
+        "status": "New",
+        "timestamp": "2026-10-15T16:11:18.776Z",
+        "updatedBy": "Customer App",
+        "note": "Order submitted and routed to kitchen queue"
+      },
+      {
+        "status": "Preparing",
+        "timestamp": "2026-10-15T16:13:28.514Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Order advanced to Preparing"
+      },
+      {
+        "status": "Preparing",
+        "timestamp": "2026-10-15T16:13:28.544Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Status updated to Preparing"
+      },
+      {
+        "status": "Ready for Pickup",
+        "timestamp": "2026-10-15T16:13:33.782Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Plated & Ready for pickup"
+      },
+      {
+        "status": "Ready for Pickup",
+        "timestamp": "2026-10-15T16:13:33.819Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Order ready for customer pickup"
+      },
+      {
+        "status": "Completed",
+        "timestamp": "2026-10-15T16:14:11.387Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Order advanced to Completed"
+      },
+      {
+        "status": "Completed",
+        "timestamp": "2026-10-15T16:14:11.429Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Status updated to Completed"
+      }
+    ],
+    "completedAt": "2026-10-15T16:14:11.387Z"
+  },
+  {
     "id": "ORD-8019",
     "orderId": "ORD-8019",
     "customer": "Mobile Diner",

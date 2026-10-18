@@ -233,7 +233,7 @@ function RestaurantView({ onReturnToKiosk }) {
         <header className="ops-header-card">
           <div className="ops-header-left">
             <div className="ops-hq-icon-box">
-              🏢
+              <Store size={22} />
             </div>
             <div>
               <div className="ops-title-row">

@@ -3,6 +3,8 @@ import { io } from 'socket.io-client';
 import {
   Footprints,
   BellRing,
+  Bell,
+  Truck,
   CheckCircle2,
   AlertTriangle,
   Volume2,
@@ -208,8 +210,8 @@ function BusserView({ onReturnToHome: _onReturnToHome }) {
       {/* Top Profile & Station Header */}
       <div className="busser-header-card">
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <div className="fp-logo-badge" style={{ width: '48px', height: '48px', borderRadius: '14px', fontSize: '24px' }}>
-            🏃
+          <div className="fp-logo-badge" style={{ width: '48px', height: '48px', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Truck size={24} color="#fff" />
           </div>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -309,7 +311,7 @@ function BusserView({ onReturnToHome: _onReturnToHome }) {
           <div style={{ marginBottom: '32px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{ fontSize: '20px' }}>🔔</span>
+                <Bell size={20} color="var(--primary-orange, #E45729)" />
                 <h2 style={{ fontSize: '18px', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
                   Ready for Dispatch ({readyOrders.length})
                 </h2>
@@ -406,7 +408,7 @@ function BusserView({ onReturnToHome: _onReturnToHome }) {
           {/* SECTION B: MY ACTIVE DELIVERIES */}
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
-              <span style={{ fontSize: '20px' }}>🏃</span>
+              <Truck size={20} color="var(--panda-pink)" />
               <h2 style={{ fontSize: '18px', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
                 My Active Deliveries ({myTransitOrders.length})
               </h2>

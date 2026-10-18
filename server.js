@@ -1798,10 +1798,14 @@ function checkAndExpirePromos() {
 
     if (promo.status === 'active' || promo.status === 'scheduled') {
       const expTime = getPromoExpiresAt(promo);
-      if (expTime && now >= expTime) {
+      const isTimeExpired = expTime && now >= expTime;
+      const isRedemptionsReached = promo.maxRedemptions && promo.currentRedemptions >= promo.maxRedemptions;
+      if (isTimeExpired || isRedemptionsReached) {
         promo.status = 'expired';
         promo.expiredAt = promo.expiredAt || now;
-        promo.expiredReason = 'Automatic expiration: date and time reached';
+        promo.expiredReason = isRedemptionsReached
+          ? `Automatic expiration: maximum redemptions limit (${promo.maxRedemptions}) reached`
+          : 'Automatic expiration: date and time reached';
         if (!promo.originalCode) {
           promo.originalCode = promo.code;
         }
