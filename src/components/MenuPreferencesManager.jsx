@@ -47,6 +47,7 @@ import {
   resetPreferencesToDefault,
   subscribePreferences
 } from '../utils/preferencesService';
+import CulinaryIconPicker from './CulinaryIconPicker';
 
 // Comprehensive presets for quick-pick emoji selection (matching Image 2)
 const ALLERGEN_EMOJI_PRESETS = [
@@ -1638,33 +1639,22 @@ export default function MenuPreferencesManager({ socket, onLogActivity }) {
                         </div>
                       </div>
 
-                      <div style={{ fontSize: '12px', fontWeight: '600', color: '#6B7280', marginTop: '16px', marginBottom: '10px' }}>
-                        Quick presets
-                      </div>
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                        {(modalType === 'allergen' ? ALLERGEN_EMOJI_PRESETS : FLAVOR_EMOJI_PRESETS).map(em => (
-                          <button
-                            key={em}
-                            type="button"
-                            onClick={() => setFormEmoji(em)}
-                            style={{
-                              width: '42px',
-                              height: '42px',
-                              borderRadius: '10px',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              fontSize: '20px',
-                              cursor: 'pointer',
-                              transition: 'all 0.15s ease',
-                              background: formEmoji === em ? '#FDF3EB' : '#FFFFFF',
-                              border: formEmoji === em ? '2px solid #C24522' : '1px solid #E5E7EB',
-                              boxShadow: formEmoji === em ? '0 2px 5px rgba(194, 69, 34, 0.15)' : 'none'
-                            }}
-                          >
-                            {em}
-                          </button>
-                        ))}
+                      <div style={{ marginTop: '16px' }}>
+                        <CulinaryIconPicker
+                          selectedEmoji={formEmoji}
+                          defaultCategory={modalType === 'allergen' ? 'allergens' : 'flavors'}
+                          title="Culinary Icon & Emoji Library"
+                          subtitle="Pick from realistic culinary symbols, or search by allergen/flavor keyword."
+                          onSelect={(emoji, item) => {
+                            setFormEmoji(emoji);
+                            if (!formName.trim() && item?.name) {
+                              setFormName(item.name.split('&')[0].trim());
+                            }
+                            if (!formDescription.trim() && item?.description) {
+                              setFormDescription(item.description);
+                            }
+                          }}
+                        />
                       </div>
                     </div>
                   )}

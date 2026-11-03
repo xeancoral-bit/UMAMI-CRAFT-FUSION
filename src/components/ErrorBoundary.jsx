@@ -107,13 +107,13 @@ export default class ErrorBoundary extends React.Component {
                   gap: '8px',
                   padding: '10px 20px',
                   borderRadius: '10px',
-                  background: 'linear-gradient(135deg, #e45729 0%, #c24522 100%)',
+                  background: 'var(--brand-gradient)',
                   color: '#ffffff',
                   border: 'none',
                   fontSize: '13.5px',
                   fontWeight: 700,
                   cursor: 'pointer',
-                  boxShadow: '0 4px 12px rgba(228, 87, 41, 0.3)'
+                  boxShadow: '0 4px 12px rgba(217, 75, 43, 0.3)'
                 }}
               >
                 <RefreshCw size={15} />

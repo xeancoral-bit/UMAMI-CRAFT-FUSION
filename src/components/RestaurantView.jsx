@@ -12,7 +12,8 @@ import {
   Search,
   ChevronRight,
   ToggleLeft,
-  ToggleRight
+  ToggleRight,
+  Home
 } from 'lucide-react';
 
 // Custom SVG Icons matching Image 1 exactly
@@ -251,6 +252,26 @@ function RestaurantView({ onReturnToKiosk }) {
           </div>
 
           <div className="ops-header-right">
+            {onReturnToKiosk && (
+              <button
+                type="button"
+                onClick={onReturnToKiosk}
+                className="ops-sync-btn"
+                style={{
+                  background: 'rgba(217, 75, 43, 0.08)',
+                  borderColor: 'rgba(217, 75, 43, 0.35)',
+                  color: '#D94B2B',
+                  fontWeight: 700,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}
+                title="Return to Smart Kiosk / Home"
+              >
+                <Home size={14} />
+                <span>Exit to Kiosk</span>
+              </button>
+            )}
             <button
               onClick={loadData}
               className="ops-sync-btn"
@@ -272,7 +293,7 @@ function RestaurantView({ onReturnToKiosk }) {
           {/* Card 1: Gross Sales */}
           <div className="ops-kpi-card">
             <div className="ops-kpi-icon-circle peach">
-              <span style={{ fontSize: '22px', fontWeight: '800', lineHeight: 1, color: '#E45729' }}>₱</span>
+              <span style={{ fontSize: '22px', fontWeight: '800', lineHeight: 1, color: '#D94B2B' }}>₱</span>
             </div>
             <div className="ops-kpi-content">
               <div className="ops-kpi-value">₱{totalRevenue.toFixed(2)}</div>
@@ -775,7 +796,7 @@ function RestaurantView({ onReturnToKiosk }) {
                           </div>
                           <div style={{ fontSize: '11.5px', color: '#7B6C5E', marginTop: '2px' }}>
                             ₱{item.promoPrice ? (
-                              <><s style={{ opacity: 0.5, marginRight: '4px' }}>{item.price?.toFixed(2)}</s><span style={{ color: '#E45729', fontWeight: 700 }}>{Number(item.promoPrice).toFixed(2)}</span></>
+                              <><s style={{ opacity: 0.5, marginRight: '4px' }}>{item.price?.toFixed(2)}</s><span style={{ color: '#D94B2B', fontWeight: 700 }}>{Number(item.promoPrice).toFixed(2)}</span></>
                             ) : item.price?.toFixed(2)}
                           </div>
                         </div>

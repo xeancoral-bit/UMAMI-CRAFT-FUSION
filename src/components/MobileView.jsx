@@ -2286,7 +2286,7 @@ function MobileView({ kioskId, onResetSession }) {
                             onError={e => { e.currentTarget.style.display = 'none'; }}
                           />
                         ) : (
-                          <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(228, 87, 41, 0.08)', color: 'var(--brand-primary, #e45729)' }}>
+                          <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(217, 75, 43, 0.08)', color: 'var(--brand-primary, #D94B2B)' }}>
                             <UtensilsCrossed size={12} />
                           </div>
                         )}
@@ -3214,8 +3214,8 @@ function MobileView({ kioskId, onResetSession }) {
                               height: '100%',
                               alignItems: 'center',
                               justifyContent: 'center',
-                              background: 'rgba(228, 87, 41, 0.08)',
-                              color: 'var(--brand-primary, #e45729)'
+                              background: 'rgba(217, 75, 43, 0.08)',
+                              color: 'var(--brand-primary, #D94B2B)'
                             }}>
                               <UtensilsCrossed size={16} />
                             </div>

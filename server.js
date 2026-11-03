@@ -1337,7 +1337,8 @@ app.post('/api/availability', (req, res) => {
 // ══════════════════════════════════════════════════════════════════════════
 
 // GET /api/preferences/allergens - Active allergens sorted by display_order
-app.get('/api/preferences/allergens', (req, res) => {
+app.get('/api/preferences/allergens', async (req, res) => {
+  await loadPreferencesFromDb();
   const activeAllergens = (menuPreferences.allergens || [])
     .filter(a => (a.status || (a.active ? 'Active' : 'Inactive')).toLowerCase() === 'active')
     .sort((a, b) => (a.display_order || a.order || 0) - (b.display_order || b.order || 0));
@@ -1345,7 +1346,8 @@ app.get('/api/preferences/allergens', (req, res) => {
 });
 
 // GET /api/preferences/flavor-preferences - Active flavor preferences sorted by display_order
-app.get('/api/preferences/flavor-preferences', (req, res) => {
+app.get('/api/preferences/flavor-preferences', async (req, res) => {
+  await loadPreferencesFromDb();
   const list = menuPreferences.flavor_preferences || menuPreferences.flavors || [];
   const activeFlavors = list
     .filter(f => (f.status || (f.active ? 'Active' : 'Inactive')).toLowerCase() === 'active')
@@ -1354,7 +1356,8 @@ app.get('/api/preferences/flavor-preferences', (req, res) => {
 });
 
 // GET /api/preferences - Combined active preferences
-app.get('/api/preferences', (req, res) => {
+app.get('/api/preferences', async (req, res) => {
+  await loadPreferencesFromDb();
   const activeAllergens = (menuPreferences.allergens || [])
     .filter(a => (a.status || (a.active ? 'Active' : 'Inactive')).toLowerCase() === 'active')
     .sort((a, b) => (a.display_order || a.order || 0) - (b.display_order || b.order || 0));
@@ -1376,7 +1379,8 @@ app.get('/api/preferences', (req, res) => {
 // ── Allergens Admin Endpoints ──
 
 // GET /api/admin/preferences/allergens - All allergens (active & inactive)
-app.get('/api/admin/preferences/allergens', (req, res) => {
+app.get('/api/admin/preferences/allergens', async (req, res) => {
+  await loadPreferencesFromDb();
   const sorted = [...(menuPreferences.allergens || [])]
     .sort((a, b) => (a.display_order || a.order || 0) - (b.display_order || b.order || 0));
   res.json(sorted);

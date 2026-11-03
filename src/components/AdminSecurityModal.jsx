@@ -823,7 +823,7 @@ export default function AdminSecurityModal({
                   border: 'none',
                   background: (loading || newPin.length !== pinLength || newPin !== confirmPin || !currentPin)
                     ? '#9CA3AF'
-                    : 'linear-gradient(135deg, #E45729 0%, #C24522 100%)',
+                    : 'var(--brand-gradient)',
                   color: '#FFFFFF',
                   fontSize: '13px',
                   fontWeight: 700,
@@ -832,7 +832,7 @@ export default function AdminSecurityModal({
                     : 'pointer',
                   boxShadow: (loading || newPin.length !== pinLength || newPin !== confirmPin || !currentPin)
                     ? 'none'
-                    : '0 4px 12px rgba(228, 87, 41, 0.35)',
+                    : '0 4px 12px rgba(217, 75, 43, 0.35)',
                   display: 'flex',
                   alignItems: 'center',
                   gap: '6px'

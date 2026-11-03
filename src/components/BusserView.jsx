@@ -12,7 +12,8 @@ import {
   RefreshCw,
   UserCheck,
   Check,
-  Coffee
+  Coffee,
+  Home
 } from 'lucide-react';
 
 function playBusserAlert() {
@@ -39,7 +40,7 @@ function playBusserAlert() {
   }
 }
 
-function BusserView({ onReturnToHome: _onReturnToHome }) {
+function BusserView({ onReturnToHome }) {
   const [busserName, setBusserName] = useState(() => {
     return localStorage.getItem('synapse_busser_name') || 'Runner Jordan';
   });
@@ -272,6 +273,28 @@ function BusserView({ onReturnToHome: _onReturnToHome }) {
           >
             <RefreshCw size={15} />
           </button>
+
+          {onReturnToHome && (
+            <button
+              type="button"
+              onClick={onReturnToHome}
+              className="fp-nav-pill"
+              style={{
+                border: '1px solid rgba(217, 75, 43, 0.4)',
+                background: 'rgba(217, 75, 43, 0.08)',
+                color: '#D94B2B',
+                padding: '8px 14px',
+                fontWeight: 700,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px'
+              }}
+              title="Return to Smart Kiosk / Customer Terminal"
+            >
+              <Home size={15} />
+              <span style={{ fontSize: '13px' }}>Exit to Kiosk</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -311,7 +334,7 @@ function BusserView({ onReturnToHome: _onReturnToHome }) {
           <div style={{ marginBottom: '32px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Bell size={20} color="var(--primary-orange, #E45729)" />
+                <Bell size={20} color="var(--primary-orange, #D94B2B)" />
                 <h2 style={{ fontSize: '18px', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
                   Ready for Dispatch ({readyOrders.length})
                 </h2>

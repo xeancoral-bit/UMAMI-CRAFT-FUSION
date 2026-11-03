@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { io } from 'socket.io-client';
 import { QRCodeSVG } from 'qrcode.react';
 import MenuPreferencesManager from './MenuPreferencesManager';
+import CulinaryIconPicker from './CulinaryIconPicker';
 import {
   LayoutDashboard,
   UtensilsCrossed,
@@ -2684,7 +2685,7 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
                   title="Click to view Orders management"
                 >
                   <div className="admin-kpi-icon-box" style={{ background: '#ffede6' }}>
-                    <ShoppingCart size={22} color="#e45729" />
+                    <ShoppingCart size={22} color="#D94B2B" />
                   </div>
                   <div className="admin-kpi-main-v2">
                     <span className="admin-kpi-label-v2">Total Orders Today</span>
@@ -2764,7 +2765,7 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
                 <div className="admin-chart-card-v2">
                   <div className="admin-card-header-v2">
                     <h3 className="admin-card-title-v2">
-                      <BarChart2 size={18} color="#e45729" />
+                      <BarChart2 size={18} color="#D94B2B" />
                       <span>Revenue Trend (Last 7 Days)</span>
                     </h3>
                     <button type="button" className="admin-card-filter-select">
@@ -2777,8 +2778,8 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
                     <svg viewBox="0 0 540 170" style={{ width: '100%', height: '100%', overflow: 'visible' }}>
                       <defs>
                         <linearGradient id="revTrendGrad" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="0%" stopColor="#e45729" stopOpacity="0.25" />
-                          <stop offset="100%" stopColor="#e45729" stopOpacity="0.01" />
+                          <stop offset="0%" stopColor="#D94B2B" stopOpacity="0.25" />
+                          <stop offset="100%" stopColor="#D94B2B" stopOpacity="0.01" />
                         </linearGradient>
                       </defs>
 
@@ -2804,7 +2805,7 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
                       <polyline
                         points="65,124 140,106 216,92 292,80 368,62 444,74 518,36"
                         fill="none"
-                        stroke="#e45729"
+                        stroke="#D94B2B"
                         strokeWidth="2.8"
                         strokeLinecap="round"
                         strokeLinejoin="round"
@@ -2821,7 +2822,7 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
                         { x: 518, y: 36, date: trendDays[6] || 'Today' }
                       ].map((pt, idx) => (
                         <g key={idx}>
-                          <circle cx={pt.x} cy={pt.y} r="4.5" fill="#e45729" stroke="#ffffff" strokeWidth="2" />
+                          <circle cx={pt.x} cy={pt.y} r="4.5" fill="#D94B2B" stroke="#ffffff" strokeWidth="2" />
                           <text x={pt.x} y="167" textAnchor="middle" fill="#9ca3af" fontSize="11" fontWeight="500">
                             {pt.date}
                           </text>
@@ -2835,7 +2836,7 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
                 <div className="admin-chart-card-v2">
                   <div className="admin-card-header-v2">
                     <h3 className="admin-card-title-v2">
-                      <Clock size={18} color="#e45729" />
+                      <Clock size={18} color="#D94B2B" />
                       <span>Order Status Today</span>
                     </h3>
                   </div>
@@ -2965,7 +2966,7 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
                 <div className="admin-panel-card" style={{ padding: '20px' }}>
                   <div className="admin-card-header-v2">
                     <h3 className="admin-card-title-v2">
-                      <Flame size={18} color="#e45729" />
+                      <Flame size={18} color="#D94B2B" />
                       <span>Best Selling Products</span>
                     </h3>
                     <button type="button" className="admin-view-all-btn" onClick={() => setActiveTab('menu')}>
@@ -2982,7 +2983,7 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
                       { rank: '#5', name: 'Thai Coconut Curry Bowl', price: 490, sold: '37 sold', img: 'https://images.unsplash.com/photo-1455619452474-d2be8b1e70cd?auto=format&fit=crop&w=160&q=80' },
                     ].map((item, idx) => (
                       <div key={idx} className="admin-bs-item" style={{ background: '#FAF5EE', borderRadius: '12px', padding: '8px 12px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-                        <span style={{ fontSize: '13px', fontWeight: '800', color: '#e45729', width: '22px' }}>{item.rank}</span>
+                        <span style={{ fontSize: '13px', fontWeight: '800', color: '#D94B2B', width: '22px' }}>{item.rank}</span>
                         <img
                           src={item.img}
                           alt={item.name}
@@ -3007,7 +3008,7 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
                 <div className="admin-panel-card" style={{ padding: '20px' }}>
                   <div className="admin-card-header-v2">
                     <h3 className="admin-card-title-v2">
-                      <History size={18} color="#e45729" />
+                      <History size={18} color="#D94B2B" />
                       <span>Recent Activity Audit Trail</span>
                     </h3>
                     <button type="button" className="admin-view-all-btn" onClick={() => setActiveTab('logs')}>
@@ -3433,7 +3434,7 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
                       boxShadow: '0 1px 2px rgba(0,0,0,0.04)'
                     }}
                   >
-                    <Settings size={15} color="#e45729" />
+                    <Settings size={15} color="#D94B2B" />
                     <span>Manage Size Presets</span>
                   </button>
 
@@ -3464,7 +3465,7 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
                       alignItems: 'center',
                       gap: '6px',
                       padding: '8px 18px',
-                      background: '#e45729',
+                      background: '#D94B2B',
                       border: 'none',
                       borderRadius: '8px',
                       fontSize: '13px',
@@ -4313,7 +4314,7 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
                         height: '28px',
                         border: 'none',
                         borderRadius: '6px',
-                        background: '#e45729',
+                        background: '#D94B2B',
                         color: '#ffffff',
                         fontSize: '12px',
                         fontWeight: 700,
@@ -5166,7 +5167,7 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
                         </div>
                         <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
                           <span style={{ fontSize: '14px', color: '#6b7280' }}>Bundle Price</span>
-                          <span style={{ fontSize: '22px', fontWeight: 800, color: '#e45729' }}>₱{featuredBundle.price}</span>
+                          <span style={{ fontSize: '22px', fontWeight: 800, color: '#D94B2B' }}>₱{featuredBundle.price}</span>
                         </div>
                       </div>
 
@@ -5211,7 +5212,7 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
                               width: '20px',
                               height: '20px',
                               borderRadius: '50%',
-                              background: '#e45729',
+                              background: '#D94B2B',
                               color: '#fff',
                               fontSize: '11px',
                               fontWeight: 800,
@@ -5233,7 +5234,7 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
                                   onClick={() => setSelectedMainIdx(idx)}
                                   className="admin-mm-option-item"
                                   style={{
-                                    border: isSelected ? '1.5px solid #e45729' : '1px solid #e5e7eb',
+                                    border: isSelected ? '1.5px solid #D94B2B' : '1px solid #e5e7eb',
                                     boxShadow: isSelected ? '0 2px 6px rgba(228, 87, 41, 0.12)' : 'none'
                                   }}
                                 >
@@ -5241,7 +5242,7 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
                                     width: '16px',
                                     height: '16px',
                                     borderRadius: '50%',
-                                    border: isSelected ? '5px solid #e45729' : '2px solid #d1d5db',
+                                    border: isSelected ? '5px solid #D94B2B' : '2px solid #d1d5db',
                                     background: '#fff',
                                     flexShrink: 0
                                   }} />
@@ -5275,7 +5276,7 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
                               width: '20px',
                               height: '20px',
                               borderRadius: '50%',
-                              background: '#e45729',
+                              background: '#D94B2B',
                               color: '#fff',
                               fontSize: '11px',
                               fontWeight: 800,
@@ -5297,7 +5298,7 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
                                   onClick={() => setSelectedSideIdx(idx)}
                                   className="admin-mm-option-item"
                                   style={{
-                                    border: isSelected ? '1.5px solid #e45729' : '1px solid #e5e7eb',
+                                    border: isSelected ? '1.5px solid #D94B2B' : '1px solid #e5e7eb',
                                     boxShadow: isSelected ? '0 2px 6px rgba(228, 87, 41, 0.12)' : 'none'
                                   }}
                                 >
@@ -5305,7 +5306,7 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
                                     width: '16px',
                                     height: '16px',
                                     borderRadius: '50%',
-                                    border: isSelected ? '5px solid #e45729' : '2px solid #d1d5db',
+                                    border: isSelected ? '5px solid #D94B2B' : '2px solid #d1d5db',
                                     background: '#fff',
                                     flexShrink: 0
                                   }} />
@@ -5339,7 +5340,7 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
                               width: '20px',
                               height: '20px',
                               borderRadius: '50%',
-                              background: '#e45729',
+                              background: '#D94B2B',
                               color: '#fff',
                               fontSize: '11px',
                               fontWeight: 800,
@@ -5361,7 +5362,7 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
                                   onClick={() => setSelectedDrinkIdx(idx)}
                                   className="admin-mm-option-item"
                                   style={{
-                                    border: isSelected ? '1.5px solid #e45729' : '1px solid #e5e7eb',
+                                    border: isSelected ? '1.5px solid #D94B2B' : '1px solid #e5e7eb',
                                     boxShadow: isSelected ? '0 2px 6px rgba(228, 87, 41, 0.12)' : 'none'
                                   }}
                                 >
@@ -5369,7 +5370,7 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
                                     width: '16px',
                                     height: '16px',
                                     borderRadius: '50%',
-                                    border: isSelected ? '5px solid #e45729' : '2px solid #d1d5db',
+                                    border: isSelected ? '5px solid #D94B2B' : '2px solid #d1d5db',
                                     background: '#fff',
                                     flexShrink: 0
                                   }} />
@@ -5401,7 +5402,7 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
                               width: '24px',
                               height: '24px',
                               borderRadius: '50%',
-                              background: '#e45729',
+                              background: '#D94B2B',
                               color: '#fff',
                               display: 'flex',
                               alignItems: 'center',
@@ -5481,7 +5482,7 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
 
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
                             <span style={{ fontSize: '13px', fontWeight: 700, color: '#111827' }}>Bundle Price</span>
-                            <span style={{ fontSize: '20px', fontWeight: 800, color: '#e45729' }}>₱{bPrice}</span>
+                            <span style={{ fontSize: '20px', fontWeight: 800, color: '#D94B2B' }}>₱{bPrice}</span>
                           </div>
 
                           <div style={{
@@ -5563,7 +5564,7 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
 
                           <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px' }}>
                             <span style={{ fontSize: '12px', color: '#6b7280' }}>Bundle Price</span>
-                            <span style={{ fontSize: '18px', fontWeight: 800, color: '#e45729' }}>₱{bundle.price}</span>
+                            <span style={{ fontSize: '18px', fontWeight: 800, color: '#D94B2B' }}>₱{bundle.price}</span>
                           </div>
                         </div>
 
@@ -7725,7 +7726,7 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
                       type="button"
                       style={{
                         padding: '5px 12px',
-                        background: '#e45729',
+                        background: '#D94B2B',
                         color: '#ffffff',
                         border: 'none',
                         borderRadius: '6px',
@@ -8692,7 +8693,7 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
                         alignItems: 'center',
                         gap: '6px',
                         padding: '8px 16px',
-                        background: '#e45729',
+                        background: '#D94B2B',
                         border: 'none',
                         borderRadius: '8px',
                         fontSize: '13px',
@@ -9153,7 +9154,7 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
                                 type="checkbox"
                                 checked={allSelected}
                                 onChange={toggleSelectAll}
-                                style={{ cursor: 'pointer', accentColor: '#e45729' }}
+                                style={{ cursor: 'pointer', accentColor: '#D94B2B' }}
                               />
                             </th>
                             <th style={{ padding: '12px 14px' }}>Product Name</th>
@@ -9194,7 +9195,7 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
                                       type="checkbox"
                                       checked={isSelected}
                                       onChange={() => toggleSelectItem(item.id)}
-                                      style={{ cursor: 'pointer', accentColor: '#e45729' }}
+                                      style={{ cursor: 'pointer', accentColor: '#D94B2B' }}
                                     />
                                   </td>
 
@@ -9340,7 +9341,7 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
                                         onClick={() => handleRestockInventory(item, stepperVal)}
                                         style={{
                                           padding: '5px 14px',
-                                          background: '#e45729',
+                                          background: '#D94B2B',
                                           border: 'none',
                                           borderRadius: '6px',
                                           fontSize: '12px',
@@ -9468,7 +9469,7 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
                               height: '28px',
                               border: 'none',
                               borderRadius: '6px',
-                              background: '#e45729',
+                              background: '#D94B2B',
                               color: '#ffffff',
                               fontSize: '12px',
                               fontWeight: 700,
@@ -9529,7 +9530,7 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
                               background: 'none',
                               border: 'none',
                               fontSize: '12.5px',
-                              color: '#e45729',
+                              color: '#D94B2B',
                               fontWeight: 700,
                               cursor: 'pointer'
                             }}
@@ -9987,31 +9988,6 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
                         Clear
                       </button>
                     )}
-                  </div>
-
-                  {/* Preset High-Res Food Image Options */}
-                  <div style={{ marginTop: '8px' }}>
-                    <span style={{ fontSize: '11px', fontWeight: '700', color: '#786456' }}>Or pick a sample food image:</span>
-                    <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '4px' }}>
-                      {[
-                        { label: '🍚 Rice Bowl', url: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=600&q=80' },
-                        { label: '🍜 Spicy Ramen', url: 'https://images.unsplash.com/photo-1569718212165-3a8278d5f624?auto=format&fit=crop&w=600&q=80' },
-                        { label: '🥟 Dumplings', url: 'https://images.unsplash.com/photo-1496116218417-1a781b1c416c?auto=format&fit=crop&w=600&q=80' },
-                        { label: '🌱 Edamame', url: 'https://images.unsplash.com/photo-1622205313162-be1d5712a43f?auto=format&fit=crop&w=600&q=80' },
-                        { label: '🍗 Teriyaki', url: 'https://images.unsplash.com/photo-1617093727343-374698b1b08d?auto=format&fit=crop&w=600&q=80' },
-                        { label: '🥭 Mango Sticky Rice', url: 'https://images.unsplash.com/photo-1562440499-64c9a111f713?auto=format&fit=crop&w=600&q=80' }
-                      ].map((preset, idx) => (
-                        <button
-                          key={idx}
-                          type="button"
-                          className="admin-btn-sm"
-                          style={{ fontSize: '10.5px', padding: '3px 8px' }}
-                          onClick={() => setFormProduct(prev => ({ ...prev, image: preset.url }))}
-                        >
-                          {preset.label}
-                        </button>
-                      ))}
-                    </div>
                   </div>
                 </div>
 
@@ -11751,7 +11727,7 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
       {/* CATEGORY MODAL (ADD / RENAME) */}
       {showCategoryModal && (
         <div className="staff-pin-backdrop" style={{ zIndex: 100050 }} onClick={() => setShowCategoryModal(false)}>
-          <div className="admin-modal-small" onClick={e => e.stopPropagation()} style={{ maxWidth: '440px', padding: '24px' }}>
+          <div className="admin-modal-small" onClick={e => e.stopPropagation()} style={{ maxWidth: '540px', padding: '24px' }}>
             <div className="admin-modal-header" style={{ marginBottom: '16px' }}>
               <h2 style={{ fontSize: '18px', fontWeight: '800', color: '#2a1a0f' }}>
                 {editingCategory ? 'Rename Category' : 'Add New Food Category'}
@@ -11776,43 +11752,19 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
               </div>
 
               <div className="admin-input-group" style={{ margin: 0 }}>
-                <label className="admin-input-label">Category Icon / Emoji</label>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                  <span style={{ fontSize: '26px', width: '42px', height: '42px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#fff5ee', borderRadius: '8px', border: '1.5px solid #f5c4a1', flexShrink: 0 }}>
-                    {formCategory.icon || '🍽️'}
-                  </span>
-                  <input
-                    type="text"
-                    className="admin-input-field"
-                    style={{ width: '80px', textAlign: 'center', fontSize: '18px' }}
-                    value={formCategory.icon}
-                    onChange={e => setFormCategory({ ...formCategory, icon: e.target.value })}
-                    maxLength={4}
-                  />
-                  <span style={{ fontSize: '12px', color: '#777' }}>Or pick one below:</span>
-                </div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', maxHeight: '110px', overflowY: 'auto', padding: '8px', background: '#faf8f5', borderRadius: '8px', border: '1px solid #f0e6dd' }}>
-                  {['🍽️','🥟','🍜','🍚','🍦','🍱','🍔','🍗','🍟','🥗','🧋','🥩','🍣','🍕','🌮','🥪','🥘','🍲','🫔','🥞','🥤','☕','🧁','🍢','🍤','🧇','🌭','🍙'].map((emoji, idx) => (
-                    <button
-                      key={idx}
-                      type="button"
-                      style={{
-                        background: formCategory.icon === emoji ? '#c05a1f' : '#ffffff',
-                        color: formCategory.icon === emoji ? '#ffffff' : '#333333',
-                        border: formCategory.icon === emoji ? '1.5px solid #c05a1f' : '1px solid #e2d9d0',
-                        borderRadius: '6px',
-                        padding: '6px',
-                        fontSize: '18px',
-                        cursor: 'pointer',
-                        lineHeight: 1,
-                        transition: 'all 0.1s ease'
-                      }}
-                      onClick={() => setFormCategory({ ...formCategory, icon: emoji })}
-                    >
-                      {emoji}
-                    </button>
-                  ))}
-                </div>
+                <CulinaryIconPicker
+                  selectedEmoji={formCategory.icon || '🍽️'}
+                  defaultCategory="noodles_rice"
+                  title="Category Symbol & Icon Library"
+                  subtitle="Select an authentic culinary icon for this menu category."
+                  onSelect={(emoji, item) => {
+                    setFormCategory({
+                      ...formCategory,
+                      icon: emoji,
+                      name: !formCategory.name.trim() && item?.name ? item.name.split('&')[0].trim() : formCategory.name
+                    });
+                  }}
+                />
               </div>
 
               <div className="admin-modal-footer" style={{ marginTop: '8px', paddingTop: '14px', borderTop: '1px solid #eee' }}>
@@ -12409,7 +12361,7 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '15px', fontWeight: 800, color: '#111827', paddingTop: '6px', borderTop: '1px solid #e5e7eb' }}>
                 <span>Grand Total</span>
-                <span style={{ color: '#e45729' }}>₱{viewingOrder.total.toFixed(2)}</span>
+                <span style={{ color: '#D94B2B' }}>₱{viewingOrder.total.toFixed(2)}</span>
               </div>
             </div>
 
@@ -12441,7 +12393,7 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
                 onClick={() => setViewingOrder(null)}
                 style={{
                   padding: '8px 16px',
-                  background: '#e45729',
+                  background: '#D94B2B',
                   border: 'none',
                   borderRadius: '8px',
                   fontSize: '12.5px',
@@ -12684,7 +12636,7 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
                 }}
                 style={{
                   padding: '8px 18px',
-                  background: '#e45729',
+                  background: '#D94B2B',
                   border: 'none',
                   borderRadius: '8px',
                   fontSize: '13px',
@@ -13341,7 +13293,7 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
                     style={{
                       padding: '10px',
                       borderRadius: '8px',
-                      border: formStockItem.type === 'menu' ? '2px solid #e45729' : '1px solid #d1d5db',
+                      border: formStockItem.type === 'menu' ? '2px solid #D94B2B' : '1px solid #d1d5db',
                       background: formStockItem.type === 'menu' ? '#fff7ed' : '#ffffff',
                       color: formStockItem.type === 'menu' ? '#c2410c' : '#374151',
                       fontWeight: 700,
@@ -13357,7 +13309,7 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
                     style={{
                       padding: '10px',
                       borderRadius: '8px',
-                      border: formStockItem.type === 'drink' ? '2px solid #e45729' : '1px solid #d1d5db',
+                      border: formStockItem.type === 'drink' ? '2px solid #D94B2B' : '1px solid #d1d5db',
                       background: formStockItem.type === 'drink' ? '#fff7ed' : '#ffffff',
                       color: formStockItem.type === 'drink' ? '#c2410c' : '#374151',
                       fontWeight: 700,
@@ -13647,7 +13599,7 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
                 }}
                 style={{
                   padding: '8px 20px',
-                  background: '#e45729',
+                  background: '#D94B2B',
                   border: 'none',
                   borderRadius: '8px',
                   fontSize: '13px',

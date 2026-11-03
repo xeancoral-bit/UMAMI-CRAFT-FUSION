@@ -219,7 +219,7 @@ function NavBar({
 
         <div className="staff-pin-header">
           <div className="staff-pin-icon-wrap">
-            <KeyRound size={26} color="#E45729" />
+            <KeyRound size={26} color="#D94B2B" />
           </div>
           <h3 className="staff-pin-title">Staff &amp; Admin Access</h3>
           <p className="staff-pin-subtitle">
@@ -304,9 +304,9 @@ function NavBar({
     </div>
   );
 
-  // If LOCKED: Only render the discrete icon button on Kiosk view ("kiosk rani makita")
+  // If LOCKED: Render discrete lock button on staff views (hide only on customer mobile app)
   if (!isUnlocked) {
-    if (currentView !== 'kiosk') {
+    if (currentView === 'mobile') {
       return showPinModal ? renderPinModal() : null;
     }
 
