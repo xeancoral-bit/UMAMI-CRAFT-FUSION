@@ -137,7 +137,7 @@ async function loadPreferencesFromDb() {
       menuPreferences.flavor_preferences = data.flavor_preferences || data.flavors;
       menuPreferences.flavors = menuPreferences.flavor_preferences;
     }
-    console.log(`[DB] Preferences loaded: ${menuPreferences.allergens.length} allergens, ${menuPreferences.flavor_preferences.length} flavor preferences`);
+    console.log(`[DB] Preferences loaded: ${(menuPreferences.allergens || []).length} allergens, ${(menuPreferences.flavor_preferences || []).length} flavor preferences`);
   } catch (err) {
     console.warn('[DB] Could not load preferences.json, using memory defaults:', err.message);
   }
@@ -284,17 +284,6 @@ async function saveDrinksData(drinksList) {
 
 loadMenuData();
 loadDrinksData();
-
-// Menu & Drinks API endpoints
-app.get('/api/menu', async (req, res) => {
-  if (!cachedMenu) await loadMenuData();
-  res.json(cachedMenu || []);
-});
-
-app.get('/api/drinks', async (req, res) => {
-  if (!cachedDrinks) await loadDrinksData();
-  res.json(cachedDrinks || []);
-});
 
 // Serve static assets in production
 app.use(express.static(path.join(__dirname, 'dist')));
@@ -666,14 +655,17 @@ io.on('connection', (socket) => {
   socket.emit('initial-menu-preferences', menuPreferences);
 
   // Admin updates menu preferences (add/edit/delete/reorder/toggle)
-  socket.on('update-menu-preferences', (payload) => {
+  socket.on('update-menu-preferences', async (payload) => {
     if (payload?.allergens && Array.isArray(payload.allergens)) {
       menuPreferences.allergens = payload.allergens;
     }
-    if (payload?.flavors && Array.isArray(payload.flavors)) {
-      menuPreferences.flavors = payload.flavors;
+    const flavorList = payload?.flavor_preferences || payload?.flavors;
+    if (flavorList && Array.isArray(flavorList)) {
+      menuPreferences.flavor_preferences = flavorList;
+      menuPreferences.flavors = flavorList;
     }
-    console.log(`[Socket] Broadcasted updated menu preferences (Allergens: ${menuPreferences.allergens.length}, Flavors: ${menuPreferences.flavors.length})`);
+    await savePreferencesToDb();
+    console.log(`[Socket] Broadcasted updated menu preferences (Allergens: ${(menuPreferences.allergens || []).length}, Flavors: ${(menuPreferences.flavor_preferences || []).length})`);
     io.emit('menu-preferences-updated', menuPreferences);
   });
 
@@ -964,14 +956,20 @@ app.get('/api/restaurant', (req, res) => {
 // Dynamic Network & Wi-Fi IP discovery endpoint for mobile scanners and kiosks
 app.get('/api/network-info', async (req, res) => {
   try {
-    const force = req.query.refresh === 'true';
-    const info = force ? await refreshDynamicNetwork(true) : getCachedDynamicNetwork();
+    const isRefresh = req.query.refresh === 'true';
+    const info = isRefresh ? await refreshDynamicNetwork(true) : getCachedDynamicNetwork();
     res.json({
       ...info,
+      isDynamic: true,
       port: FRONTEND_PORT,
       backendPort: PORT,
       mobileFrontendPort: MOBILE_FRONTEND_PORT,
-      restaurant: activeRestaurant
+      restaurant: {
+        ...activeRestaurant,
+        backendPort: PORT,
+        frontendPort: FRONTEND_PORT,
+        mobileFrontendPort: MOBILE_FRONTEND_PORT
+      }
     });
   } catch (err) {
     res.status(500).json({ error: 'Failed to retrieve network info', message: err.message });
@@ -1007,29 +1005,6 @@ app.post('/api/restaurant', (req, res) => {
   });
 });
 
-// Network info endpoint for dynamic Kiosk QR code generation
-app.get('/api/network-info', async (req, res) => {
-  const isRefresh = req.query.refresh === 'true';
-  const info = isRefresh ? await refreshDynamicNetwork(true) : getCachedDynamicNetwork();
-  res.json({
-    ip: info.ip,
-    ssid: info.ssid,
-    wifiConnected: info.wifiConnected,
-    signal: info.signal,
-    interfaceName: info.interfaceName,
-    band: info.band,
-    isDynamic: true,
-    port: FRONTEND_PORT,
-    backendPort: PORT,
-    mobileFrontendPort: MOBILE_FRONTEND_PORT,
-    restaurant: {
-      ...activeRestaurant,
-      backendPort: PORT,
-      frontendPort: FRONTEND_PORT,
-      mobileFrontendPort: MOBILE_FRONTEND_PORT
-    }
-  });
-});
 
 // Device battery synchronization endpoints
 app.get('/api/device-battery', (req, res) => {
@@ -1075,7 +1050,7 @@ app.post('/api/orders', async (req, res) => {
       customer: payload.customer || 'Customer',
       orderType: payload.orderType || payload.diningOption || 'Dine-In',
       diningOption: payload.diningOption || payload.orderType || 'Dine-In',
-      location: payload.location || payload.tableNumber ? `Table ${payload.tableNumber}` : 'Counter',
+      location: payload.location || (payload.tableNumber ? (String(payload.tableNumber).startsWith('Table') ? payload.tableNumber : `Table ${payload.tableNumber}`) : 'Counter'),
       tableId: payload.tableId || payload.location || 'Counter',
       tableNumber: payload.tableNumber || 'Counter',
       kioskId: payload.kioskId || 'COUNTER',
@@ -1372,6 +1347,22 @@ app.get('/api/preferences', async (req, res) => {
   });
 });
 
+// POST /api/preferences - Bulk update preferences (used for resets or syncing)
+app.post('/api/preferences', async (req, res) => {
+  const { allergens, flavors, flavor_preferences } = req.body || {};
+  if (Array.isArray(allergens)) {
+    menuPreferences.allergens = allergens;
+  }
+  const fList = flavor_preferences || flavors;
+  if (Array.isArray(fList)) {
+    menuPreferences.flavor_preferences = fList;
+    menuPreferences.flavors = fList;
+  }
+  await savePreferencesToDb();
+  io.emit('menu-preferences-updated', menuPreferences);
+  res.json({ success: true, allergens: menuPreferences.allergens, flavor_preferences: menuPreferences.flavor_preferences });
+});
+
 // ══════════════════════════════════════════════════════════════════════════
 // ADMIN PREFERENCE MANAGEMENT ENDPOINTS (Full CRUD + Reordering + Upload)
 // ══════════════════════════════════════════════════════════════════════════
@@ -1516,7 +1507,8 @@ app.delete('/api/admin/preferences/allergens/:id', async (req, res) => {
 // ── Flavor Preferences Admin Endpoints ──
 
 // GET /api/admin/preferences/flavor-preferences - All flavor preferences
-app.get('/api/admin/preferences/flavor-preferences', (req, res) => {
+app.get('/api/admin/preferences/flavor-preferences', async (req, res) => {
+  await loadPreferencesFromDb();
   const list = menuPreferences.flavor_preferences || menuPreferences.flavors || [];
   const sorted = [...list].sort((a, b) => (a.display_order || a.order || 0) - (b.display_order || b.order || 0));
   res.json(sorted);

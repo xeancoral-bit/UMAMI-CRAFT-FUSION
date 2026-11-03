@@ -52,6 +52,7 @@ function RestaurantView({ onReturnToKiosk }) {
   const [socketConnected, setSocketConnected] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [lastSyncText, setLastSyncText] = useState('Last synced 2 min ago');
+  const [showAllOrders, setShowAllOrders] = useState(false);
   const socketRef = useRef(null);
 
   // Load restaurant metadata, all tables, orders, and menu
@@ -202,8 +203,23 @@ function RestaurantView({ onReturnToKiosk }) {
     }).catch(err => console.error("Error setting table status:", err));
   };
 
-  // KPI Calculations
-  const totalRevenue = orders.reduce((sum, o) => sum + Number(o.total || o.totalPrice || 0), 0);
+  // Helper for dynamic relative time
+  const formatOrderAge = (timestamp) => {
+    if (!timestamp) return 'Just now';
+    const diffMs = Date.now() - new Date(timestamp).getTime();
+    if (isNaN(diffMs) || diffMs < 0) return 'Just now';
+    const mins = Math.floor(diffMs / 60000);
+    if (mins < 1) return 'Just now';
+    if (mins === 1) return '1 min ago';
+    if (mins < 60) return `${mins} min ago`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs === 1) return '1 hr ago';
+    return `${hrs} hrs ago`;
+  };
+
+  // KPI Calculations (excluding cancelled orders from revenue)
+  const validOrders = orders.filter(o => o.status !== 'Cancelled');
+  const totalRevenue = validOrders.reduce((sum, o) => sum + Number(o.total || o.totalPrice || 0), 0);
   const activeOrders = orders.filter(o => o.status !== 'Completed' && o.status !== 'Cancelled');
   const readyOrders = orders.filter(o => o.status === 'Ready' || o.status === 'Order Ready' || o.status === 'Ready for Pickup');
   const completedOrders = orders.filter(o => o.status === 'Completed');
@@ -212,17 +228,23 @@ function RestaurantView({ onReturnToKiosk }) {
   const occupiedTables = tables.filter(t => t.status === 'Occupied');
   const availableTables = tables.filter(t => t.status === 'Available');
   const busserTables = tables.filter(t => t.status === 'Needs Bussing');
-  const totalTables = 25; // 25 tables capacity matching Image 1
+  const totalTables = tables.length > 0 ? tables.length : 25;
   const occupancyRate = totalTables > 0 ? Math.round((occupiedTables.length / totalTables) * 100) : 0;
   const availablePercentage = totalTables > 0 ? Math.round((availableTables.length / totalTables) * 100) : 0;
 
-  // Breakdown subtext
-  const entreesCount = activeOrders.reduce((sum, o) => sum + (o.items?.filter(i => i.category === 'Entrees' || !i.category)?.length || 0), 0);
-  const appsCount = activeOrders.reduce((sum, o) => sum + (o.items?.filter(i => i.category === 'Appetizers')?.length || 0), 0);
-  const busserTablesList = busserTables.map(t => t.tableNumber).join(', ');
+  // Breakdown subtext with proper item quantities
+  const entreesCount = activeOrders.reduce((sum, o) => {
+    const list = o.items || (o.item ? [o.item] : []);
+    return sum + list.filter(i => (i.category && i.category.toLowerCase().includes('entree')) || (!i.category && !i.tags?.includes('appetizer'))).reduce((s, it) => s + (it.quantity || it.qty || 1), 0);
+  }, 0);
+  const appsCount = activeOrders.reduce((sum, o) => {
+    const list = o.items || (o.item ? [o.item] : []);
+    return sum + list.filter(i => (i.category && i.category.toLowerCase().includes('appetizer')) || i.tags?.includes('appetizer')).reduce((s, it) => s + (it.quantity || it.qty || 1), 0);
+  }, 0);
+  const busserTablesList = busserTables.map(t => String(t.tableNumber).replace(/^Table\s*/i, '')).join(', ');
 
   const filteredMenuItems = menuItems.filter(item =>
-    item.name.toLowerCase().includes(searchFilter.toLowerCase()) ||
+    (item.name || '').toLowerCase().includes(searchFilter.toLowerCase()) ||
     (item.category && item.category.toLowerCase().includes(searchFilter.toLowerCase()))
   );
 
@@ -374,7 +396,7 @@ function RestaurantView({ onReturnToKiosk }) {
             <div className="ops-panel-card">
               <div className="ops-panel-header">
                 <h2 className="ops-panel-title">
-                  Active Order Pipeline ({orders.length})
+                  Active Order Pipeline ({activeOrders.length})
                 </h2>
                 <div className="ops-live-feed-badge">
                   <span className="ops-live-dot pulsing"></span>
@@ -383,15 +405,15 @@ function RestaurantView({ onReturnToKiosk }) {
               </div>
 
               <div className="ops-pipeline-body">
-                {orders.length === 0 ? (
+                {activeOrders.length === 0 ? (
                   <div className="ops-pipeline-empty-state">
                     <p className="ops-empty-message">
-                      No orders placed yet. Orders from Customer App or Kiosk appear here automatically.
+                      No active kitchen orders. Orders placed from Customer App or Kiosk appear here automatically.
                     </p>
                   </div>
                 ) : (
                   <div className="ops-pipeline-order-list">
-                    {orders.slice(0, 8).map(order => {
+                    {(showAllOrders ? activeOrders : activeOrders.slice(0, 8)).map(order => {
                       const isReady = order.status === 'Ready' || order.status === 'Order Ready' || order.status === 'Ready for Pickup';
                       const isPreparing = order.status === 'Preparing';
                       const isPlating = order.status === 'Plating';
@@ -412,26 +434,31 @@ function RestaurantView({ onReturnToKiosk }) {
                         statusText = 'In Kitchen';
                       }
 
+                      const displayTableNum = String(order.tableNumber || order.tableId || 1).replace(/^Table\s*/i, '');
+                      const displayOrderId = order.orderId ? (order.orderId.length > 4 ? order.orderId.slice(-4) : order.orderId) : (order.id ? String(order.id).slice(-4) : '—');
+                      const itemsList = order.items && order.items.length > 0 ? order.items : (order.item ? [order.item] : []);
+                      const totalItemCount = order.itemCount || itemsList.reduce((sum, i) => sum + (i.quantity || i.qty || 1), 0) || itemsList.length || 1;
+
                       return (
-                        <div key={order.orderId} className="ops-pipeline-order-row">
+                        <div key={order.orderId || order.id} className="ops-pipeline-order-row">
                           <div className="ops-order-table-badge">
                             <span className="badge-tbl-label">Table</span>
-                            <span className="badge-tbl-num">{order.tableNumber || 1}</span>
+                            <span className="badge-tbl-num">{displayTableNum}</span>
                           </div>
 
                           <div className="ops-order-id-col">
-                            <span className="ops-order-id">#{order.orderId?.slice?.(-4) || '1042'}</span>
+                            <span className="ops-order-id">#{displayOrderId}</span>
                           </div>
 
                           <div className="ops-order-items-col">
-                            {order.items && order.items.length > 0 ? (
-                              order.items.slice(0, 2).map((item, idx) => (
+                            {itemsList.length > 0 ? (
+                              itemsList.slice(0, 2).map((item, idx) => (
                                 <div key={idx} className="ops-order-item-line">
-                                  {item.quantity || 1} × {item.name}
+                                  {item.quantity || item.qty || 1} × {item.name}
                                 </div>
                               ))
                             ) : (
-                              <div className="ops-order-item-line">1 × Artisanal Ramen</div>
+                              <div className="ops-order-item-line">1 × Custom Order</div>
                             )}
                           </div>
 
@@ -442,8 +469,8 @@ function RestaurantView({ onReturnToKiosk }) {
                           </div>
 
                           <div className="ops-order-meta-col">
-                            <div className="ops-order-time">8 min ago</div>
-                            <div className="ops-order-count">{order.items?.length || 3} items</div>
+                            <div className="ops-order-time">{formatOrderAge(order.createdAt || order.timestamp || order.updatedAt)}</div>
+                            <div className="ops-order-count">{totalItemCount} {totalItemCount === 1 ? 'item' : 'items'}</div>
                           </div>
                         </div>
                       );
@@ -454,11 +481,17 @@ function RestaurantView({ onReturnToKiosk }) {
 
               <div className="ops-panel-footer">
                 <span className="ops-footer-counter">
-                  Showing {Math.min(orders.length, 5)} of {orders.length} active orders
+                  Showing {Math.min(activeOrders.length, showAllOrders ? activeOrders.length : 8)} of {activeOrders.length} active orders
                 </span>
-                <button className="ops-view-all-link" onClick={() => {}}>
-                  View All Orders →
-                </button>
+                {activeOrders.length > 8 && (
+                  <button
+                    type="button"
+                    className="ops-view-all-link"
+                    onClick={() => setShowAllOrders(prev => !prev)}
+                  >
+                    {showAllOrders ? 'Show Fewer Orders ↑' : 'View All Orders →'}
+                  </button>
+                )}
               </div>
             </div>
 
@@ -785,7 +818,12 @@ function RestaurantView({ onReturnToKiosk }) {
                               src={item.image}
                               alt={item.name}
                               style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                              onError={e => { e.currentTarget.style.display = 'none'; e.currentTarget.nextSibling.style.display = 'flex'; }}
+                              onError={e => {
+                                e.currentTarget.style.display = 'none';
+                                if (e.currentTarget.nextElementSibling) {
+                                  e.currentTarget.nextElementSibling.style.display = 'flex';
+                                }
+                              }}
                             />
                           ) : null}
                           <span style={{ fontSize: '22px', display: item.image ? 'none' : 'flex' }}>{item.emoji || '🍽️'}</span>

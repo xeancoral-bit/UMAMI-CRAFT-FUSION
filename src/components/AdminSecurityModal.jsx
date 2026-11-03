@@ -7,11 +7,7 @@ import {
   CheckCircle2,
   AlertTriangle,
   X,
-  ShieldCheck,
-  Hash,
-  Sparkles,
-  Delete,
-  Shield
+  ShieldCheck
 } from 'lucide-react';
 
 export default function AdminSecurityModal({
