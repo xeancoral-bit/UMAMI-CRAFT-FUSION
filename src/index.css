@@ -1641,8 +1641,8 @@ button {
 
 .ticket-item-price {
   font-size: 13px;
-  font-weight: 600;
-  color: #9ca3af;
+  font-weight: 700;
+  color: #ffffff;
 }
 
 /* Ticket Actions */
@@ -4262,6 +4262,16 @@ button {
   overflow: hidden;
 }
 
+/* ── Sections Container (Allergens & Preferences Grid) ── */
+.mvault-sections-container {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin-top: 14px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
 .mvault-section-header {
   display: flex;
   align-items: center;
@@ -4308,8 +4318,11 @@ button {
 
 /* ── Checklist ── */
 .mvault-checklist {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  padding: 10px;
+  box-sizing: border-box;
 }
 
 .mvault-check-row {
@@ -4643,13 +4656,436 @@ button {
   margin: 0;
 }
 
-.mv-hero-mockup-wrapper {
+.mv-hero-mockup-wrapper,
+.mv-webapp-wrapper {
   width: 100%;
-  max-width: 1080px;
+  max-width: 980px;
   display: flex;
-  justify-content: center;
+  flex-direction: column;
+  align-items: center;
   position: relative;
   z-index: 3;
+}
+
+.mv-webapp-viewport {
+  width: 100%;
+  background: #FFFFFF;
+  border-radius: 20px;
+  border: 1px solid rgba(220, 200, 180, 0.7);
+  box-shadow: 0 16px 40px rgba(44, 26, 17, 0.08), 0 2px 6px rgba(44, 26, 17, 0.04);
+  overflow: hidden;
+  position: relative;
+  box-sizing: border-box;
+}
+
+.mv-webapp-viewport .mobile-wrapper {
+  margin: 0 !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-height: auto !important;
+  background-color: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 24px 28px !important;
+  box-sizing: border-box !important;
+}
+
+/* ── Menu Header Bar & Controls inside Mobile View ── */
+.mv-menu-header-bar {
+  padding: 14px 16px;
+  background: rgba(45, 106, 79, 0.04);
+  border: 1px solid rgba(45, 106, 79, 0.15);
+  border-radius: 14px;
+}
+
+.mv-menu-header-inner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.mv-menu-header-info {
+  min-width: 0;
+  flex: 1 1 180px;
+}
+
+.mv-menu-header-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+
+/* ── Menu Item Cards ── */
+.mv-catalog-item-card {
+  padding: 12px 14px;
+  border-radius: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  box-sizing: border-box;
+  width: 100%;
+}
+
+.mv-catalog-item-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  min-width: 95px;
+  flex-shrink: 0;
+}
+
+/* ==========================================================================
+   TABLET & PHABLET GADGET RESPONSIVE (max-width: 768px)
+   ========================================================================== */
+@media (max-width: 768px) {
+  .mv-hero-page {
+    padding: 12px 10px 40px !important;
+    width: 100% !important;
+    max-width: 100vw !important;
+    overflow-x: hidden !important;
+    box-sizing: border-box !important;
+  }
+
+  .mv-hero-header-banner {
+    margin-bottom: 12px !important;
+    padding: 8px 12px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .mv-hero-headline {
+    font-size: 20px !important;
+    line-height: 1.25 !important;
+  }
+
+  .mv-hero-tagline {
+    font-size: 12px !important;
+  }
+
+  .mv-webapp-wrapper {
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    box-sizing: border-box !important;
+  }
+
+  .mv-webapp-viewport {
+    border-radius: 16px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    border: 1px solid rgba(220, 200, 180, 0.6) !important;
+  }
+
+  .mv-webapp-viewport .mobile-wrapper {
+    padding: 16px 14px 85px 14px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  /* Single column flow for Onboarding on portable screens */
+  .mvault-sections-container,
+  .device-laptop-layout .mvault-sections-container,
+  .device-tablet-layout .mvault-sections-container,
+  .device-smartphone-layout .mvault-sections-container {
+    display: flex !important;
+    flex-direction: column !important;
+    grid-template-columns: 1fr !important;
+    gap: 14px !important;
+    width: 100% !important;
+  }
+
+  .mvault-checklist,
+  .device-laptop-layout .mvault-checklist,
+  .device-tablet-layout .mvault-checklist,
+  .device-smartphone-layout .mvault-checklist {
+    display: flex !important;
+    flex-direction: column !important;
+    grid-template-columns: 1fr !important;
+    gap: 6px !important;
+    padding: 8px 10px !important;
+  }
+
+  .mvault-root {
+    padding: 16px 12px 32px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .mvault-hero {
+    padding: 8px 4px 12px !important;
+  }
+
+  .mvault-title {
+    font-size: 22px !important;
+  }
+
+  .mvault-privacy-bar {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 8px !important;
+    padding: 12px 14px !important;
+  }
+
+  .cart-floating-bar {
+    position: fixed !important;
+    bottom: calc(12px + env(safe-area-inset-bottom, 0px)) !important;
+    left: 12px !important;
+    right: 12px !important;
+    max-width: calc(100vw - 24px) !important;
+    z-index: 99 !important;
+    margin: 0 !important;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25) !important;
+  }
+}
+
+/* ==========================================================================
+   SMARTPHONE & COMPACT GADGET BREAKPOINT (max-width: 480px)
+   iPhone, Galaxy, Pixel, and Mobile Gadgets of all dimensions
+   ========================================================================== */
+@media (max-width: 480px) {
+  html, body {
+    overflow-x: hidden !important;
+    width: 100% !important;
+  }
+
+  .mv-hero-page {
+    padding: 0 !important;
+    width: 100vw !important;
+    max-width: 100% !important;
+    min-height: 100dvh !important;
+    background: #FDFBF7 !important;
+    overflow-x: hidden !important;
+  }
+
+  /* Prevent background decorative SVG overflow on phones */
+  .mv-hero-bamboo-left,
+  .mv-hero-wave-right {
+    display: none !important;
+  }
+
+  .mv-hero-bg-mountains {
+    opacity: 0.25 !important;
+    height: 25% !important;
+  }
+
+  /* Compact Hero Header on Phones */
+  .mv-hero-header-banner {
+    padding: 10px 12px 4px !important;
+    margin-bottom: 4px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .mv-hero-headline {
+    font-size: 15px !important;
+    line-height: 1.25 !important;
+    margin: 0 0 2px !important;
+  }
+
+  .mv-hero-tagline {
+    font-size: 10.5px !important;
+    line-height: 1.3 !important;
+  }
+
+  /* Seamless edge-to-edge webapp layout on phones */
+  .mv-webapp-wrapper {
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  .mv-webapp-viewport {
+    border-radius: 0 !important;
+    border-left: none !important;
+    border-right: none !important;
+    border-top: 1px solid rgba(220, 200, 180, 0.4) !important;
+    box-shadow: none !important;
+    background: transparent !important;
+    width: 100% !important;
+  }
+
+  .mv-webapp-viewport .mobile-wrapper {
+    padding: 10px 10px 95px 10px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  /* Onboarding view responsive refinement */
+  .mvault-root {
+    padding: 12px 8px 36px !important;
+    width: 100% !important;
+  }
+
+  .mvault-deco-corner {
+    display: none !important;
+  }
+
+  .mvault-title {
+    font-size: 19px !important;
+    line-height: 1.2 !important;
+  }
+
+  .mvault-tagline {
+    font-size: 11px !important;
+  }
+
+  .mvault-section {
+    border-radius: 14px !important;
+  }
+
+  .mvault-section-header {
+    padding: 10px 12px 8px !important;
+    gap: 10px !important;
+  }
+
+  .mvault-section-num {
+    width: 26px !important;
+    height: 26px !important;
+    font-size: 13px !important;
+  }
+
+  .mvault-section-title {
+    font-size: 14px !important;
+  }
+
+  .mvault-check-row {
+    padding: 9px 10px !important;
+    gap: 10px !important;
+  }
+
+  .mvault-check-box {
+    width: 18px !important;
+    height: 18px !important;
+  }
+
+  .mvault-check-label {
+    font-size: 13px !important;
+  }
+
+  .mvault-check-emoji {
+    font-size: 17px !important;
+  }
+
+  .mvault-privacy-bar {
+    padding: 10px 12px !important;
+    gap: 6px !important;
+    border-radius: 10px !important;
+  }
+
+  .mvault-privacy-bold {
+    font-size: 11.5px !important;
+  }
+
+  .mvault-privacy-sub {
+    font-size: 10px !important;
+  }
+
+  .mvault-privacy-right {
+    font-size: 8.5px !important;
+  }
+
+  .mvault-save-btn {
+    padding: 13px 18px !important;
+    font-size: 14px !important;
+    border-radius: 12px !important;
+  }
+
+  .mvault-later-btn {
+    padding: 10px 16px !important;
+    font-size: 12px !important;
+    border-radius: 10px !important;
+  }
+
+  /* Connected Menu View on phones */
+  .mv-menu-header-bar {
+    padding: 10px 12px !important;
+    border-radius: 12px !important;
+  }
+
+  .mv-menu-header-inner {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 8px !important;
+  }
+
+  .mv-menu-header-controls {
+    width: 100% !important;
+    justify-content: space-between !important;
+    gap: 6px !important;
+  }
+
+  .mv-cat-tabs-scroll {
+    gap: 6px !important;
+    padding-bottom: 6px !important;
+    margin-bottom: 10px !important;
+  }
+
+  .mv-cat-tab-btn {
+    padding: 6px 11px !important;
+    font-size: 11px !important;
+  }
+
+  .mv-catalog-item-card {
+    padding: 10px 10px !important;
+    gap: 8px !important;
+    border-radius: 12px !important;
+  }
+
+  .mv-catalog-item-actions {
+    min-width: 80px !important;
+    gap: 6px !important;
+  }
+
+  .cart-floating-bar {
+    position: fixed !important;
+    bottom: calc(10px + env(safe-area-inset-bottom, 0px)) !important;
+    left: 10px !important;
+    right: 10px !important;
+    max-width: calc(100vw - 20px) !important;
+    border-radius: 14px !important;
+    padding: 10px 14px !important;
+  }
+}
+
+/* ==========================================================================
+   ULTRA-COMPACT SMARTPHONE BREAKPOINT (max-width: 360px)
+   e.g. Small Android screens, iPhone SE 1st gen (320px - 360px)
+   ========================================================================== */
+@media (max-width: 360px) {
+  .mv-catalog-item-card {
+    padding: 8px 8px !important;
+    gap: 6px !important;
+  }
+
+  .mv-catalog-item-actions {
+    min-width: 72px !important;
+  }
+
+  .mv-catalog-item-actions button {
+    padding: 4px 8px !important;
+    font-size: 10px !important;
+  }
+
+  .mv-cat-tab-btn {
+    padding: 5px 9px !important;
+    font-size: 10px !important;
+  }
+
+  .mvault-title {
+    font-size: 17px !important;
+  }
 }
 
 /* ── Background: subtle sun circle top-right ── */
@@ -5439,22 +5875,24 @@ button {
   margin: 0 auto;
 }
 
-.device-laptop-layout .mvault-title {
-  font-size: 28px !important;
-}
+@media (min-width: 769px) {
+  .device-laptop-layout .mvault-title {
+    font-size: 28px !important;
+  }
 
-.device-laptop-layout .mvault-sections-container {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 20px;
-  margin-top: 14px;
-}
+  .device-laptop-layout .mvault-sections-container {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin-top: 14px;
+  }
 
-.device-laptop-layout .mvault-checklist {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-  padding: 10px;
+  .device-laptop-layout .mvault-checklist {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    padding: 10px;
+  }
 }
 
 /* ── Content inside Tablet Mockup ── */
@@ -5790,9 +6228,11 @@ button {
   color: #1C1917;
 }
 
-/* Ensure mobile wrapper inside mockups never applies negative margins */
+/* Ensure mobile wrapper inside mockups and webapp never applies negative margins */
 .mockup-inner-content .mobile-wrapper,
 .mockup-inner-content .mvault-root,
+.mv-webapp-viewport .mobile-wrapper,
+.mv-webapp-viewport .mvault-root,
 .mobile-wrapper .mvault-root {
   margin: 0 !important;
   width: 100% !important;

@@ -1,5 +1,911 @@
 [
   {
+    "id": "ORD-3145",
+    "orderId": "ORD-3145",
+    "customer": "Mobile Diner",
+    "orderType": "Dine-In",
+    "diningOption": "Dine-In",
+    "location": "Table 1",
+    "tableId": "Table 1",
+    "tableNumber": "Table 1",
+    "kioskId": "J5KG0C",
+    "restaurantId": "umami",
+    "item": {
+      "id": "MIX-03",
+      "name": "Twin Boba & Dessert Feast",
+      "description": "Any 2 specialty iced milk teas or fruit shakes + Mango Sticky Rice dessert.",
+      "price": 319,
+      "originalPrice": 420,
+      "badge": "Save ₱101",
+      "allergens": [],
+      "tags": [
+        "mixmatch",
+        "sweet"
+      ],
+      "emoji": "🍧",
+      "image": "https://images.unsplash.com/photo-1562440499-64c9a111f713?auto=format&fit=crop&w=600&q=80",
+      "available": true,
+      "category": "Mix & Match Deals",
+      "catalogType": "mixmatch",
+      "quantity": 1
+    },
+    "items": [
+      {
+        "id": "MIX-03",
+        "name": "Twin Boba & Dessert Feast",
+        "qty": 1,
+        "quantity": 1,
+        "price": 319,
+        "image": "https://images.unsplash.com/photo-1562440499-64c9a111f713?auto=format&fit=crop&w=600&q=80",
+        "emoji": "🍧",
+        "tags": [
+          "mixmatch",
+          "sweet"
+        ],
+        "customizations": []
+      },
+      {
+        "id": "MIX-02",
+        "name": "Artisan Ramen & Gyoza Pair Set",
+        "qty": 1,
+        "quantity": 1,
+        "price": 389,
+        "image": "https://images.unsplash.com/photo-1569718212165-3a8278d5f624?auto=format&fit=crop&w=600&q=80",
+        "emoji": "🍜",
+        "tags": [
+          "mixmatch",
+          "spicy"
+        ],
+        "customizations": []
+      }
+    ],
+    "itemCount": 2,
+    "total": 708,
+    "totalPrice": 708,
+    "payment": "GCash",
+    "paymentStatus": "Paid Online",
+    "status": "New",
+    "nextStatus": "Start Preparing",
+    "stripeColor": "#2563eb",
+    "priority": "Normal",
+    "isWaitAlert": false,
+    "waitTime": "0 min",
+    "orderedTags": [
+      "mixmatch",
+      "sweet",
+      "mixmatch",
+      "spicy"
+    ],
+    "allergens": [],
+    "note": "",
+    "isAllergy": false,
+    "busserName": null,
+    "device": "Desktop",
+    "platform": "Desktop",
+    "createdAt": "2026-11-05T05:46:33.092Z",
+    "updatedAt": "2026-11-05T05:46:33.092Z",
+    "statusHistory": [
+      {
+        "status": "New",
+        "timestamp": "2026-11-05T05:46:33.092Z",
+        "updatedBy": "Customer App",
+        "note": "Order submitted and routed to kitchen queue"
+      }
+    ]
+  },
+  {
+    "id": "ORD-4745",
+    "orderId": "ORD-4745",
+    "customer": "Mobile Diner",
+    "orderType": "Dine-In",
+    "diningOption": "Dine-In",
+    "location": "Table 1",
+    "tableId": "Table 1",
+    "tableNumber": "Table 1",
+    "kioskId": "MOBILE_01",
+    "restaurantId": "umami",
+    "item": {
+      "id": "101",
+      "sku": "APP-001",
+      "name": "Spicy Szechuan Dumplings",
+      "category": "Appetizers",
+      "price": 380,
+      "promoPrice": null,
+      "available": true,
+      "status": "Available",
+      "stock": 25,
+      "reorderLevel": 5,
+      "lastUpdated": "Oct 26, 2024 10:24 AM",
+      "image": "https://images.unsplash.com/photo-1563245372-f21724e3856d?auto=format&fit=crop&w=600&q=80",
+      "description": "Handmade pork dumplings tossed in fiery Sichuan chili crisp and toasted sesame.",
+      "allergens": [
+        "soy",
+        "gluten"
+      ],
+      "tags": [
+        "spicy",
+        "savory"
+      ],
+      "prepTime": "10 mins",
+      "sizes": "Standard",
+      "addons": "",
+      "subcategory": "Signature",
+      "ingredients": "Pork, chili oil, sesame",
+      "emoji": "🥟",
+      "catalogType": "food",
+      "isExplicitlyUnavailable": false,
+      "isOutOfStock": false,
+      "quantity": 1
+    },
+    "items": [
+      {
+        "id": "101",
+        "name": "Spicy Szechuan Dumplings",
+        "qty": 1,
+        "quantity": 1,
+        "price": 380,
+        "image": "https://images.unsplash.com/photo-1563245372-f21724e3856d?auto=format&fit=crop&w=600&q=80",
+        "emoji": "🥟",
+        "tags": [
+          "spicy",
+          "savory"
+        ],
+        "customizations": []
+      },
+      {
+        "id": "MIX-03",
+        "name": "Twin Boba & Dessert Feast",
+        "qty": 1,
+        "quantity": 1,
+        "price": 319,
+        "image": "https://images.unsplash.com/photo-1562440499-64c9a111f713?auto=format&fit=crop&w=600&q=80",
+        "emoji": "🍧",
+        "tags": [
+          "mixmatch",
+          "sweet"
+        ],
+        "customizations": []
+      },
+      {
+        "id": "MIX-02",
+        "name": "Artisan Ramen & Gyoza Pair Set",
+        "qty": 1,
+        "quantity": 1,
+        "price": 389,
+        "image": "https://images.unsplash.com/photo-1569718212165-3a8278d5f624?auto=format&fit=crop&w=600&q=80",
+        "emoji": "🍜",
+        "tags": [
+          "mixmatch",
+          "spicy"
+        ],
+        "customizations": []
+      }
+    ],
+    "itemCount": 3,
+    "total": 1088,
+    "totalPrice": 1088,
+    "payment": "GCash",
+    "paymentStatus": "Paid Online",
+    "status": "Completed",
+    "nextStatus": "Completed",
+    "stripeColor": "#059669",
+    "priority": "Normal",
+    "isWaitAlert": false,
+    "waitTime": "0 min",
+    "orderedTags": [
+      "spicy",
+      "savory",
+      "mixmatch",
+      "sweet",
+      "mixmatch",
+      "spicy"
+    ],
+    "allergens": [],
+    "note": "",
+    "isAllergy": false,
+    "busserName": null,
+    "device": "Desktop",
+    "platform": "Desktop",
+    "createdAt": "2026-11-04T15:29:00.211Z",
+    "updatedAt": "2026-11-04T17:00:50.970Z",
+    "statusHistory": [
+      {
+        "status": "New",
+        "timestamp": "2026-11-04T15:29:00.212Z",
+        "updatedBy": "Customer App",
+        "note": "Order submitted and routed to kitchen queue"
+      },
+      {
+        "status": "Preparing",
+        "timestamp": "2026-11-04T16:22:55.758Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Order advanced to Preparing"
+      },
+      {
+        "status": "Preparing",
+        "timestamp": "2026-11-04T16:22:55.791Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Status updated to Preparing"
+      },
+      {
+        "status": "Ready for Pickup",
+        "timestamp": "2026-11-04T17:00:38.903Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Plated & Ready for pickup"
+      },
+      {
+        "status": "Ready for Pickup",
+        "timestamp": "2026-11-04T17:00:38.930Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Order ready for customer pickup"
+      },
+      {
+        "status": "Completed",
+        "timestamp": "2026-11-04T17:00:50.943Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Order advanced to Completed"
+      },
+      {
+        "status": "Completed",
+        "timestamp": "2026-11-04T17:00:50.970Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Status updated to Completed"
+      }
+    ],
+    "completedAt": "2026-11-04T17:00:50.943Z"
+  },
+  {
+    "id": "ORD-9205",
+    "orderId": "ORD-9205",
+    "customer": "Mobile Diner",
+    "orderType": "Dine-In",
+    "diningOption": "Dine-In",
+    "location": "Table 1",
+    "tableId": "Table 1",
+    "tableNumber": "Table 1",
+    "kioskId": "MOBILE_01",
+    "restaurantId": "umami",
+    "item": {
+      "id": "102",
+      "sku": "APP-002",
+      "name": "Smoked Truffle Edamame",
+      "category": "Appetizers",
+      "price": 250,
+      "promoPrice": null,
+      "available": true,
+      "status": "Available",
+      "stock": 25,
+      "reorderLevel": 5,
+      "lastUpdated": "Oct 26, 2024 10:24 AM",
+      "image": "https://images.unsplash.com/photo-1622205313162-be1d5712a43f?auto=format&fit=crop&w=600&q=80",
+      "description": "Steamed organic edamame tossed in white truffle oil and smoked Maldon salt.",
+      "allergens": [
+        "soy"
+      ],
+      "tags": [
+        "vegan",
+        "savory"
+      ],
+      "prepTime": "5 mins",
+      "sizes": "Standard",
+      "addons": "",
+      "subcategory": "Signature",
+      "ingredients": "Edamame, truffle oil, sea salt",
+      "emoji": "🫛",
+      "catalogType": "food",
+      "isExplicitlyUnavailable": false,
+      "isOutOfStock": false,
+      "quantity": 1
+    },
+    "items": [
+      {
+        "id": "102",
+        "name": "Smoked Truffle Edamame",
+        "qty": 1,
+        "quantity": 1,
+        "price": 250,
+        "image": "https://images.unsplash.com/photo-1622205313162-be1d5712a43f?auto=format&fit=crop&w=600&q=80",
+        "emoji": "🫛",
+        "tags": [
+          "vegan",
+          "savory"
+        ],
+        "customizations": []
+      },
+      {
+        "id": "104",
+        "name": "Crispy Five-Spice Tofu Bites",
+        "qty": 1,
+        "quantity": 1,
+        "price": 320,
+        "image": "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=600&q=80",
+        "emoji": "🥢",
+        "tags": [
+          "spicy",
+          "vegan"
+        ],
+        "customizations": []
+      }
+    ],
+    "itemCount": 2,
+    "total": 570,
+    "totalPrice": 570,
+    "payment": "GCash",
+    "paymentStatus": "Paid Online",
+    "status": "Completed",
+    "nextStatus": "Completed",
+    "stripeColor": "#059669",
+    "priority": "Normal",
+    "isWaitAlert": false,
+    "waitTime": "0 min",
+    "orderedTags": [
+      "vegan",
+      "savory",
+      "spicy",
+      "vegan"
+    ],
+    "allergens": [
+      "peanuts",
+      "dairy"
+    ],
+    "note": "Exclude: PEANUTS, DAIRY",
+    "isAllergy": true,
+    "busserName": null,
+    "device": "Mobile",
+    "platform": "Mobile",
+    "createdAt": "2026-11-04T08:29:14.270Z",
+    "updatedAt": "2026-11-04T15:19:06.730Z",
+    "statusHistory": [
+      {
+        "status": "New",
+        "timestamp": "2026-11-04T08:29:14.270Z",
+        "updatedBy": "Customer App",
+        "note": "Order submitted and routed to kitchen queue"
+      },
+      {
+        "status": "Preparing",
+        "timestamp": "2026-11-04T08:30:47.984Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Order advanced to Preparing"
+      },
+      {
+        "status": "Preparing",
+        "timestamp": "2026-11-04T08:30:48.007Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Status updated to Preparing"
+      },
+      {
+        "status": "New",
+        "timestamp": "2026-11-04T08:31:04.435Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Order advanced to New"
+      },
+      {
+        "status": "New",
+        "timestamp": "2026-11-04T08:31:04.467Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Status updated to New"
+      },
+      {
+        "status": "Preparing",
+        "timestamp": "2026-11-04T08:31:11.790Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Order advanced to Preparing"
+      },
+      {
+        "status": "Preparing",
+        "timestamp": "2026-11-04T08:31:11.812Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Status updated to Preparing"
+      },
+      {
+        "status": "New",
+        "timestamp": "2026-11-04T08:31:16.405Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Order advanced to New"
+      },
+      {
+        "status": "New",
+        "timestamp": "2026-11-04T08:31:16.427Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Status updated to New"
+      },
+      {
+        "status": "Preparing",
+        "timestamp": "2026-11-04T08:31:20.512Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Order advanced to Preparing"
+      },
+      {
+        "status": "Preparing",
+        "timestamp": "2026-11-04T08:31:20.539Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Status updated to Preparing"
+      },
+      {
+        "status": "Ready for Pickup",
+        "timestamp": "2026-11-04T08:32:14.864Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Plated & Ready for pickup"
+      },
+      {
+        "status": "Ready for Pickup",
+        "timestamp": "2026-11-04T08:32:14.886Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Order ready for customer pickup"
+      },
+      {
+        "status": "Completed",
+        "timestamp": "2026-11-04T15:19:03.328Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Order advanced to Completed"
+      },
+      {
+        "status": "Completed",
+        "timestamp": "2026-11-04T15:19:06.730Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Status updated to Completed"
+      }
+    ],
+    "completedAt": "2026-11-04T15:19:03.328Z"
+  },
+  {
+    "id": "ORD-8064",
+    "orderId": "ORD-8064",
+    "customer": "Mobile Diner",
+    "orderType": "Dine-In",
+    "diningOption": "Dine-In",
+    "location": "Table 1",
+    "tableId": "Table 1",
+    "tableNumber": "Table 1",
+    "kioskId": "HT3X1J",
+    "restaurantId": "umami",
+    "item": {
+      "id": "101",
+      "sku": "APP-001",
+      "name": "Spicy Szechuan Dumplings",
+      "category": "Appetizers",
+      "price": 380,
+      "promoPrice": null,
+      "available": true,
+      "status": "Available",
+      "stock": 25,
+      "reorderLevel": 5,
+      "lastUpdated": "Oct 26, 2024 10:24 AM",
+      "image": "https://images.unsplash.com/photo-1563245372-f21724e3856d?auto=format&fit=crop&w=600&q=80",
+      "description": "Handmade pork dumplings tossed in fiery Sichuan chili crisp and toasted sesame.",
+      "allergens": [
+        "soy",
+        "gluten"
+      ],
+      "tags": [
+        "spicy",
+        "savory"
+      ],
+      "prepTime": "10 mins",
+      "sizes": "Standard",
+      "addons": "",
+      "subcategory": "Signature",
+      "ingredients": "Pork, chili oil, sesame",
+      "emoji": "🥟",
+      "catalogType": "food",
+      "isExplicitlyUnavailable": false,
+      "isOutOfStock": false,
+      "quantity": 1
+    },
+    "items": [
+      {
+        "id": "101",
+        "name": "Spicy Szechuan Dumplings",
+        "qty": 1,
+        "quantity": 1,
+        "price": 380,
+        "image": "https://images.unsplash.com/photo-1563245372-f21724e3856d?auto=format&fit=crop&w=600&q=80",
+        "emoji": "🥟",
+        "tags": [
+          "spicy",
+          "savory"
+        ],
+        "customizations": []
+      },
+      {
+        "id": "102",
+        "name": "Smoked Truffle Edamame",
+        "qty": 1,
+        "quantity": 1,
+        "price": 250,
+        "image": "https://images.unsplash.com/photo-1622205313162-be1d5712a43f?auto=format&fit=crop&w=600&q=80",
+        "emoji": "🫛",
+        "tags": [
+          "vegan",
+          "savory"
+        ],
+        "customizations": []
+      },
+      {
+        "id": "104",
+        "name": "Crispy Five-Spice Tofu Bites",
+        "qty": 1,
+        "quantity": 1,
+        "price": 320,
+        "image": "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=600&q=80",
+        "emoji": "🥢",
+        "tags": [
+          "spicy",
+          "vegan"
+        ],
+        "customizations": []
+      }
+    ],
+    "itemCount": 3,
+    "total": 950,
+    "totalPrice": 950,
+    "payment": "GCash",
+    "paymentStatus": "Paid Online",
+    "status": "Completed",
+    "nextStatus": "Completed",
+    "stripeColor": "#059669",
+    "priority": "Normal",
+    "isWaitAlert": false,
+    "waitTime": "0 min",
+    "orderedTags": [
+      "spicy",
+      "savory",
+      "vegan",
+      "savory",
+      "spicy",
+      "vegan"
+    ],
+    "allergens": [
+      "peanuts",
+      "dairy"
+    ],
+    "note": "Exclude: PEANUTS, DAIRY",
+    "isAllergy": true,
+    "busserName": null,
+    "device": "Mobile",
+    "platform": "Mobile",
+    "createdAt": "2026-11-04T08:28:03.260Z",
+    "updatedAt": "2026-11-04T08:28:51.700Z",
+    "statusHistory": [
+      {
+        "status": "New",
+        "timestamp": "2026-11-04T08:28:03.260Z",
+        "updatedBy": "Customer App",
+        "note": "Order submitted and routed to kitchen queue"
+      },
+      {
+        "status": "Preparing",
+        "timestamp": "2026-11-04T08:28:32.083Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Order advanced to Preparing"
+      },
+      {
+        "status": "Preparing",
+        "timestamp": "2026-11-04T08:28:32.111Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Status updated to Preparing"
+      },
+      {
+        "status": "Ready for Pickup",
+        "timestamp": "2026-11-04T08:28:46.116Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Plated & Ready for pickup"
+      },
+      {
+        "status": "Ready for Pickup",
+        "timestamp": "2026-11-04T08:28:46.140Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Order ready for customer pickup"
+      },
+      {
+        "status": "Completed",
+        "timestamp": "2026-11-04T08:28:51.672Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Order advanced to Completed"
+      },
+      {
+        "status": "Completed",
+        "timestamp": "2026-11-04T08:28:51.700Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Status updated to Completed"
+      }
+    ],
+    "completedAt": "2026-11-04T08:28:51.672Z"
+  },
+  {
+    "id": "ORD-8007",
+    "orderId": "ORD-8007",
+    "customer": "Mobile Diner",
+    "orderType": "Dine-In",
+    "diningOption": "Dine-In",
+    "location": "Table 1",
+    "tableId": "Table 1",
+    "tableNumber": "Table 1",
+    "kioskId": "5JRA8E",
+    "restaurantId": "umami",
+    "item": {
+      "id": "102",
+      "sku": "APP-002",
+      "name": "Smoked Truffle Edamame",
+      "category": "Appetizers",
+      "price": 250,
+      "promoPrice": null,
+      "available": true,
+      "status": "Available",
+      "stock": 25,
+      "reorderLevel": 5,
+      "lastUpdated": "Oct 26, 2024 10:24 AM",
+      "image": "https://images.unsplash.com/photo-1622205313162-be1d5712a43f?auto=format&fit=crop&w=600&q=80",
+      "description": "Steamed organic edamame tossed in white truffle oil and smoked Maldon salt.",
+      "allergens": [
+        "soy"
+      ],
+      "tags": [
+        "vegan",
+        "savory"
+      ],
+      "prepTime": "5 mins",
+      "sizes": "Standard",
+      "addons": "",
+      "subcategory": "Signature",
+      "ingredients": "Edamame, truffle oil, sea salt",
+      "emoji": "🫛",
+      "catalogType": "food",
+      "isExplicitlyUnavailable": false,
+      "isOutOfStock": false,
+      "quantity": 1
+    },
+    "items": [
+      {
+        "id": "102",
+        "name": "Smoked Truffle Edamame",
+        "qty": 1,
+        "quantity": 1,
+        "price": 250,
+        "image": "https://images.unsplash.com/photo-1622205313162-be1d5712a43f?auto=format&fit=crop&w=600&q=80",
+        "emoji": "🫛",
+        "tags": [
+          "vegan",
+          "savory"
+        ],
+        "customizations": []
+      },
+      {
+        "id": "CMB-101",
+        "name": "Ultimate Teriyaki Feast Combo",
+        "qty": 1,
+        "quantity": 1,
+        "price": 399,
+        "image": "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=600&q=80",
+        "emoji": "🍱",
+        "tags": [
+          "combo",
+          "savory"
+        ],
+        "customizations": []
+      }
+    ],
+    "itemCount": 2,
+    "total": 649,
+    "totalPrice": 649,
+    "payment": "GCash",
+    "paymentStatus": "Paid Online",
+    "status": "Completed",
+    "nextStatus": "Completed",
+    "stripeColor": "#059669",
+    "priority": "Normal",
+    "isWaitAlert": false,
+    "waitTime": "0 min",
+    "orderedTags": [
+      "vegan",
+      "savory",
+      "combo",
+      "savory"
+    ],
+    "allergens": [],
+    "note": "",
+    "isAllergy": false,
+    "busserName": null,
+    "device": "Mobile",
+    "platform": "Mobile",
+    "createdAt": "2026-11-04T08:13:03.241Z",
+    "updatedAt": "2026-11-04T08:26:50.059Z",
+    "statusHistory": [
+      {
+        "status": "New",
+        "timestamp": "2026-11-04T08:13:03.241Z",
+        "updatedBy": "Customer App",
+        "note": "Order submitted and routed to kitchen queue"
+      },
+      {
+        "status": "Preparing",
+        "timestamp": "2026-11-04T08:25:59.405Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Order advanced to Preparing"
+      },
+      {
+        "status": "Preparing",
+        "timestamp": "2026-11-04T08:25:59.427Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Status updated to Preparing"
+      },
+      {
+        "status": "Ready for Pickup",
+        "timestamp": "2026-11-04T08:26:17.310Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Plated & Ready for pickup"
+      },
+      {
+        "status": "Ready for Pickup",
+        "timestamp": "2026-11-04T08:26:17.329Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Order ready for customer pickup"
+      },
+      {
+        "status": "Completed",
+        "timestamp": "2026-11-04T08:26:50.034Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Order advanced to Completed"
+      },
+      {
+        "status": "Completed",
+        "timestamp": "2026-11-04T08:26:50.059Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Status updated to Completed"
+      }
+    ],
+    "completedAt": "2026-11-04T08:26:50.034Z"
+  },
+  {
+    "id": "ORD-3974",
+    "orderId": "ORD-3974",
+    "customer": "Mobile Diner",
+    "orderType": "Dine-In",
+    "diningOption": "Dine-In",
+    "location": "Table 1",
+    "tableId": "Table 1",
+    "tableNumber": "Table 1",
+    "kioskId": "VHHCCP",
+    "restaurantId": "umami",
+    "item": {
+      "id": "101",
+      "sku": "APP-001",
+      "name": "Spicy Szechuan Dumplings",
+      "category": "Appetizers",
+      "price": 380,
+      "promoPrice": null,
+      "available": true,
+      "status": "Available",
+      "stock": 25,
+      "reorderLevel": 5,
+      "lastUpdated": "Oct 26, 2024 10:24 AM",
+      "image": "https://images.unsplash.com/photo-1563245372-f21724e3856d?auto=format&fit=crop&w=600&q=80",
+      "description": "Handmade pork dumplings tossed in fiery Sichuan chili crisp and toasted sesame.",
+      "allergens": [
+        "soy",
+        "gluten"
+      ],
+      "tags": [
+        "spicy",
+        "savory"
+      ],
+      "prepTime": "10 mins",
+      "sizes": "Standard",
+      "addons": "",
+      "subcategory": "Signature",
+      "ingredients": "Pork, chili oil, sesame",
+      "emoji": "🥟",
+      "catalogType": "food",
+      "isExplicitlyUnavailable": false,
+      "isOutOfStock": false,
+      "quantity": 1
+    },
+    "items": [
+      {
+        "id": "101",
+        "name": "Spicy Szechuan Dumplings",
+        "qty": 1,
+        "quantity": 1,
+        "price": 380,
+        "image": "https://images.unsplash.com/photo-1563245372-f21724e3856d?auto=format&fit=crop&w=600&q=80",
+        "emoji": "🥟",
+        "tags": [
+          "spicy",
+          "savory"
+        ],
+        "customizations": []
+      },
+      {
+        "id": "102",
+        "name": "Smoked Truffle Edamame",
+        "qty": 1,
+        "quantity": 1,
+        "price": 250,
+        "image": "https://images.unsplash.com/photo-1622205313162-be1d5712a43f?auto=format&fit=crop&w=600&q=80",
+        "emoji": "🫛",
+        "tags": [
+          "vegan",
+          "savory"
+        ],
+        "customizations": []
+      }
+    ],
+    "itemCount": 2,
+    "total": 630,
+    "totalPrice": 630,
+    "payment": "GCash",
+    "paymentStatus": "Paid Online",
+    "status": "Completed",
+    "nextStatus": "Completed",
+    "stripeColor": "#059669",
+    "priority": "Normal",
+    "isWaitAlert": false,
+    "waitTime": "0 min",
+    "orderedTags": [
+      "spicy",
+      "savory",
+      "vegan",
+      "savory"
+    ],
+    "allergens": [
+      "peanuts",
+      "dairy"
+    ],
+    "note": "Exclude: PEANUTS, DAIRY",
+    "isAllergy": true,
+    "busserName": null,
+    "device": "Mobile",
+    "platform": "Mobile",
+    "createdAt": "2026-11-04T08:08:35.648Z",
+    "updatedAt": "2026-11-04T08:25:57.439Z",
+    "statusHistory": [
+      {
+        "status": "New",
+        "timestamp": "2026-11-04T08:08:35.648Z",
+        "updatedBy": "Customer App",
+        "note": "Order submitted and routed to kitchen queue"
+      },
+      {
+        "status": "Preparing",
+        "timestamp": "2026-11-04T08:08:49.914Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Order advanced to Preparing"
+      },
+      {
+        "status": "Preparing",
+        "timestamp": "2026-11-04T08:08:49.929Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Status updated to Preparing"
+      },
+      {
+        "status": "Ready for Pickup",
+        "timestamp": "2026-11-04T08:08:53.665Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Plated & Ready for pickup"
+      },
+      {
+        "status": "Ready for Pickup",
+        "timestamp": "2026-11-04T08:08:53.685Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Order ready for customer pickup"
+      },
+      {
+        "status": "Completed",
+        "timestamp": "2026-11-04T08:25:57.412Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Order advanced to Completed"
+      },
+      {
+        "status": "Completed",
+        "timestamp": "2026-11-04T08:25:57.439Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Status updated to Completed"
+      }
+    ],
+    "completedAt": "2026-11-04T08:25:57.412Z"
+  },
+  {
     "id": "ORD-6261",
     "orderId": "ORD-6261",
     "customer": "Mobile Diner",
@@ -761,7 +1667,7 @@
     "device": "Desktop",
     "platform": "Desktop",
     "createdAt": "2026-10-15T16:18:19.211Z",
-    "updatedAt": "2026-10-15T16:18:50.668Z",
+    "updatedAt": "2026-11-03T19:54:26.159Z",
     "statusHistory": [
       {
         "status": "New",
@@ -802,6 +1708,42 @@
       {
         "status": "Completed",
         "timestamp": "2026-10-15T16:18:50.668Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Status updated to Completed"
+      },
+      {
+        "status": "Preparing",
+        "timestamp": "2026-11-03T19:54:16.070Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Order advanced to Preparing"
+      },
+      {
+        "status": "Preparing",
+        "timestamp": "2026-11-03T19:54:16.270Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Status updated to Preparing"
+      },
+      {
+        "status": "Ready for Pickup",
+        "timestamp": "2026-11-03T19:54:25.342Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Plated & Ready for pickup"
+      },
+      {
+        "status": "Ready for Pickup",
+        "timestamp": "2026-11-03T19:54:25.359Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Order ready for customer pickup"
+      },
+      {
+        "status": "Completed",
+        "timestamp": "2026-11-03T19:54:26.130Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Order advanced to Completed"
+      },
+      {
+        "status": "Completed",
+        "timestamp": "2026-11-03T19:54:26.159Z",
         "updatedBy": "Kitchen Staff",
         "note": "Status updated to Completed"
       }
@@ -876,7 +1818,7 @@
     "device": "Desktop",
     "platform": "Desktop",
     "createdAt": "2026-10-15T16:15:28.654Z",
-    "updatedAt": "2026-10-15T16:18:49.607Z",
+    "updatedAt": "2026-11-03T19:54:24.577Z",
     "statusHistory": [
       {
         "status": "New",
@@ -917,6 +1859,42 @@
       {
         "status": "Completed",
         "timestamp": "2026-10-15T16:18:49.607Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Status updated to Completed"
+      },
+      {
+        "status": "Preparing",
+        "timestamp": "2026-11-03T19:54:17.114Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Order advanced to Preparing"
+      },
+      {
+        "status": "Preparing",
+        "timestamp": "2026-11-03T19:54:17.146Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Status updated to Preparing"
+      },
+      {
+        "status": "Ready for Pickup",
+        "timestamp": "2026-11-03T19:54:23.516Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Plated & Ready for pickup"
+      },
+      {
+        "status": "Ready for Pickup",
+        "timestamp": "2026-11-03T19:54:23.539Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Order ready for customer pickup"
+      },
+      {
+        "status": "Completed",
+        "timestamp": "2026-11-03T19:54:24.553Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Order advanced to Completed"
+      },
+      {
+        "status": "Completed",
+        "timestamp": "2026-11-03T19:54:24.577Z",
         "updatedBy": "Kitchen Staff",
         "note": "Status updated to Completed"
       }
@@ -1004,7 +1982,7 @@
     "device": "Desktop",
     "platform": "Desktop",
     "createdAt": "2026-10-15T16:12:46.904Z",
-    "updatedAt": "2026-10-15T16:14:13.709Z",
+    "updatedAt": "2026-11-03T19:54:22.747Z",
     "statusHistory": [
       {
         "status": "New",
@@ -1045,6 +2023,42 @@
       {
         "status": "Completed",
         "timestamp": "2026-10-15T16:14:13.709Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Status updated to Completed"
+      },
+      {
+        "status": "Preparing",
+        "timestamp": "2026-11-03T19:54:19.050Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Order advanced to Preparing"
+      },
+      {
+        "status": "Preparing",
+        "timestamp": "2026-11-03T19:54:19.078Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Status updated to Preparing"
+      },
+      {
+        "status": "Ready for Pickup",
+        "timestamp": "2026-11-03T19:54:21.194Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Plated & Ready for pickup"
+      },
+      {
+        "status": "Ready for Pickup",
+        "timestamp": "2026-11-03T19:54:21.217Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Order ready for customer pickup"
+      },
+      {
+        "status": "Completed",
+        "timestamp": "2026-11-03T19:54:22.722Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Order advanced to Completed"
+      },
+      {
+        "status": "Completed",
+        "timestamp": "2026-11-03T19:54:22.747Z",
         "updatedBy": "Kitchen Staff",
         "note": "Status updated to Completed"
       }

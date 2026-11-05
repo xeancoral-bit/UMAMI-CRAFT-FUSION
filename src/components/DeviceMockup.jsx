@@ -239,38 +239,11 @@ export default function DeviceMockup({
       {/* ── Mockup Stage ── */}
       <div className={`device-stage-container device-type-${activeDevice} orientation-${orientation}`}>
 
-        {/* --- Laptop Mockup --- */}
+        {/* --- Direct Web Presentation (No Laptop Chassis / Bezel) --- */}
         {activeDevice === 'laptop' && (
-          <div className={`mockup-laptop-unit ${isBuzzing ? 'gadget-buzzing' : ''}`} style={{ position: 'relative' }}>
-            {isBuzzing && (
-              <div className="gadget-buzzer-beacon">
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                  <BellRing size={15} />
-                  <span>LAPTOP BUZZING — ORDER READY!</span>
-                </span>
-              </div>
-            )}
-            {/* Top Display Lid */}
-            <div className="laptop-display-lid">
-              {/* Webcam & Sensor */}
-              <div className="laptop-webcam-bar">
-                <span className="laptop-webcam-lens" />
-                <span className="laptop-webcam-indicator" style={isBuzzing ? { background: '#ef4444', boxShadow: '0 0 10px #ef4444' } : {}} />
-              </div>
-
-              {/* Inner Screen Bezel & Content */}
-              <div className="laptop-screen-viewport">
-                <div className="mockup-inner-content device-laptop-layout">
-                  {children}
-                </div>
-              </div>
-            </div>
-
-            {/* Laptop Base / Deck */}
-            <div className="laptop-base-deck">
-              <div className="laptop-notch-opening" />
-              <div className="laptop-base-surface" />
-              <div className="laptop-feet-bar" />
+          <div className="mv-webapp-viewport device-laptop-layout" style={{ position: 'relative', width: '100%', maxWidth: '980px' }}>
+            <div className="mockup-inner-content device-laptop-layout">
+              {children}
             </div>
           </div>
         )}

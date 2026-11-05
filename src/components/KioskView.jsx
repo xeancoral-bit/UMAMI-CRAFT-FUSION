@@ -49,6 +49,7 @@ function KioskView({ onOpenKitchen, initialKioskId }) {
   const [orderReceipt, setOrderReceipt] = useState(null);
   const [timeLeft, setTimeLeft] = useState(90);
   const [socketConnected, setSocketConnected] = useState(false);
+  const [customerBattery, setCustomerBattery] = useState(null);
   
   const socketRef = useRef(null);
   const countdownIntervalRef = useRef(null);
@@ -356,6 +357,12 @@ function KioskView({ onOpenKitchen, initialKioskId }) {
     });
 
     // Listen for mobile client disconnection
+    socket.on('device-battery-synced', (data) => {
+      if (data && typeof data.batteryLevel === 'number') {
+        setCustomerBattery(data);
+      }
+    });
+
     socket.on('mobile-disconnected', () => {
       console.log("[Kiosk] Mobile companion disconnected. Resetting state.");
       handleReset();
@@ -413,6 +420,7 @@ function KioskView({ onOpenKitchen, initialKioskId }) {
     setAllergens([]);
     setPreferences([]);
     setOrderedItem(null);
+    setCustomerBattery(null);
     setOrderReceipt(null);
     setTimeLeft(90);
     

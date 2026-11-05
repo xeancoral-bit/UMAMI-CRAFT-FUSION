@@ -337,19 +337,21 @@ io.on('connection', (socket) => {
     });
   });
 
-  // Relay real customer phone battery percentage to kiosk and mockup displays
+  // Relay real customer phone battery percentage to kiosk and displays
   socket.on('device-battery-update', (data) => {
     if (!data) return;
-    const { kioskId, batteryLevel, isCharging } = data;
+    const { kioskId, batteryLevel, isCharging, isHardware } = data;
     if (!kioskId) return;
     const numericLevel = Math.max(1, Math.min(100, Math.round(Number(batteryLevel) || 85)));
     sessionBatteries[kioskId] = {
       batteryLevel: numericLevel,
       isCharging: Boolean(isCharging),
+      isHardware: Boolean(isHardware),
       updatedAt: Date.now()
     };
-    console.log(`[Battery Sync] Kiosk #${kioskId} phone battery updated: ${numericLevel}% (charging: ${Boolean(isCharging)})`);
-    io.to(kioskId).emit('device-battery-synced', sessionBatteries[kioskId]);
+    console.log(`[Battery Sync] Kiosk #${kioskId} phone battery updated: ${numericLevel}% (charging: ${Boolean(isCharging)}, hardware: ${Boolean(isHardware)})`);
+    // Broadcast to kiosk and other displays in the room (excluding sender)
+    socket.to(kioskId).emit('device-battery-synced', sessionBatteries[kioskId]);
   });
 
   // Send current PIN length so all unlock screens display the exact number of indicator dots
@@ -367,8 +369,9 @@ io.on('connection', (socket) => {
     if (kioskId) {
       socket.join(kioskId);
       socket.kioskId = kioskId;
-      // If a battery level was already calibrated or detected for this kiosk, sync it immediately
-      if (sessionBatteries[kioskId]) {
+      // If a battery level was already detected for this kiosk, sync it to non-mobile roles (kiosk terminal, kitchen, etc.)
+      // Mobile client is the battery sensor itself and will detect & report its own hardware battery
+      if (sessionBatteries[kioskId] && role !== 'mobile') {
         socket.emit('device-battery-synced', sessionBatteries[kioskId]);
       }
     }

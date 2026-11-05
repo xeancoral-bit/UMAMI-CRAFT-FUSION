@@ -16,6 +16,9 @@ import {
   Trash2,
   X,
   ChevronUp,
+  ChevronDown,
+  Eye,
+  EyeOff,
   Receipt,
   Bell,
   BellRing,
@@ -40,12 +43,8 @@ import {
   Wheat,
   Milk,
   ShieldAlert,
-  BatteryCharging,
-  Battery,
-  Radio,
   Info
 } from 'lucide-react';
-import DeviceMockup from './DeviceMockup';
 
 // Play a rich 4-note ready fanfare chime
 function playReadyChime() {
@@ -566,6 +565,26 @@ function MobileView({ kioskId, onResetSession }) {
     } catch (e) {}
     return savedOnboarded || hasDietaryData;
   });
+
+  // Toggle visibility (hide / unhide) of Active Dietary Filters section
+  const [showDietaryFilters, setShowDietaryFilters] = useState(() => {
+    try {
+      const saved = localStorage.getItem('synapse_show_dietary_filters');
+      return saved !== null ? saved === 'true' : true;
+    } catch (_) {
+      return true;
+    }
+  });
+
+  const toggleDietaryFilters = () => {
+    setShowDietaryFilters(prev => {
+      const next = !prev;
+      try {
+        localStorage.setItem('synapse_show_dietary_filters', String(next));
+      } catch (_) {}
+      return next;
+    });
+  };
   const [lastOrder, setLastOrder] = useState(() => {
     const saved = localStorage.getItem('synapse_last_order');
     return saved ? JSON.parse(saved) : null;
@@ -616,38 +635,6 @@ function MobileView({ kioskId, onResetSession }) {
   // Always use Vite proxy ('') when running on port 3000 or matching port to prevent external firewall blocks
   const isViteProxyAvailable = window.location.port === '3000' || !kioskPort || kioskPort === window.location.port;
   const backendTargetUrl = isViteProxyAvailable ? '' : `http://${window.location.hostname}:${kioskPort}`;
-
-  // Live mirroring of connected customer phone battery
-  const [deviceBattery, setDeviceBattery] = useState(() => {
-    try {
-      const saved = localStorage.getItem('synapse_device_battery');
-      if (saved) return parseInt(saved, 10);
-    } catch (_) {}
-    return 88;
-  });
-  const [isCharging, setIsCharging] = useState(() => {
-    try {
-      return localStorage.getItem('synapse_device_charging') === 'true';
-    } catch (_) {}
-    return false;
-  });
-
-  // Battery change callback
-  const handleBatteryChange = useCallback(({ level, charging }) => {
-    setDeviceBattery(level);
-    setIsCharging(charging);
-    try {
-      localStorage.setItem('synapse_device_battery', String(level));
-      localStorage.setItem('synapse_device_charging', String(charging));
-    } catch (_) {}
-    if (socketRef.current && effectiveKioskId) {
-      socketRef.current.emit('device-battery-update', {
-        kioskId: effectiveKioskId,
-        batteryLevel: level,
-        isCharging: charging
-      });
-    }
-  }, [effectiveKioskId]);
 
   // Request notification + vibration permission proactively
   const requestAlertPermissions = useCallback(async () => {
@@ -919,25 +906,6 @@ function MobileView({ kioskId, onResetSession }) {
       if (isOnboarded && effectiveKioskId) {
         socket.emit('project-preferences', { kioskId: effectiveKioskId, allergens, preferences });
       }
-
-      // Sync current battery level to kiosk room
-      if (deviceBattery) {
-        socket.emit('device-battery-update', {
-          kioskId: effectiveKioskId,
-          batteryLevel: deviceBattery,
-          isCharging
-        });
-      }
-    });
-
-    socket.on('device-battery-synced', (data) => {
-      if (data && typeof data.batteryLevel === 'number') {
-        console.log('[Mobile] Received synced battery from room:', data);
-        setDeviceBattery(data.batteryLevel);
-        if (data.isCharging !== undefined) {
-          setIsCharging(Boolean(data.isCharging));
-        }
-      }
     });
 
     socket.on('order-confirmed', (confirmedOrder) => {
@@ -1044,51 +1012,7 @@ function MobileView({ kioskId, onResetSession }) {
       socketRef.current = null;
       setSocketConnected(false);
     };
-  }, [effectiveKioskId, isOnboarded, backendTargetUrl, triggerReadyAlert, deviceBattery, isCharging]);
-
-  // Auto-detect phone hardware battery via Web Battery API where supported (e.g. Android Chrome)
-  useEffect(() => {
-    let batObj = null;
-    let handleLevel = null;
-    let handleCharging = null;
-
-    if (typeof navigator !== 'undefined' && 'getBattery' in navigator) {
-      navigator.getBattery().then(bat => {
-        batObj = bat;
-        const update = () => {
-          const lvl = Math.round(bat.level * 100);
-          const chg = Boolean(bat.charging);
-          setDeviceBattery(lvl);
-          setIsCharging(chg);
-          try {
-            localStorage.setItem('synapse_device_battery', String(lvl));
-            localStorage.setItem('synapse_device_charging', String(chg));
-          } catch (_) {}
-          if (socketRef.current && effectiveKioskId) {
-            socketRef.current.emit('device-battery-update', {
-              kioskId: effectiveKioskId,
-              batteryLevel: lvl,
-              isCharging: chg
-            });
-          }
-        };
-        update();
-        handleLevel = update;
-        handleCharging = update;
-        bat.addEventListener('levelchange', handleLevel);
-        bat.addEventListener('chargingchange', handleCharging);
-      }).catch(err => {
-        console.warn('[Mobile] Battery API unavailable/denied:', err);
-      });
-    }
-
-    return () => {
-      if (batObj) {
-        if (handleLevel) batObj.removeEventListener('levelchange', handleLevel);
-        if (handleCharging) batObj.removeEventListener('chargingchange', handleCharging);
-      }
-    };
-  }, [effectiveKioskId]);
+  }, [effectiveKioskId, isOnboarded, backendTargetUrl, triggerReadyAlert]);
 
   // Listen for local buzzer alerts and storage events across tabs
   useEffect(() => {
@@ -2429,20 +2353,20 @@ function MobileView({ kioskId, onResetSession }) {
         </div>
       ) : isOnboarded ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', flex: 1 }}>
-          <div className="glass-card" style={{ padding: '14px', background: 'rgba(45, 106, 79, 0.04)', borderColor: 'rgba(45, 106, 79, 0.15)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div>
+          <div className="glass-card mv-menu-header-bar">
+            <div className="mv-menu-header-inner">
+              <div className="mv-menu-header-info">
                 <span style={{ fontSize: '10px', textTransform: 'uppercase', color: 'var(--accent-green)', fontWeight: '700', letterSpacing: '0.05em' }}>
                   {restaurantMeta ? `${restaurantMeta.cuisine} • Ordering Live` : 'Personalized Dining Live'}
                 </span>
-                <h4 style={{ fontSize: '15px', fontWeight: '700' }}>
+                <h4 style={{ fontSize: '15px', fontWeight: '700', margin: '2px 0 0 0' }}>
                   {restaurantMeta ? restaurantMeta.name : 'Umami Craft Fusion'}
                 </h4>
-                <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px', marginBottom: 0 }}>
                   {kioskId ? `Terminal #${kioskId}` : 'Guest Express Ordering • Table 04'}
                 </p>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div className="mv-menu-header-controls">
                 <button
                   onClick={() => setIsOnboarded(false)}
                   style={{
@@ -2456,120 +2380,197 @@ function MobileView({ kioskId, onResetSession }) {
                     cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '4px'
+                    gap: '4px',
+                    whiteSpace: 'nowrap'
                   }}
                   title="Adjust Dietary Allergens & Preferences"
                 >
                   <Settings size={12} />
                   <span>Edit Diet</span>
                 </button>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' }}>
                   <span className={`pulse-indicator ${socketConnected ? 'active' : 'disconnected'}`}></span>
                   <span style={{ fontSize: '11px', color: socketConnected ? 'var(--text-secondary)' : 'var(--accent-danger)' }}>
                     {socketConnected ? 'Live' : 'Offline'}
                   </span>
                 </div>
-                {/* Battery percentage sync badge */}
-                <div 
-                  style={{ 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    gap: '4px', 
-                    background: 'rgba(0,0,0,0.05)', 
-                    padding: '3px 8px', 
-                    borderRadius: '6px',
-                    fontSize: '11px',
-                    fontWeight: '700',
-                    color: 'var(--text-secondary)',
-                    cursor: 'pointer'
-                  }}
-                  title="Phone Battery • Tap status bar battery to calibrate"
-                  onClick={() => {
-                    const promptVal = window.prompt("Enter customer phone battery percentage (1-100):", String(deviceBattery));
-                    if (promptVal !== null) {
-                      const num = parseInt(promptVal, 10);
-                      if (!isNaN(num) && num >= 1 && num <= 100) {
-                        handleBatteryChange({ level: num, charging: isCharging });
-                      }
-                    }
-                  }}
-                >
-                  <span>{isCharging ? '⚡' : '🔋'}</span>
-                  <span>{deviceBattery}%</span>
-                </div>
               </div>
             </div>
           </div>
 
-          {/* Quick Edit settings in connected view */}
-          <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-              <h5 style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: '700' }}>
-                Active Dietary Filters (Syncs Live)
-              </h5>
-              <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Tap to toggle</span>
-            </div>
-            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '8px' }}>
-              {activeAllergenOptions.map(opt => {
-                const checked = allergens.includes(opt.id);
-                return (
-                  <button
-                    key={opt.id}
-                    onClick={() => handleAllergenToggle(opt.id)}
-                    style={{
-                      fontSize: '11px',
-                      padding: '5px 10px',
-                      borderRadius: '8px',
-                      background: checked ? 'rgba(239, 68, 68, 0.15)' : 'var(--bg-surface-elevated)',
-                      color: checked ? '#fca5a5' : 'var(--text-secondary)',
-                      border: `1px solid ${checked ? 'rgba(239, 68, 68, 0.3)' : 'var(--border-glass)'}`,
-                      fontWeight: '600',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '5px'
-                    }}
-                  >
-                    {opt.image ? (
-                      <img src={opt.image} alt={opt.label} style={{ width: '13px', height: '13px', objectFit: 'contain', borderRadius: '3px' }} />
-                    ) : (
-                      <span>{opt.emoji}</span>
-                    )}
-                    Excl. {opt.label}
-                  </button>
-                );
-              })}
+          {/* Quick Edit settings in connected view (with Hide & Unhide Toggle) */}
+          <div className="mv-dietary-filters-panel" style={{ background: 'rgba(255, 255, 255, 0.65)', border: '1px solid rgba(220, 200, 180, 0.45)', borderRadius: '14px', padding: '10px 12px', transition: 'all 0.2s ease' }}>
+            <div
+              onClick={toggleDietaryFilters}
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                cursor: 'pointer',
+                userSelect: 'none',
+                padding: '2px 0',
+                gap: '8px'
+              }}
+              role="button"
+              tabIndex={0}
+              title={showDietaryFilters ? 'Tap to hide dietary filters' : 'Tap to unhide dietary filters'}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, flexWrap: 'wrap' }}>
+                <h5 style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: '800', margin: 0, letterSpacing: '0.04em' }}>
+                  Active Dietary Filters (Syncs Live)
+                </h5>
+                {(allergens.length > 0 || preferences.length > 0) && (
+                  <span style={{
+                    fontSize: '10px',
+                    fontWeight: '800',
+                    padding: '2px 7px',
+                    borderRadius: '999px',
+                    background: 'rgba(217, 75, 43, 0.12)',
+                    color: 'var(--brand-primary, #D94B2B)',
+                    whiteSpace: 'nowrap'
+                  }}>
+                    {allergens.length + preferences.length} active
+                  </span>
+                )}
+              </div>
+
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  toggleDietaryFilters();
+                }}
+                style={{
+                  background: showDietaryFilters ? 'rgba(44, 26, 17, 0.05)' : 'rgba(217, 75, 43, 0.1)',
+                  border: `1px solid ${showDietaryFilters ? 'rgba(44, 26, 17, 0.12)' : 'rgba(217, 75, 43, 0.25)'}`,
+                  color: showDietaryFilters ? 'var(--text-secondary)' : 'var(--brand-primary, #D94B2B)',
+                  padding: '4px 10px',
+                  borderRadius: '999px',
+                  fontSize: '11px',
+                  fontWeight: '700',
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '5px',
+                  whiteSpace: 'nowrap',
+                  flexShrink: 0
+                }}
+              >
+                {showDietaryFilters ? (
+                  <>
+                    <EyeOff size={12} />
+                    <span>Hide</span>
+                    <ChevronUp size={13} />
+                  </>
+                ) : (
+                  <>
+                    <Eye size={12} />
+                    <span>Unhide</span>
+                    <ChevronDown size={13} />
+                  </>
+                )}
+              </button>
             </div>
 
-            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-              {activePreferenceOptions.map(opt => {
-                const checked = preferences.includes(opt.id);
-                return (
-                  <button
-                    key={opt.id}
-                    onClick={() => handlePreferenceToggle(opt.id)}
-                    style={{
-                      fontSize: '11px',
-                      padding: '5px 10px',
-                      borderRadius: '8px',
-                      background: checked ? 'rgba(45, 106, 79, 0.12)' : 'var(--bg-surface-elevated)',
-                      color: checked ? 'var(--accent-green)' : 'var(--text-secondary)',
-                      border: `1px solid ${checked ? 'rgba(45, 106, 79, 0.25)' : 'var(--border-glass)'}`,
-                      fontWeight: '600',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '5px'
-                    }}
-                  >
-                    {opt.image ? (
-                      <img src={opt.image} alt={opt.label} style={{ width: '13px', height: '13px', objectFit: 'contain', borderRadius: '3px' }} />
-                    ) : (
-                      <span>{opt.emoji}</span>
-                    )}
-                    {opt.label}
-                  </button>
-                );
-              })}
-            </div>
+            {/* When Unhidden: Render Full Allergen and Flavor Filter Buttons */}
+            {showDietaryFilters ? (
+              <div style={{ marginTop: '10px', animation: 'fadeIn 0.2s ease-out' }}>
+                {/* Allergen Filters */}
+                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '8px' }}>
+                  {activeAllergenOptions.map(opt => {
+                    const checked = allergens.includes(opt.id);
+                    return (
+                      <button
+                        key={opt.id}
+                        onClick={() => handleAllergenToggle(opt.id)}
+                        style={{
+                          fontSize: '11px',
+                          padding: '5px 10px',
+                          borderRadius: '8px',
+                          background: checked ? 'rgba(239, 68, 68, 0.15)' : 'var(--bg-surface-elevated)',
+                          color: checked ? '#fca5a5' : 'var(--text-secondary)',
+                          border: `1px solid ${checked ? 'rgba(239, 68, 68, 0.3)' : 'var(--border-glass)'}`,
+                          fontWeight: '600',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '5px',
+                          cursor: 'pointer',
+                          transition: 'all 0.15s ease'
+                        }}
+                      >
+                        {opt.image ? (
+                          <img src={opt.image} alt={opt.label} style={{ width: '13px', height: '13px', objectFit: 'contain', borderRadius: '3px' }} />
+                        ) : (
+                          <span>{opt.emoji}</span>
+                        )}
+                        Excl. {opt.label}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Flavor Preferences */}
+                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                  {activePreferenceOptions.map(opt => {
+                    const checked = preferences.includes(opt.id);
+                    return (
+                      <button
+                        key={opt.id}
+                        onClick={() => handlePreferenceToggle(opt.id)}
+                        style={{
+                          fontSize: '11px',
+                          padding: '5px 10px',
+                          borderRadius: '8px',
+                          background: checked ? 'rgba(45, 106, 79, 0.12)' : 'var(--bg-surface-elevated)',
+                          color: checked ? 'var(--accent-green)' : 'var(--text-secondary)',
+                          border: `1px solid ${checked ? 'rgba(45, 106, 79, 0.25)' : 'var(--border-glass)'}`,
+                          fontWeight: '600',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '5px',
+                          cursor: 'pointer',
+                          transition: 'all 0.15s ease'
+                        }}
+                      >
+                        {opt.image ? (
+                          <img src={opt.image} alt={opt.label} style={{ width: '13px', height: '13px', objectFit: 'contain', borderRadius: '3px' }} />
+                        ) : (
+                          <span>{opt.emoji}</span>
+                        )}
+                        {opt.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : (allergens.length > 0 || preferences.length > 0) ? (
+              /* When Hidden but filters are active: Show a clean compact 1-line summary */
+              <div 
+                onClick={toggleDietaryFilters}
+                style={{ 
+                  marginTop: '6px', 
+                  fontSize: '11px', 
+                  color: 'var(--text-secondary)', 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '6px', 
+                  flexWrap: 'wrap', 
+                  cursor: 'pointer' 
+                }}
+              >
+                <span style={{ color: 'var(--text-muted)' }}>Filtering for:</span>
+                {allergens.map(a => (
+                  <span key={a} style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#dc2626', padding: '1px 6px', borderRadius: '4px', fontSize: '10px', fontWeight: '700' }}>
+                    Excl. {a}
+                  </span>
+                ))}
+                {preferences.map(p => (
+                  <span key={p} style={{ background: 'rgba(45, 106, 79, 0.1)', color: '#059669', padding: '1px 6px', borderRadius: '4px', fontSize: '10px', fontWeight: '700' }}>
+                    {p}
+                  </span>
+                ))}
+              </div>
+            ) : null}
           </div>
 
           {/* 5-Second Auto-Cycling Promotional Banner Carousel */}
@@ -2647,7 +2648,7 @@ function MobileView({ kioskId, onResetSession }) {
               )}
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', overflowY: 'auto', maxHeight: '420px', paddingRight: '4px', marginBottom: '12px' }}>
+            <div className="mv-safe-catalog-list" style={{ display: 'flex', flexDirection: 'column', gap: '10px', overflowY: 'auto', paddingRight: '4px', marginBottom: '12px' }}>
               {safeItems.map(item => {
                 const qtyInCart = typeof cart[item.id] === 'number' ? cart[item.id] : (cart[item.id]?.quantity || 0);
                 const isMatch = preferences.some(p => item.tags && item.tags.includes(p));
@@ -2660,6 +2661,7 @@ function MobileView({ kioskId, onResetSession }) {
                 return (
                   <div
                     key={item.id}
+                    className="mv-catalog-item-card"
                     style={{
                       padding: '12px',
                       borderRadius: '12px',
@@ -2751,7 +2753,7 @@ function MobileView({ kioskId, onResetSession }) {
                     </div>
 
                     {/* Right: Price + Add Button / Controls */}
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px', minWidth: '95px', flexShrink: 0 }}>
+                    <div className="mv-catalog-item-actions" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px', minWidth: '95px', flexShrink: 0 }}>
                       <div style={{ textAlign: 'right' }}>
                         {item.promoPrice ? (
                           <>
@@ -2903,42 +2905,6 @@ function MobileView({ kioskId, onResetSession }) {
                 </div>
               </div>
             )}
-
-            {/* Actions Footer */}
-            <div style={{ marginTop: 'auto', paddingTop: '12px', borderTop: '1px solid var(--border-glass)' }}>
-              <button
-                onClick={() => setIsCartOpen(true)}
-                className="btn-primary"
-                disabled={totalCartCount === 0}
-                style={{
-                  width: '100%',
-                  padding: '12px',
-                  borderRadius: '12px',
-                  fontSize: '14px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '8px',
-                  opacity: totalCartCount > 0 ? 1 : 0.45,
-                  cursor: totalCartCount > 0 ? 'pointer' : 'not-allowed'
-                }}
-              >
-                <ShoppingCart size={16} />
-                {totalCartCount > 0 ? `Review Order (${totalCartCount} items • ₱${totalCartPrice.toFixed(2)})` : 'Add items to order'}
-              </button>
-
-              <button
-                onClick={() => {
-                  localStorage.removeItem('synapse_onboarded');
-                  setIsOnboarded(false);
-                  if (typeof onResetSession === 'function') onResetSession();
-                }}
-                className="btn-secondary"
-                style={{ width: '100%', padding: '8px', marginTop: '8px', fontSize: '12px', borderRadius: '10px' }}
-              >
-                Disconnect Session
-              </button>
-            </div>
           </div>
         </div>
       ) : (
@@ -3822,27 +3788,29 @@ function MobileView({ kioskId, onResetSession }) {
         <p className="mv-hero-tagline">
           Your preferences. A better dining experience.
         </p>
-        {kioskId && (
-          <div style={{ marginTop: '10px', display: 'inline-flex', alignItems: 'center', gap: '8px', background: 'rgba(5, 150, 105, 0.12)', border: '1px solid rgba(5, 150, 105, 0.35)', padding: '5px 16px', borderRadius: '9999px', fontSize: '12px', fontWeight: '700', color: '#059669' }}>
-            <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#10B981', display: 'inline-block', boxShadow: '0 0 6px #10B981' }}></span>
-            <span>Live Paired to Kiosk Terminal #{kioskId}</span>
-          </div>
-        )}
+        <div style={{ marginTop: '10px', display: 'inline-flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', justifyContent: 'center' }}>
+          {kioskId && (
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', background: 'rgba(5, 150, 105, 0.12)', border: '1px solid rgba(5, 150, 105, 0.35)', padding: '5px 16px', borderRadius: '9999px', fontSize: '12px', fontWeight: '700', color: '#059669' }}>
+              <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#10B981', display: 'inline-block', boxShadow: '0 0 6px #10B981' }}></span>
+              <span>Live Paired to Kiosk Terminal #{kioskId}</span>
+            </div>
+          )}
+        </div>
       </header>
 
-      {/* ── Responsive Device Mockup Showcase ── */}
-      <div className="mv-hero-mockup-wrapper">
-        <DeviceMockup
-          defaultDevice="auto"
-          showToolbar={!kioskId}
-          isBuzzing={isBuzzing}
-          title={kioskId ? `Umami Craft Fusion • Kiosk #${kioskId}` : "Umami Craft Fusion Local Dietary Vault"}
-          deviceBattery={deviceBattery}
-          isCharging={isCharging}
-          onBatteryChange={handleBatteryChange}
-        >
+      {/* ── Direct Web Application Viewport (No Laptop or Simulated Device Presentation) ── */}
+      <div className="mv-webapp-wrapper">
+        {isBuzzing && (
+          <div className="gadget-buzzer-beacon" style={{ marginBottom: '14px', width: '100%', maxWidth: '980px' }}>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+              <BellRing size={16} />
+              <span>ORDER READY — BUZZER ACTIVE! PICK UP AT COUNTER</span>
+            </span>
+          </div>
+        )}
+        <div className="mv-webapp-viewport">
           {phoneContent}
-        </DeviceMockup>
+        </div>
       </div>
     </div>
   );

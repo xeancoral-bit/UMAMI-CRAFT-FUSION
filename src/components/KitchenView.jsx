@@ -939,119 +939,138 @@ function KitchenView({ onReturnToKiosk }) {
                 {/* Ticket Footer / Summary */}
                 <div className="ticket-footer">
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                    <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                      Items: <strong>{order.itemCount || items.reduce((s, i) => s + (i.quantity || i.qty || 1), 0)}</strong>
-                      {order.payment && <span style={{ marginLeft: '8px', padding: '2px 6px', background: 'rgba(255,255,255,0.06)', borderRadius: '4px', fontSize: '11px' }}>{order.payment}</span>}
+                    <span style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.75)' }}>
+                      Items: <strong style={{ color: '#ffffff' }}>{order.itemCount || items.reduce((s, i) => s + (i.quantity || i.qty || 1), 0)}</strong>
+                      {order.payment && (
+                        <span style={{
+                          marginLeft: '8px',
+                          padding: '2px 8px',
+                          background: 'rgba(255, 255, 255, 0.12)',
+                          border: '1px solid rgba(255, 255, 255, 0.25)',
+                          borderRadius: '6px',
+                          fontSize: '11px',
+                          fontWeight: '700',
+                          color: '#ffffff'
+                        }}>
+                          {order.payment}
+                        </span>
+                      )}
                     </span>
-                    <span style={{ fontSize: '15px', fontWeight: '800', color: 'var(--text-primary)' }}>
+                    <span style={{ fontSize: '16px', fontWeight: '800', color: '#ffffff', letterSpacing: '0.02em' }}>
                       ₱{(order.totalPrice || order.total || 0).toFixed(2)}
                     </span>
                   </div>
 
-                  {/* Interactive Next Stage Action Buttons */}
-                  <div className="ticket-actions" style={{ marginTop: '4px', width: '100%' }}>
-                    {(normStatus === 'New' || normStatus === 'Received') && (
-                      <button
-                        type="button"
-                        onClick={() => handleUpdateStatus(order.orderId || order.id, 'Preparing')}
-                        className="ticket-btn btn-start-prep"
-                        style={{
-                          width: '100%',
-                          background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
-                          boxShadow: '0 4px 12px rgba(37, 99, 235, 0.3)'
-                        }}
-                      >
-                        <ChefHat size={15} />
-                        <span>Start Preparing</span>
-                      </button>
-                    )}
-
-                    {normStatus === 'Preparing' && (
-                      <div style={{ display: 'flex', gap: '8px', width: '100%' }}>
-                        <button
-                          type="button"
-                          onClick={() => handleUpdateStatus(order.orderId || order.id, 'New')}
-                          className="ticket-btn btn-back"
-                          title="Return to Received"
-                        >
-                          ↩
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleUpdateStatus(order.orderId || order.id, 'Ready for Pickup')}
-                          className="ticket-btn btn-mark-ready"
-                          style={{ flex: 1 }}
-                        >
-                          <BellRing size={15} />
-                          <span>Ready for Pickup</span>
-                        </button>
-                      </div>
-                    )}
-
-                    {normStatus === 'Ready for Pickup' && (
-                      <div style={{ display: 'flex', gap: '8px', width: '100%' }}>
+                                    {/* Interactive Action Buttons - Restored ONLY in received, preparing, and ready tabs */}
+                  {(filter === 'received' || filter === 'preparing' || filter === 'ready') && (
+                    <div className="ticket-actions" style={{ marginTop: '4px', width: '100%' }}>
+                      {(normStatus === 'New' || normStatus === 'Received') && (
                         <button
                           type="button"
                           onClick={() => handleUpdateStatus(order.orderId || order.id, 'Preparing')}
-                          className="ticket-btn btn-back"
-                          title="Return to Preparing"
+                          className="ticket-btn btn-start-prep"
+                          style={{
+                            width: '100%',
+                            background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+                            boxShadow: '0 4px 12px rgba(37, 99, 235, 0.3)'
+                          }}
                         >
-                          ↩
+                          <ChefHat size={15} />
+                          <span>Start Preparing</span>
                         </button>
-                        <button
-                          type="button"
-                          onClick={() => handleBuzzGadget(order.orderId || order.id)}
-                          className="ticket-btn btn-back"
-                          title="Trigger Customer Pager Alert & Buzzer"
-                          style={{ color: '#f59e0b', borderColor: 'rgba(245, 158, 11, 0.4)', gap: '6px' }}
-                        >
-                          <BellRing size={14} />
-                          <span>Buzz</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleUpdateStatus(order.orderId || order.id, 'Completed')}
-                          className="ticket-btn btn-mark-ready"
-                          style={{ flex: 1, background: 'linear-gradient(135deg, #059669 0%, #047857 100%)' }}
-                        >
-                          <Check size={15} />
-                          <span>Complete Order ✓</span>
-                        </button>
-                      </div>
-                    )}
+                      )}
 
-                    {normStatus === 'Completed' && (
-                      <div style={{
-                        width: '100%',
-                        textAlign: 'center',
-                        padding: '10px 14px',
-                        borderRadius: '10px',
-                        background: 'rgba(16, 185, 129, 0.1)',
-                        border: '1px solid rgba(16, 185, 129, 0.25)',
-                        color: '#10b981',
-                        fontSize: '12.5px',
-                        fontWeight: 700
-                      }}>
-                        ✓ Order Completed & Served
-                      </div>
-                    )}
+                      {normStatus === 'Preparing' && (
+                        <div style={{ display: 'flex', gap: '8px', width: '100%' }}>
+                          <button
+                            type="button"
+                            onClick={() => handleUpdateStatus(order.orderId || order.id, 'New')}
+                            className="ticket-btn btn-back"
+                            title="Return to Received"
+                          >
+                            ↩
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleUpdateStatus(order.orderId || order.id, 'Ready for Pickup')}
+                            className="ticket-btn btn-mark-ready"
+                            style={{ flex: 1 }}
+                          >
+                            <BellRing size={15} />
+                            <span>Ready for Pickup</span>
+                          </button>
+                        </div>
+                      )}
 
-                    {normStatus === 'Cancelled' && (
-                      <div style={{
-                        width: '100%',
-                        textAlign: 'center',
-                        padding: '10px 14px',
-                        borderRadius: '10px',
-                        background: 'rgba(239, 68, 68, 0.1)',
-                        border: '1px solid rgba(239, 68, 68, 0.25)',
-                        color: '#ef4444',
-                        fontSize: '12.5px',
-                        fontWeight: 700
-                      }}>
-                        ✕ Order Cancelled
-                      </div>
-                    )}
-                  </div>
+                      {normStatus === 'Ready for Pickup' && (
+                        <div style={{ display: 'flex', gap: '8px', width: '100%' }}>
+                          <button
+                            type="button"
+                            onClick={() => handleUpdateStatus(order.orderId || order.id, 'Preparing')}
+                            className="ticket-btn btn-back"
+                            title="Return to Preparing"
+                          >
+                            ↩
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleBuzzGadget(order.orderId || order.id)}
+                            className="ticket-btn btn-back"
+                            title="Trigger Customer Pager Alert & Buzzer"
+                            style={{ color: '#f59e0b', borderColor: 'rgba(245, 158, 11, 0.4)', gap: '6px' }}
+                          >
+                            <BellRing size={14} />
+                            <span>Buzz</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleUpdateStatus(order.orderId || order.id, 'Completed')}
+                            className="ticket-btn btn-mark-ready"
+                            style={{ flex: 1, background: 'linear-gradient(135deg, #059669 0%, #047857 100%)' }}
+                          >
+                            <Check size={15} />
+                            <span>Complete Order ✓</span>
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {(normStatus === 'Completed' || normStatus === 'Cancelled') && (
+                    <div className="ticket-actions" style={{ marginTop: '4px', width: '100%' }}>
+                      {normStatus === 'Completed' && (
+                        <div style={{
+                          width: '100%',
+                          textAlign: 'center',
+                          padding: '10px 14px',
+                          borderRadius: '10px',
+                          background: 'rgba(16, 185, 129, 0.1)',
+                          border: '1px solid rgba(16, 185, 129, 0.25)',
+                          color: '#10b981',
+                          fontSize: '12.5px',
+                          fontWeight: 700
+                        }}>
+                          ✓ Order Completed & Served
+                        </div>
+                      )}
+
+                      {normStatus === 'Cancelled' && (
+                        <div style={{
+                          width: '100%',
+                          textAlign: 'center',
+                          padding: '10px 14px',
+                          borderRadius: '10px',
+                          background: 'rgba(239, 68, 68, 0.1)',
+                          border: '1px solid rgba(239, 68, 68, 0.25)',
+                          color: '#ef4444',
+                          fontSize: '12.5px',
+                          fontWeight: 700
+                        }}>
+                          ✕ Order Cancelled
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
             );
