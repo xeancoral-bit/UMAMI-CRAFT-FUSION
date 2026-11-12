@@ -1281,25 +1281,34 @@ let _cachedNetworkInfo = {
 let _lastNetworkFingerprint = '';
 const _lastKnownWifiByIp = {};
 
-// Check active default route using non-transmitting UDP probe
-function getActiveRouteIp() {
+// Check active default route using non-transmitting UDP probe with multi-target fallback
+function probeUdpRoute(targetHost, targetPort = 80, timeoutMs = 350) {
   return new Promise((resolve) => {
     try {
       const probeSocket = dgram.createSocket('udp4');
-      probeSocket.connect(80, '1.1.1.1', () => {
+      probeSocket.connect(targetPort, targetHost, () => {
         const addr = probeSocket.address().address;
-        probeSocket.close();
+        try { probeSocket.close(); } catch {}
         resolve(addr);
       });
       probeSocket.on('error', () => resolve(null));
       setTimeout(() => {
         try { probeSocket.close(); } catch {}
         resolve(null);
-      }, 500);
+      }, timeoutMs);
     } catch {
       resolve(null);
     }
   });
+}
+
+async function getActiveRouteIp() {
+  const probeTargets = ['1.1.1.1', '8.8.8.8', '192.168.1.1', '192.168.0.1', '10.0.0.1'];
+  for (const target of probeTargets) {
+    const ip = await probeUdpRoute(target);
+    if (ip && !isVirtualOrInvalid(ip)) return ip;
+  }
+  return null;
 }
 
 // Windows Wi-Fi interface discovery via netsh wlan
@@ -1432,11 +1441,14 @@ async function detectDynamicNetwork() {
         for (const iface of ifaceList) {
           if (iface.family === 'IPv4' && !iface.internal && !isVirtualOrInvalid(iface.address, iface.mac, name)) {
             const lowerName = name.toLowerCase();
+            const isWifi = /wi-fi|wifi|wireless|wlan/i.test(lowerName);
+            const isRouteMatch = Boolean(routeIp && iface.address === routeIp);
             let priority = 5;
-            if (/wi-fi|wifi|wireless|wlan/i.test(lowerName)) priority = 10;
-            else if (routeIp && iface.address === routeIp) priority = 9;
-            else if (/ethernet|eth|en0/i.test(lowerName)) priority = 7;
-            candidates.push({ address: iface.address, name, priority, isWifiAdapter: /wi-fi|wifi|wireless|wlan/i.test(lowerName) });
+            if (isWifi && isRouteMatch) priority = 25;
+            else if (isWifi) priority = 20;
+            else if (isRouteMatch) priority = 18;
+            else if (/ethernet|eth|en0/i.test(lowerName)) priority = 10;
+            candidates.push({ address: iface.address, name, priority, isWifiAdapter: isWifi });
           }
         }
       }
@@ -1527,8 +1539,23 @@ async function detectDynamicNetwork() {
       return _cachedNetworkInfo;
     }
 
+    // Ensure Windows Defender Firewall allows incoming connections on kiosk ports
+    async function ensureWindowsFirewallOpen() {
+      if (process.platform !== 'win32') return;
+      try {
+        await execAsync('netsh advfirewall firewall add rule name="Umami Restaurant Kiosk Ports" dir=in action=allow protocol=TCP localport=3000,3001,3002,3003,3010,3020 profile=any');
+        console.log('[Firewall] Inbound allow rule for ports 3000-3020 successfully active.');
+      } catch (err) {
+        // Log note without throwing
+        console.log('[Firewall] Inbound firewall rule check:', err?.message?.trim() || 'active');
+      }
+    }
+
     // High-frequency polling watcher (checks every 2.5 seconds asynchronously)
     function startIpWatcher() {
+      // Ensure local firewall ports are accessible
+      ensureWindowsFirewallOpen().catch(() => {});
+
       // Initial immediate detection
       refreshDynamicNetwork(true);
 
@@ -1981,6 +2008,60 @@ async function detectDynamicNetwork() {
         });
       } catch (err) {
         res.status(500).json({ error: 'Failed to retrieve network info', message: err.message });
+      }
+    });
+
+    // Detailed diagnostic endpoint for network adapters, router routing, and ports
+    app.get('/api/network/diagnostics', async (req, res) => {
+      try {
+        const netInfo = await refreshDynamicNetwork(true);
+        const ifaces = os.networkInterfaces();
+        const physicalIfaces = [];
+        for (const [name, list] of Object.entries(ifaces)) {
+          if (!list) continue;
+          for (const item of list) {
+            if (item.family === 'IPv4' && !item.internal) {
+              physicalIfaces.push({
+                name,
+                address: item.address,
+                mac: item.mac,
+                isVirtual: isVirtualOrInvalid(item.address, item.mac, name)
+              });
+            }
+          }
+        }
+        res.json({
+          status: 'ok',
+          detectedIp: netInfo.ip,
+          ssid: netInfo.ssid,
+          wifiConnected: netInfo.wifiConnected,
+          signal: netInfo.signal,
+          interfaceName: netInfo.interfaceName,
+          band: netInfo.band,
+          frontendPort: FRONTEND_PORT,
+          backendPort: PORT,
+          mobileFrontendPort: MOBILE_FRONTEND_PORT,
+          qrMobileUrl: `http://${netInfo.ip}:${FRONTEND_PORT}/?view=mobile&kioskId=DEFAULT&kioskPort=${PORT}&restaurant=${activeRestaurant.id || 'umami'}`,
+          physicalAdapters: physicalIfaces,
+          tunnelUrl: activeTunnelUrl,
+          tunnelStatus: activeTunnelUrl ? 'connected' : (isTunnelStarting ? 'connecting' : 'disconnected'),
+          timestamp: new Date().toISOString()
+        });
+      } catch (err) {
+        res.status(500).json({ error: 'Failed to run network diagnostics', message: err.message });
+      }
+    });
+
+    // One-click Windows Firewall self-heal endpoint for ports 3000-3020
+    app.post('/api/network/fix-firewall', async (req, res) => {
+      if (process.platform !== 'win32') {
+        return res.json({ success: true, message: 'Non-Windows host; no Windows Defender Firewall modification required.' });
+      }
+      try {
+        await execAsync('netsh advfirewall firewall add rule name="Umami Restaurant Kiosk Ports" dir=in action=allow protocol=TCP localport=3000,3001,3002,3003,3010,3020 profile=any');
+        res.json({ success: true, message: 'Windows Defender Firewall inbound rule for ports 3000-3020 created/refreshed successfully.' });
+      } catch (err) {
+        res.status(500).json({ success: false, error: 'Could not automatically add firewall rule', details: err.message, suggestion: 'Run allow-firewall.bat as Administrator' });
       }
     });
 

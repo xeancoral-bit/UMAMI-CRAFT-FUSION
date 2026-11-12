@@ -3349,27 +3349,6 @@ function MobileView({ kioskId, onResetSession }) {
                 <Shield size={15} strokeWidth={2.5} color="#059669" />
                 <span>UMAMI CRAFT FUSION ID</span>
               </div>
-              <button
-                type="button"
-                onClick={() => setShowServiceModal(true)}
-                title="Call Server / Request Table Service Assistance"
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                  padding: '4px 10px',
-                  borderRadius: '20px',
-                  background: 'rgba(245, 158, 11, 0.15)',
-                  border: '1.5px solid rgba(245, 158, 11, 0.5)',
-                  color: '#d97706',
-                  fontSize: '11px',
-                  fontWeight: 700,
-                  cursor: 'pointer'
-                }}
-              >
-                <Bell size={12} color="#d97706" />
-                <span>Call Server</span>
-              </button>
             </div>
             <h1 className="mvault-title">
               Local <span className="mvault-title-accent">Dietary Vault</span>

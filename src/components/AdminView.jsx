@@ -573,14 +573,36 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
   const [qrBaseUrl, setQrBaseUrl] = useState(() => {
     try {
       const saved = localStorage.getItem('umami_qr_base_url');
-      if (saved) return saved;
+      if (saved && !saved.includes('192.168.1.16') && !saved.includes('192.168.1.59')) return saved;
     } catch (_) {}
-    return 'http://192.168.1.16:3000/?view=mobile&kioskId=RT62AL&kioskPort=3001&restaurant=umami';
+    return '';
   });
+
+  // Dynamically resolve QR menu mobile URL from server network info
+  useEffect(() => {
+    fetch('/api/network-info')
+      .then(res => res.json())
+      .then(data => {
+        if (data && data.ip && data.ip !== 'localhost' && data.ip !== '127.0.0.1') {
+          const targetPort = data.mobileFrontendPort || data.port || '3000';
+          const detectedUrl = `http://${data.ip}:${targetPort}/?view=mobile&kioskId=RT62AL&kioskPort=${data.backendPort || 3001}&restaurant=umami`;
+          setQrBaseUrl(prev => (!prev || prev.includes('192.168.1.16') || prev.includes('192.168.1.59') ? detectedUrl : prev));
+        } else if (typeof window !== 'undefined') {
+          const fallbackUrl = `${window.location.protocol}//${window.location.host}/?view=mobile&kioskId=RT62AL&kioskPort=3001&restaurant=umami`;
+          setQrBaseUrl(prev => (!prev || prev.includes('192.168.1.16') || prev.includes('192.168.1.59') ? fallbackUrl : prev));
+        }
+      })
+      .catch(() => {
+        if (typeof window !== 'undefined') {
+          const fallbackUrl = `${window.location.protocol}//${window.location.host}/?view=mobile&kioskId=RT62AL&kioskPort=3001&restaurant=umami`;
+          setQrBaseUrl(prev => (!prev || prev.includes('192.168.1.16') ? fallbackUrl : prev));
+        }
+      });
+  }, []);
 
   useEffect(() => {
     try {
-      localStorage.setItem('umami_qr_base_url', qrBaseUrl);
+      if (qrBaseUrl) localStorage.setItem('umami_qr_base_url', qrBaseUrl);
     } catch (_) {}
   }, [qrBaseUrl]);
 
@@ -592,7 +614,7 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
   });
 
   const getTableQrUrl = (tbl) => {
-    const base = (qrBaseUrl || '').trim() || 'http://192.168.1.16:3000/?view=mobile&kioskId=RT62AL&kioskPort=3001&restaurant=umami';
+    const base = (qrBaseUrl || '').trim() || (typeof window !== 'undefined' ? `${window.location.protocol}//${window.location.host}/?view=mobile&kioskId=RT62AL&kioskPort=3001&restaurant=umami` : '');
     const separator = base.includes('?') ? '&' : '?';
     const tokenParam = tbl.token ? `&t=${tbl.token}` : '';
     return `${base}${separator}tableId=${encodeURIComponent(tbl.id)}${tokenParam}`;
@@ -8673,7 +8695,7 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
               {/* Add Table QR Modal */}
               {showAddQrModal && (() => {
                 const previewId = (newTableData.id.trim() || `T-${String(qrTables.length + 1).padStart(2, '0')}`).toUpperCase();
-                const previewUrl = `${(qrBaseUrl || '').trim() || 'http://192.168.1.16:3000/?view=mobile&kioskId=RT62AL&kioskPort=3001&restaurant=umami'}&tableId=${encodeURIComponent(previewId)}`;
+                const previewUrl = `${(qrBaseUrl || '').trim() || (typeof window !== 'undefined' ? `${window.location.protocol}//${window.location.host}/?view=mobile&kioskId=RT62AL&kioskPort=3001&restaurant=umami` : '')}&tableId=${encodeURIComponent(previewId)}`;
 
                 return (
                   <div className="staff-pin-backdrop" style={{ zIndex: 100095 }} onClick={() => setShowAddQrModal(false)}>

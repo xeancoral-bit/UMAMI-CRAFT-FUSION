@@ -4,12 +4,12 @@ import { QRCodeSVG } from 'qrcode.react';
 import PesoReceipt from './PesoReceipt';
 import TableServiceModal from './TableServiceModal';
 import { Bell } from 'lucide-react';
-import { 
-  Monitor, 
-  Smartphone, 
-  ShieldCheck, 
-  Clock, 
-  EyeOff, 
+import {
+  Monitor,
+  Smartphone,
+  ShieldCheck,
+  Clock,
+  EyeOff,
   AlertTriangle,
   Receipt,
   Leaf,
@@ -69,7 +69,7 @@ function KioskView({ onOpenKitchen, initialKioskId }) {
   const [timeLeft, setTimeLeft] = useState(90);
   const [socketConnected, setSocketConnected] = useState(false);
   const [customerBattery, setCustomerBattery] = useState(null);
-  
+
   const socketRef = useRef(null);
   const countdownIntervalRef = useRef(null);
 
@@ -125,7 +125,13 @@ function KioskView({ onOpenKitchen, initialKioskId }) {
   const [refreshSuccessToast, setRefreshSuccessToast] = useState(false);
   const [customHost, setCustomHost] = useState(() => {
     try {
-      return localStorage.getItem('umami_kiosk_custom_host') || '';
+      const saved = (localStorage.getItem('umami_kiosk_custom_host') || '').trim();
+      // Purge any stale private LAN IP stored previously so dynamic Wi-Fi detection always takes precedence
+      if (/^192\.168\.|^10\.|^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(saved)) {
+        localStorage.removeItem('umami_kiosk_custom_host');
+        return '';
+      }
+      return saved;
     } catch (_) {
       return '';
     }
@@ -135,9 +141,11 @@ function KioskView({ onOpenKitchen, initialKioskId }) {
     try {
       if (customHost) localStorage.setItem('umami_kiosk_custom_host', customHost);
       else localStorage.removeItem('umami_kiosk_custom_host');
-    } catch (_) {}
+    } catch (_) { }
   }, [customHost]);
   const [showIpConfig, setShowIpConfig] = useState(false);
+  const [firewallFixMsg, setFirewallFixMsg] = useState(null);
+  const [isFixingFirewall, setIsFixingFirewall] = useState(false);
   const [restaurantInfo, setRestaurantInfo] = useState({
     id: 'umami',
     name: 'Umami Craft Fusion',
@@ -196,10 +204,10 @@ function KioskView({ onOpenKitchen, initialKioskId }) {
         .then(data => {
           if (Array.isArray(data)) {
             setPromos(data);
-            try { localStorage.setItem('umami_promos', JSON.stringify(data)); } catch (_) {}
+            try { localStorage.setItem('umami_promos', JSON.stringify(data)); } catch (_) { }
           }
         })
-        .catch(() => {});
+        .catch(() => { });
     };
 
     fetchPromos();
@@ -210,7 +218,7 @@ function KioskView({ onOpenKitchen, initialKioskId }) {
         try {
           const saved = localStorage.getItem('umami_promos');
           if (saved) setPromos(JSON.parse(saved));
-        } catch (_) {}
+        } catch (_) { }
       }
     };
     window.addEventListener('storage', handleStorageSync);
@@ -261,7 +269,7 @@ function KioskView({ onOpenKitchen, initialKioskId }) {
         try {
           const saved = JSON.parse(localStorage.getItem('umami_admin_menu') || '[]');
           if (saved.length) setMasterMenu(saved);
-        } catch {}
+        } catch { }
       });
 
     fetch('/api/drinks')
@@ -274,23 +282,23 @@ function KioskView({ onOpenKitchen, initialKioskId }) {
         try {
           const saved = JSON.parse(localStorage.getItem('umami_drinks') || '[]');
           if (saved.length) setDrinksMenu(saved);
-        } catch {}
+        } catch { }
       });
 
     fetch('/api/categories')
       .then(res => res.json())
       .then(data => { if (Array.isArray(data)) setCategoriesDb(data); })
-      .catch(() => {});
+      .catch(() => { });
 
     fetch('/api/combos')
       .then(res => res.json())
       .then(data => { if (Array.isArray(data)) setCombosDb(data); })
-      .catch(() => {});
+      .catch(() => { });
 
     fetch('/api/mixmatch')
       .then(res => res.json())
       .then(data => { if (Array.isArray(data)) setMixMatchDb(data); })
-      .catch(() => {});
+      .catch(() => { });
 
     fetch('/api/preferences')
       .then(res => res.json())
@@ -298,7 +306,7 @@ function KioskView({ onOpenKitchen, initialKioskId }) {
         if (data?.allergens) setAvailableAllergens(data.allergens);
         if (data?.flavorPreferences) setAvailablePreferences(data.flavorPreferences);
       })
-      .catch(() => {});
+      .catch(() => { });
   }, []);
 
   // Fetch dynamic Wi-Fi & LAN IP with optional forced re-detection
@@ -372,6 +380,25 @@ function KioskView({ onOpenKitchen, initialKioskId }) {
       setTunnelStatus('disconnected');
     } catch (e) {
       console.error("[Kiosk] Failed to stop tunnel:", e);
+    }
+  };
+
+  const handleFixFirewall = async () => {
+    setIsFixingFirewall(true);
+    setFirewallFixMsg(null);
+    try {
+      const res = await fetch('/api/network/fix-firewall', { method: 'POST' });
+      const data = await res.json();
+      if (data && data.success) {
+        setFirewallFixMsg({ type: 'success', text: 'Windows Firewall rule for ports 3000-3020 successfully added/active!' });
+      } else {
+        setFirewallFixMsg({ type: 'error', text: data?.details || 'Please right-click allow-firewall.bat and run as Administrator.' });
+      }
+    } catch (err) {
+      setFirewallFixMsg({ type: 'error', text: 'Failed to apply rule: ' + err.message });
+    } finally {
+      setIsFixingFirewall(false);
+      setTimeout(() => setFirewallFixMsg(null), 6000);
     }
   };
 
@@ -506,7 +533,7 @@ function KioskView({ onOpenKitchen, initialKioskId }) {
     socket.on('promos-updated', (data) => {
       if (Array.isArray(data)) {
         setPromos(data);
-        try { localStorage.setItem('umami_promos', JSON.stringify(data)); } catch (_) {}
+        try { localStorage.setItem('umami_promos', JSON.stringify(data)); } catch (_) { }
       }
     });
 
@@ -558,7 +585,7 @@ function KioskView({ onOpenKitchen, initialKioskId }) {
       const items = data.items || (data.item ? [data.item] : []);
       const count = data.itemCount || items.reduce((s, i) => s + (i.quantity || 1), 0);
       const total = data.totalPrice !== undefined ? data.totalPrice : items.reduce((s, i) => s + (i.price * (i.quantity || 1)), 0);
-      
+
       setOrderedItem(data.item || items[0]);
       setOrderReceipt({
         orderId: data.orderId || data.id,
@@ -660,11 +687,11 @@ function KioskView({ onOpenKitchen, initialKioskId }) {
     setShowCheckoutModal(false);
     setSearchQuery('');
     setSelectedCategory('All Items');
-    
+
     // 2. Generate a brand new kioskId for the next customer
     const newId = generateKioskId();
     setKioskId(newId);
-    
+
     // 3. Revert to standby state
     setState('standby');
   };
@@ -702,13 +729,20 @@ function KioskView({ onOpenKitchen, initialKioskId }) {
     }
   } else {
     // Local Wi-Fi Mode: STRICTLY prioritize live dynamically detected LAN IP from active Wi-Fi interface
-    const validLocalOverride = isCustomLocalIp ? effectiveCustomHost : '';
+    const validLocalOverride = (effectiveCustomHost && !effectiveCustomHost.startsWith('http')) ? effectiveCustomHost : '';
     const resolvedLocalHost = (lanIp && lanIp !== 'localhost' && lanIp !== '127.0.0.1')
       ? lanIp
-      : (validLocalOverride || (!isLoopback ? window.location.hostname : 'localhost'));
-    displayUrl = `${resolvedLocalHost}:${mobileTargetPort}`;
-    clientUrl = `http://${displayUrl}/?view=mobile&kioskId=${kioskId}&kioskPort=${currentBackendPort}&restaurant=${restaurantInfo.id || 'umami'}`;
-    isQrReady = Boolean(resolvedLocalHost);
+      : (validLocalOverride || (!isLoopback && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1' ? window.location.hostname : ''));
+
+    if (resolvedLocalHost) {
+      displayUrl = `${resolvedLocalHost}:${mobileTargetPort}`;
+      clientUrl = `http://${displayUrl}/?view=mobile&kioskId=${kioskId}&kioskPort=${currentBackendPort}&restaurant=${restaurantInfo.id || 'umami'}`;
+      isQrReady = true;
+    } else {
+      displayUrl = 'Detecting Wi-Fi IP…';
+      clientUrl = '';
+      isQrReady = false;
+    }
   }
 
   // Helper: Normalize item availability from database
@@ -1199,10 +1233,10 @@ function KioskView({ onOpenKitchen, initialKioskId }) {
             <Settings size={16} />
           </button>
         </div>
-        
+
         <div className="kiosk-header-actions">
           {/* Dynamic Wi-Fi Status Pill */}
-          <div 
+          <div
             className="kiosk-pill-btn kiosk-pill-wifi"
             onClick={() => setShowIpConfig(prev => !prev)}
             title="Dynamic Wi-Fi & Real-Time Sync Status (Click to inspect)"
@@ -1216,7 +1250,7 @@ function KioskView({ onOpenKitchen, initialKioskId }) {
           </div>
 
           {/* Real-Time Sync Status Pill */}
-          <div 
+          <div
             className="kiosk-pill-btn kiosk-pill-sync"
             title="Real-Time Socket & Network Synchronization Status"
           >
@@ -1225,7 +1259,7 @@ function KioskView({ onOpenKitchen, initialKioskId }) {
               Real-Time Sync: {socketConnected ? 'Active' : 'Offline'}
             </span>
           </div>
-          
+
           <div className="kiosk-pill-btn kiosk-pill-id">
             <Monitor size={14} color="#059669" className="kiosk-pill-icon" />
             <span className="kiosk-pill-label">
@@ -1262,7 +1296,7 @@ function KioskView({ onOpenKitchen, initialKioskId }) {
 
       {/* Main Content Area */}
       <main style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-        
+
         {/* STATE A: STANDBY VIEW */}
         {state === 'standby' && (
           <div className="kiosk-hero-layout slide-up">
@@ -1497,29 +1531,52 @@ function KioskView({ onOpenKitchen, initialKioskId }) {
                         <RefreshCw size={20} className="spin" color="#D97706" />
                       </div>
                       <div style={{ fontSize: '12px', fontWeight: 800, color: '#B45309', marginBottom: '3px' }}>
-                        {isTunnelStarting || tunnelStatus === 'connecting' ? 'Connecting Tunnel…' : 'Tunnel Offline'}
+                        {connectionMode === 'cloud'
+                          ? (isTunnelStarting || tunnelStatus === 'connecting' ? 'Connecting Tunnel…' : 'Tunnel Offline')
+                          : 'Detecting Wi-Fi IP…'}
                       </div>
                       <div style={{ fontSize: '10px', color: '#786456', lineHeight: 1.3, marginBottom: '8px' }}>
-                        {isTunnelStarting || tunnelStatus === 'connecting'
-                          ? 'Generating Any-Wi-Fi HTTPS URL. Or tap Local Wi-Fi below.'
-                          : 'Could not reach cloud tunnel. Switch to Local Wi-Fi.'}
+                        {connectionMode === 'cloud'
+                          ? (isTunnelStarting || tunnelStatus === 'connecting'
+                              ? 'Generating Any-Wi-Fi HTTPS URL. Or tap Local Wi-Fi below.'
+                              : 'Could not reach cloud tunnel. Switch to Local Wi-Fi.')
+                          : `Identifying active IP address on ${wifiInfo.ssid || 'Wi-Fi network'}…`}
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => setConnectionMode('local')}
-                        style={{
-                          background: '#2563EB',
-                          color: '#FFFFFF',
-                          border: 'none',
-                          borderRadius: '6px',
-                          padding: '3px 8px',
-                          fontSize: '10px',
-                          fontWeight: 700,
-                          cursor: 'pointer'
-                        }}
-                      >
-                        Use Local Wi-Fi
-                      </button>
+                      {connectionMode === 'cloud' ? (
+                        <button
+                          type="button"
+                          onClick={() => setConnectionMode('local')}
+                          style={{
+                            background: '#2563EB',
+                            color: '#FFFFFF',
+                            border: 'none',
+                            borderRadius: '6px',
+                            padding: '3px 8px',
+                            fontSize: '10px',
+                            fontWeight: 700,
+                            cursor: 'pointer'
+                          }}
+                        >
+                          Use Local Wi-Fi
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={handleRefreshConnection}
+                          style={{
+                            background: '#059669',
+                            color: '#FFFFFF',
+                            border: 'none',
+                            borderRadius: '6px',
+                            padding: '3px 8px',
+                            fontSize: '10px',
+                            fontWeight: 700,
+                            cursor: 'pointer'
+                          }}
+                        >
+                          Re-detect IP
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>
@@ -1883,11 +1940,70 @@ function KioskView({ onOpenKitchen, initialKioskId }) {
                         ✕ Clear override — return to Dynamic Auto ({lanIp})
                       </button>
                     )}
-                    <div style={{ marginTop: '8px', padding: '8px', background: 'rgba(239, 68, 68, 0.06)', border: '1px solid rgba(239, 68, 68, 0.2)', borderRadius: '8px', fontSize: '10px', color: '#991b1b', lineHeight: '1.4' }}>
-                      <strong>Fixing ERR_ADDRESS_UNREACHABLE on Phone:</strong>
-                      <div style={{ marginTop: '3px' }}>1. Ensure Phone and PC are on the same Wi-Fi: <strong>&quot;{wifiInfo.ssid || 'PLDTHOMEFIBR2jU3E'}&quot;</strong></div>
-                      <div>2. Run <code>npm run allow-firewall</code> in terminal to open Windows Firewall ports 3000/3001.</div>
-                      <div>3. Or tap <strong>&quot;Any-Wi-Fi (Cloud)&quot;</strong> above to connect across ANY Wi-Fi or cellular data!</div>
+                    <div style={{ marginTop: '10px', padding: '10px', background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: '10px', fontSize: '11px', color: '#991B1B', lineHeight: '1.45' }}>
+                      <strong style={{ fontSize: '11px', display: 'flex', alignItems: 'center', gap: '5px', marginBottom: '6px' }}>
+                        <span style={{ fontSize: '13px' }}>🛠️</span> Troubleshooting Phone Scanner &quot;Site Can&apos;t Be Reached&quot;:
+                      </strong>
+                      <div style={{ marginBottom: '4px' }}>
+                        <strong>1. Wi-Fi Connection:</strong> Ensure your phone is connected to <strong>&quot;{wifiInfo.ssid || 'the same Wi-Fi as this kiosk'}&quot;</strong>.
+                      </div>
+                      <div style={{ marginBottom: '4px' }}>
+                        <strong>2. Turn OFF Mobile Cellular Data:</strong> Disable 4G/5G on your phone. Mobile browsers often send 192.168.x.x requests through cellular carrier antennas instead of local Wi-Fi, triggering <code>ERR_ADDRESS_UNREACHABLE</code>.
+                      </div>
+                      <div style={{ marginBottom: '6px' }}>
+                        <strong>3. Windows Defender Firewall:</strong> Allow inbound connections on ports 3000 &amp; 3001.
+                      </div>
+                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginTop: '6px', flexWrap: 'wrap' }}>
+                        <button
+                          type="button"
+                          onClick={handleFixFirewall}
+                          disabled={isFixingFirewall}
+                          style={{
+                            background: '#C24522',
+                            color: '#FFFFFF',
+                            border: 'none',
+                            borderRadius: '6px',
+                            padding: '4px 10px',
+                            fontSize: '10px',
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px'
+                          }}
+                        >
+                          {isFixingFirewall ? 'Opening Firewall…' : '🔥 Auto-Open Windows Firewall (Ports 3000-3020)'}
+                        </button>
+                        <a
+                          href={clientUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{
+                            color: '#2563EB',
+                            textDecoration: 'underline',
+                            fontSize: '10px',
+                            fontWeight: 600
+                          }}
+                        >
+                          Test Mobile Link in Browser
+                        </a>
+                      </div>
+                      {firewallFixMsg && (
+                        <div style={{
+                          marginTop: '6px',
+                          padding: '4px 8px',
+                          borderRadius: '6px',
+                          background: firewallFixMsg.type === 'success' ? '#ECFDF5' : '#FFF1F2',
+                          color: firewallFixMsg.type === 'success' ? '#065F46' : '#9F1239',
+                          fontSize: '10px',
+                          fontWeight: 600
+                        }}>
+                          {firewallFixMsg.text}
+                        </div>
+                      )}
+                      <div style={{ marginTop: '6px', fontSize: '10px', color: '#6B7280' }}>
+                        <strong>4. Router AP Isolation:</strong> If phone still cannot connect, router has &quot;AP Isolation&quot; enabled. Switch to <strong>&quot;Any-Wi-Fi (Cloud)&quot;</strong> above for instant universal access.
+                      </div>
                     </div>
                   </div>
                 )}
@@ -2180,241 +2296,241 @@ function KioskView({ onOpenKitchen, initialKioskId }) {
                 {/* CENTER ZONE: Promotions + Search + Food Card Grid */}
                 <section className="kiosk-catalog-stage">
 
-              {/* 3. Promotional Banner (Live from /api/promos) */}
-              {activePromos.length > 0 && (() => {
-                const currentPromo = activePromos[activePromoIndex % activePromos.length];
-                const bannerImg = currentPromo.bannerImage || currentPromo.imageUrl || currentPromo.image || '/ramen_promo_banner.png';
-                const discountBadge = currentPromo.discountType === 'percentage' || currentPromo.type === 'percentage'
-                  ? `${currentPromo.discountValue || currentPromo.value}% OFF`
-                  : `₱${currentPromo.discountValue || currentPromo.value} OFF`;
+                  {/* 3. Promotional Banner (Live from /api/promos) */}
+                  {activePromos.length > 0 && (() => {
+                    const currentPromo = activePromos[activePromoIndex % activePromos.length];
+                    const bannerImg = currentPromo.bannerImage || currentPromo.imageUrl || currentPromo.image || '/ramen_promo_banner.png';
+                    const discountBadge = currentPromo.discountType === 'percentage' || currentPromo.type === 'percentage'
+                      ? `${currentPromo.discountValue || currentPromo.value}% OFF`
+                      : `₱${currentPromo.discountValue || currentPromo.value} OFF`;
 
-                return (
-                  <div style={{
-                    position: 'relative', borderRadius: '18px', overflow: 'hidden',
-                    height: '132px', background: '#1C1917', boxShadow: '0 8px 24px rgba(0,0,0,0.12)'
-                  }}>
-                    <img
-                      src={bannerImg}
-                      alt={currentPromo.name}
-                      style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', opacity: 0.72 }}
-                      onError={(e) => { e.target.onerror = null; e.target.src = '/ramen_promo_banner.png'; }}
-                    />
-                    <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(90deg, rgba(28,25,23,0.92) 0%, rgba(28,25,23,0.55) 60%, rgba(28,25,23,0.85) 100%)' }} />
-
-                    <div style={{ position: 'absolute', top: '14px', left: '18px', right: '18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ background: 'rgba(0,0,0,0.75)', border: '1px solid rgba(255,255,255,0.2)', padding: '4px 12px', borderRadius: '999px', fontSize: '0.7rem', fontWeight: 800, color: '#FFFFFF', letterSpacing: '0.06em' }}>
-                        &#10022; SPECIAL PROMO
-                      </span>
-                      <span style={{ background: 'linear-gradient(135deg, #F97316, #DC2626)', color: '#FFFFFF', padding: '5px 12px', borderRadius: '999px', fontSize: '0.78rem', fontWeight: 900 }}>
-                        {discountBadge}
-                      </span>
-                    </div>
-
-                    <div style={{ position: 'absolute', bottom: '14px', left: '18px', right: '18px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: '12px' }}>
-                      <div>
-                        <div style={{ color: '#FFFFFF', fontSize: '1.1rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.02em' }}>
-                          {currentPromo.bannerTitle || currentPromo.name}
-                        </div>
-                        <div style={{ color: 'rgba(255,255,255,0.82)', fontSize: '0.76rem', marginTop: '2px' }}>
-                          {currentPromo.applyToAll ? 'Applies storewide to all safe menu items' : `Applies to: ${(currentPromo.applicableItems || []).join(', ')}`}
-                        </div>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => handleApplyCheckoutPromo(currentPromo.code)}
-                        style={{
-                          background: '#FFFFFF', color: '#C24522', padding: '7px 14px',
-                          borderRadius: '999px', border: 'none', fontWeight: 900, fontSize: '0.78rem',
-                          display: 'inline-flex', alignItems: 'center', gap: '5px', cursor: 'pointer', flexShrink: 0
-                        }}
-                        title="Tap to apply this promo code to your order"
-                      >
-                        <Tag size={12} />
-                        <span>{currentPromo.code}</span>
-                      </button>
-                    </div>
-                  </div>
-                );
-              })()}
-
-              {/* 4. Search Bar & Verified Food Safety Notice */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                <div style={{ position: 'relative' }}>
-                  <Search size={18} color="#A8A29E" style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
-                  <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Search dishes, categories, drinks, or ingredients..."
-                    style={{
-                      width: '100%', padding: '14px 44px 14px 46px', borderRadius: '14px',
-                      border: '1.5px solid #EAE2D7', background: '#FFFFFF',
-                      fontSize: '0.94rem', fontWeight: 600, color: '#1C1917', outline: 'none', boxSizing: 'border-box',
-                      boxShadow: '0 2px 8px rgba(0,0,0,0.03)'
-                    }}
-                  />
-                  {searchQuery && (
-                    <button
-                      type="button"
-                      onClick={() => setSearchQuery('')}
-                      style={{ position: 'absolute', right: '14px', top: '50%', transform: 'translateY(-50%)', background: '#F5EFE6', border: 'none', borderRadius: '50%', width: '28px', height: '28px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#57534E' }}
-                    >
-                      <X size={15} />
-                    </button>
-                  )}
-                </div>
-
-                {/* Verified Food Safety & Category Header */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 900, color: '#1C1917' }}>
-                      {selectedCategory}
-                    </h3>
-                    <span style={{ padding: '2px 10px', borderRadius: '999px', background: '#F5EFE6', color: '#57534E', fontSize: '0.74rem', fontWeight: 800 }}>
-                      {sortedMenu.length} Available
-                    </span>
-                  </div>
-                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '5px 11px', borderRadius: '999px', background: '#ECFDF5', border: '1px solid #A7F3D0', color: '#065F46', fontSize: '0.72rem', fontWeight: 700 }}>
-                    <ShieldCheck size={13} color="#059669" />
-                    <span>Ingredients &amp; allergens verified by authorized administrators</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* 5. Commercial Kiosk Food Card Grid */}
-              {sortedMenu.length === 0 ? (
-                <div style={{ padding: '48px 24px', textAlign: 'center', background: '#FFFFFF', borderRadius: '20px', border: '1.5px dashed #EAE2D7' }}>
-                  <AlertTriangle size={42} color="#D97706" style={{ marginBottom: '12px' }} />
-                  <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: '#1C1917', margin: '0 0 6px' }}>
-                    No items match your current filter or search.
-                  </h3>
-                  <p style={{ color: '#78716C', fontSize: '0.86rem', maxWidth: '420px', margin: '0 auto 14px' }}>
-                    Try clearing your search, switching to &quot;All Items&quot;, or updating your allergen exclusions in Dietary Safety.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => { setSearchQuery(''); setSelectedCategory('All Items'); }}
-                    style={{ padding: '10px 18px', borderRadius: '12px', border: 'none', background: '#C24522', color: '#FFFFFF', fontWeight: 800, fontSize: '0.84rem', cursor: 'pointer' }}
-                  >
-                    Reset Filters
-                  </button>
-                </div>
-              ) : (
-                <div className="kiosk-food-grid">
-                  {sortedMenu.map((item) => {
-                    const hasMatch = getMatchCount(item) > 0;
-                    const ingPreview = getItemIngredientsList(item).slice(0, 3).map(i => i.name).join(', ');
                     return (
-                      <div
-                        key={item.id || item.sku || item.name}
-                        onClick={() => openProductDetails(item)}
-                        className={`kiosk-food-card ${hasMatch ? 'matched' : ''}`}
-                      >
-                        {/* Large Visual Food Image */}
-                        <div className="kiosk-food-card-img-wrap">
-                          <img
-                            src={item.image}
-                            alt={item.name}
-                            loading="lazy"
-                            onError={(e) => {
-                              e.target.onerror = null;
-                              e.target.src = item.isDrink
-                                ? 'https://images.unsplash.com/photo-1536256263959-770b48d82b0a?auto=format&fit=crop&w=600&q=80'
-                                : 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=600&q=80';
-                            }}
-                            className="kiosk-food-card-img"
-                          />
-                          <span style={{
-                            position: 'absolute', top: '10px', left: '10px',
-                            background: hasMatch ? '#C24522' : 'rgba(28, 25, 23, 0.78)',
-                            color: '#FFFFFF', fontSize: '0.68rem', fontWeight: 800,
-                            padding: '4px 10px', borderRadius: '999px', backdropFilter: 'blur(4px)',
-                            textTransform: 'uppercase', letterSpacing: '0.04em'
-                          }}>
-                            {hasMatch ? '★ Best Match' : item.category}
+                      <div style={{
+                        position: 'relative', borderRadius: '18px', overflow: 'hidden',
+                        height: '132px', background: '#1C1917', boxShadow: '0 8px 24px rgba(0,0,0,0.12)'
+                      }}>
+                        <img
+                          src={bannerImg}
+                          alt={currentPromo.name}
+                          style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', opacity: 0.72 }}
+                          onError={(e) => { e.target.onerror = null; e.target.src = '/ramen_promo_banner.png'; }}
+                        />
+                        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(90deg, rgba(28,25,23,0.92) 0%, rgba(28,25,23,0.55) 60%, rgba(28,25,23,0.85) 100%)' }} />
+
+                        <div style={{ position: 'absolute', top: '14px', left: '18px', right: '18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span style={{ background: 'rgba(0,0,0,0.75)', border: '1px solid rgba(255,255,255,0.2)', padding: '4px 12px', borderRadius: '999px', fontSize: '0.7rem', fontWeight: 800, color: '#FFFFFF', letterSpacing: '0.06em' }}>
+                            &#10022; SPECIAL PROMO
                           </span>
-                          {item.originalPrice && Number(item.originalPrice) > Number(item.price) && (
-                            <span style={{
-                              position: 'absolute', top: '10px', right: '10px',
-                              background: '#059669', color: '#FFFFFF',
-                              fontSize: '0.68rem', fontWeight: 900, padding: '4px 9px', borderRadius: '999px'
-                            }}>
-                              PROMO
-                            </span>
-                          )}
+                          <span style={{ background: 'linear-gradient(135deg, #F97316, #DC2626)', color: '#FFFFFF', padding: '5px 12px', borderRadius: '999px', fontSize: '0.78rem', fontWeight: 900 }}>
+                            {discountBadge}
+                          </span>
                         </div>
 
-                        {/* Card Details */}
-                        <div style={{ padding: '14px 16px 16px', display: 'flex', flexDirection: 'column', flex: 1, gap: '8px' }}>
+                        <div style={{ position: 'absolute', bottom: '14px', left: '18px', right: '18px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', gap: '12px' }}>
                           <div>
-                            <div style={{ fontSize: '1.02rem', fontWeight: 900, color: '#1C1917', lineHeight: 1.25, marginBottom: '4px' }}>
-                              {item.name}
+                            <div style={{ color: '#FFFFFF', fontSize: '1.1rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.02em' }}>
+                              {currentPromo.bannerTitle || currentPromo.name}
                             </div>
-                            <p style={{
-                              margin: 0, fontSize: '0.78rem', color: '#78716C', lineHeight: 1.4,
-                              display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden'
-                            }}>
-                              {item.description}
-                            </p>
-                          </div>
-
-                          {ingPreview && (
-                            <div style={{ fontSize: '0.71rem', color: '#57534E', background: '#FAF8F5', padding: '5px 8px', borderRadius: '8px', border: '1px solid #EAE2D7', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                              <strong>Key:</strong> {ingPreview}
+                            <div style={{ color: 'rgba(255,255,255,0.82)', fontSize: '0.76rem', marginTop: '2px' }}>
+                              {currentPromo.applyToAll ? 'Applies storewide to all safe menu items' : `Applies to: ${(currentPromo.applicableItems || []).join(', ')}`}
                             </div>
-                          )}
-
-                          {/* Allergen & Tags Row */}
-                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginTop: 'auto' }}>
-                            {(item.allergens || []).length === 0 ? (
-                              <span style={{ padding: '2px 7px', borderRadius: '6px', background: '#ECFDF5', color: '#059669', fontSize: '0.66rem', fontWeight: 800 }}>
-                                ✓ Allergen-Safe
-                              </span>
-                            ) : (
-                              <span style={{ padding: '2px 7px', borderRadius: '6px', background: '#FEF2F2', color: '#B91C1C', fontSize: '0.66rem', fontWeight: 700 }}>
-                                Contains: {item.allergens.join(', ')}
-                              </span>
-                            )}
-                            {(item.tags || []).slice(0, 2).map(tag => (
-                              <span key={tag} style={{ padding: '2px 7px', borderRadius: '6px', background: '#FEF3C7', color: '#B45309', fontSize: '0.66rem', fontWeight: 800, textTransform: 'uppercase' }}>
-                                {tag}
-                              </span>
-                            ))}
                           </div>
-
-                          {/* Price + Big Touch Add Button */}
-                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: '8px', borderTop: '1px solid #F5EFE6', marginTop: '4px' }}>
-                            <div>
-                              {item.originalPrice && Number(item.originalPrice) > Number(item.price) && (
-                                <div style={{ fontSize: '0.72rem', color: '#A8A29E', textDecoration: 'line-through', fontWeight: 700 }}>
-                                  ₱{Number(item.originalPrice).toFixed(2)}
-                                </div>
-                              )}
-                              <div style={{ fontSize: '1.15rem', fontWeight: 900, color: '#C24522' }}>
-                                ₱{Number(item.price || 0).toFixed(2)}
-                              </div>
-                            </div>
-                            <button
-                              type="button"
-                              onClick={(e) => handleQuickAddToCart(e, item)}
-                              style={{
-                                padding: '9px 16px', borderRadius: '12px', border: 'none',
-                                background: 'linear-gradient(135deg, #D94B2B 0%, #C24522 100%)',
-                                color: '#FFFFFF', fontWeight: 800, fontSize: '0.8rem',
-                                cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '5px',
-                                boxShadow: '0 4px 12px rgba(194, 69, 34, 0.22)'
-                              }}
-                            >
-                              <Plus size={15} />
-                              <span>Add</span>
-                            </button>
-                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleApplyCheckoutPromo(currentPromo.code)}
+                            style={{
+                              background: '#FFFFFF', color: '#C24522', padding: '7px 14px',
+                              borderRadius: '999px', border: 'none', fontWeight: 900, fontSize: '0.78rem',
+                              display: 'inline-flex', alignItems: 'center', gap: '5px', cursor: 'pointer', flexShrink: 0
+                            }}
+                            title="Tap to apply this promo code to your order"
+                          >
+                            <Tag size={12} />
+                            <span>{currentPromo.code}</span>
+                          </button>
                         </div>
                       </div>
                     );
-                  })}
-                </div>
-              )}
+                  })()}
+
+                  {/* 4. Search Bar & Verified Food Safety Notice */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    <div style={{ position: 'relative' }}>
+                      <Search size={18} color="#A8A29E" style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
+                      <input
+                        type="text"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        placeholder="Search dishes, categories, drinks, or ingredients..."
+                        style={{
+                          width: '100%', padding: '14px 44px 14px 46px', borderRadius: '14px',
+                          border: '1.5px solid #EAE2D7', background: '#FFFFFF',
+                          fontSize: '0.94rem', fontWeight: 600, color: '#1C1917', outline: 'none', boxSizing: 'border-box',
+                          boxShadow: '0 2px 8px rgba(0,0,0,0.03)'
+                        }}
+                      />
+                      {searchQuery && (
+                        <button
+                          type="button"
+                          onClick={() => setSearchQuery('')}
+                          style={{ position: 'absolute', right: '14px', top: '50%', transform: 'translateY(-50%)', background: '#F5EFE6', border: 'none', borderRadius: '50%', width: '28px', height: '28px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#57534E' }}
+                        >
+                          <X size={15} />
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Verified Food Safety & Category Header */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 900, color: '#1C1917' }}>
+                          {selectedCategory}
+                        </h3>
+                        <span style={{ padding: '2px 10px', borderRadius: '999px', background: '#F5EFE6', color: '#57534E', fontSize: '0.74rem', fontWeight: 800 }}>
+                          {sortedMenu.length} Available
+                        </span>
+                      </div>
+                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '5px 11px', borderRadius: '999px', background: '#ECFDF5', border: '1px solid #A7F3D0', color: '#065F46', fontSize: '0.72rem', fontWeight: 700 }}>
+                        <ShieldCheck size={13} color="#059669" />
+                        <span>Ingredients &amp; allergens verified by authorized administrators</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 5. Commercial Kiosk Food Card Grid */}
+                  {sortedMenu.length === 0 ? (
+                    <div style={{ padding: '48px 24px', textAlign: 'center', background: '#FFFFFF', borderRadius: '20px', border: '1.5px dashed #EAE2D7' }}>
+                      <AlertTriangle size={42} color="#D97706" style={{ marginBottom: '12px' }} />
+                      <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: '#1C1917', margin: '0 0 6px' }}>
+                        No items match your current filter or search.
+                      </h3>
+                      <p style={{ color: '#78716C', fontSize: '0.86rem', maxWidth: '420px', margin: '0 auto 14px' }}>
+                        Try clearing your search, switching to &quot;All Items&quot;, or updating your allergen exclusions in Dietary Safety.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => { setSearchQuery(''); setSelectedCategory('All Items'); }}
+                        style={{ padding: '10px 18px', borderRadius: '12px', border: 'none', background: '#C24522', color: '#FFFFFF', fontWeight: 800, fontSize: '0.84rem', cursor: 'pointer' }}
+                      >
+                        Reset Filters
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="kiosk-food-grid">
+                      {sortedMenu.map((item) => {
+                        const hasMatch = getMatchCount(item) > 0;
+                        const ingPreview = getItemIngredientsList(item).slice(0, 3).map(i => i.name).join(', ');
+                        return (
+                          <div
+                            key={item.id || item.sku || item.name}
+                            onClick={() => openProductDetails(item)}
+                            className={`kiosk-food-card ${hasMatch ? 'matched' : ''}`}
+                          >
+                            {/* Large Visual Food Image */}
+                            <div className="kiosk-food-card-img-wrap">
+                              <img
+                                src={item.image}
+                                alt={item.name}
+                                loading="lazy"
+                                onError={(e) => {
+                                  e.target.onerror = null;
+                                  e.target.src = item.isDrink
+                                    ? 'https://images.unsplash.com/photo-1536256263959-770b48d82b0a?auto=format&fit=crop&w=600&q=80'
+                                    : 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=600&q=80';
+                                }}
+                                className="kiosk-food-card-img"
+                              />
+                              <span style={{
+                                position: 'absolute', top: '10px', left: '10px',
+                                background: hasMatch ? '#C24522' : 'rgba(28, 25, 23, 0.78)',
+                                color: '#FFFFFF', fontSize: '0.68rem', fontWeight: 800,
+                                padding: '4px 10px', borderRadius: '999px', backdropFilter: 'blur(4px)',
+                                textTransform: 'uppercase', letterSpacing: '0.04em'
+                              }}>
+                                {hasMatch ? '★ Best Match' : item.category}
+                              </span>
+                              {item.originalPrice && Number(item.originalPrice) > Number(item.price) && (
+                                <span style={{
+                                  position: 'absolute', top: '10px', right: '10px',
+                                  background: '#059669', color: '#FFFFFF',
+                                  fontSize: '0.68rem', fontWeight: 900, padding: '4px 9px', borderRadius: '999px'
+                                }}>
+                                  PROMO
+                                </span>
+                              )}
+                            </div>
+
+                            {/* Card Details */}
+                            <div style={{ padding: '14px 16px 16px', display: 'flex', flexDirection: 'column', flex: 1, gap: '8px' }}>
+                              <div>
+                                <div style={{ fontSize: '1.02rem', fontWeight: 900, color: '#1C1917', lineHeight: 1.25, marginBottom: '4px' }}>
+                                  {item.name}
+                                </div>
+                                <p style={{
+                                  margin: 0, fontSize: '0.78rem', color: '#78716C', lineHeight: 1.4,
+                                  display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden'
+                                }}>
+                                  {item.description}
+                                </p>
+                              </div>
+
+                              {ingPreview && (
+                                <div style={{ fontSize: '0.71rem', color: '#57534E', background: '#FAF8F5', padding: '5px 8px', borderRadius: '8px', border: '1px solid #EAE2D7', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                  <strong>Key:</strong> {ingPreview}
+                                </div>
+                              )}
+
+                              {/* Allergen & Tags Row */}
+                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginTop: 'auto' }}>
+                                {(item.allergens || []).length === 0 ? (
+                                  <span style={{ padding: '2px 7px', borderRadius: '6px', background: '#ECFDF5', color: '#059669', fontSize: '0.66rem', fontWeight: 800 }}>
+                                    ✓ Allergen-Safe
+                                  </span>
+                                ) : (
+                                  <span style={{ padding: '2px 7px', borderRadius: '6px', background: '#FEF2F2', color: '#B91C1C', fontSize: '0.66rem', fontWeight: 700 }}>
+                                    Contains: {item.allergens.join(', ')}
+                                  </span>
+                                )}
+                                {(item.tags || []).slice(0, 2).map(tag => (
+                                  <span key={tag} style={{ padding: '2px 7px', borderRadius: '6px', background: '#FEF3C7', color: '#B45309', fontSize: '0.66rem', fontWeight: 800, textTransform: 'uppercase' }}>
+                                    {tag}
+                                  </span>
+                                ))}
+                              </div>
+
+                              {/* Price + Big Touch Add Button */}
+                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: '8px', borderTop: '1px solid #F5EFE6', marginTop: '4px' }}>
+                                <div>
+                                  {item.originalPrice && Number(item.originalPrice) > Number(item.price) && (
+                                    <div style={{ fontSize: '0.72rem', color: '#A8A29E', textDecoration: 'line-through', fontWeight: 700 }}>
+                                      ₱{Number(item.originalPrice).toFixed(2)}
+                                    </div>
+                                  )}
+                                  <div style={{ fontSize: '1.15rem', fontWeight: 900, color: '#C24522' }}>
+                                    ₱{Number(item.price || 0).toFixed(2)}
+                                  </div>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={(e) => handleQuickAddToCart(e, item)}
+                                  style={{
+                                    padding: '9px 16px', borderRadius: '12px', border: 'none',
+                                    background: 'linear-gradient(135deg, #D94B2B 0%, #C24522 100%)',
+                                    color: '#FFFFFF', fontWeight: 800, fontSize: '0.8rem',
+                                    cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '5px',
+                                    boxShadow: '0 4px 12px rgba(194, 69, 34, 0.22)'
+                                  }}
+                                >
+                                  <Plus size={15} />
+                                  <span>Add</span>
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </section>
 
                 {/* RIGHT ZONE: Persistent Live Order Tray ("My Order" Panel) */}
@@ -3082,16 +3198,16 @@ function KioskView({ onOpenKitchen, initialKioskId }) {
             <div className="success-checkmark" style={{ marginBottom: '24px' }}>
               <div className="check-icon"></div>
             </div>
-            
+
             <div style={{ textAlign: 'center', marginBottom: '24px' }}>
               <h2 style={{ fontSize: '32px', fontWeight: '800', marginBottom: '8px' }}>
                 {orderReceipt?.paymentStatus === 'Pending Verification' || orderReceipt?.paymentStatus === 'Pending'
                   ? 'Payment Processing via Gateway Webhook...'
                   : (orderReceipt?.status === 'Preparing'
-                      ? 'Kitchen is Preparing Your Meal!'
-                      : (orderReceipt?.status === 'Ready for Pickup'
-                          ? 'Order Ready for Pickup!'
-                          : 'Order Confirmed & Received!'))}
+                    ? 'Kitchen is Preparing Your Meal!'
+                    : (orderReceipt?.status === 'Ready for Pickup'
+                      ? 'Order Ready for Pickup!'
+                      : 'Order Confirmed & Received!'))}
               </h2>
               <p style={{ color: 'var(--text-secondary)', fontSize: '15px' }}>
                 {orderReceipt?.paymentStatus === 'Pending Verification' || orderReceipt?.paymentStatus === 'Pending'
@@ -3189,7 +3305,7 @@ function KioskView({ onOpenKitchen, initialKioskId }) {
                 </div>
               )}
             </div>
-            
+
             {/* Zero Retention Notification */}
             <div className="glass-card" style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', gap: '14px', justifyContent: 'center', background: 'rgba(16, 185, 129, 0.05)', borderColor: 'rgba(16, 185, 129, 0.2)', borderRadius: '16px' }}>
               <EyeOff size={20} color="var(--accent-success)" />
@@ -3197,7 +3313,7 @@ function KioskView({ onOpenKitchen, initialKioskId }) {
                 Zero-Retention Wipe: Dietary credentials wiped completely from terminal memory.
               </span>
             </div>
-            
+
             <p style={{ color: 'var(--text-muted)', fontSize: '12px', marginTop: '24px', textAlign: 'center' }}>
               Returning to standby mode in 6s...
             </p>

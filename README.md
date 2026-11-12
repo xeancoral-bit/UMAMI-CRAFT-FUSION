@@ -1,32 +1,43 @@
 # Umami Craft Fusion 🥢
 ### Enterprise Restaurant Management, Real-Time Sync & Self-Service Dining System
 
-**Umami Craft Fusion** is a full-stack, enterprise-grade restaurant management and omnichannel dining platform. It seamlessly bridges customer-facing self-service kiosks, dynamic QR-code mobile ordering, a cryptographic webhook payment gateway, kitchen display systems (KDS), role-based employee administration (Admin, Cashier POS, and Staff Operations), and automated daily shift reporting.
+**Umami Craft Fusion** is a full-stack, enterprise-grade restaurant management and omnichannel dining ecosystem. It seamlessly bridges customer-facing self-service kiosks, dynamic QR-code mobile ordering with privacy-first dietary safety checking, automated cryptographic webhook payment processing, a live kitchen display system (KDS), table service assistance, role-based employee administration (Admin, Cashier POS, and Kitchen Staff), and automated daily shift reporting with denomination-accurate cashier Z-reads.
 
 ---
 
 ## 📑 Table of Contents
-1. [System Architecture & Overview](#-system-architecture--overview)
-2. [End-to-End System Flowchart](#-end-to-end-system-flowchart)
+1. [System Architecture & Network Topology](#-system-architecture--network-topology)
+2. [End-to-End System Flowcharts](#-end-to-end-system-flowcharts)
+   - [A. Omnichannel Ordering & Dietary Safety Flow](#a-omnichannel-ordering--dietary-safety-flow)
+   - [B. Dynamic Wi-Fi & LAN IP Resolution Flow](#b-dynamic-wi-fi--lan-ip-resolution-flow)
+   - [C. Payment Method & E-Wallet Sub-Selection Flow](#c-payment-method--e-wallet-sub-selection-flow)
+   - [D. Employee Lifecycle, POS Shifts & Daily Reports Flow](#d-employee-lifecycle-pos-shifts--daily-reports-flow)
 3. [Entity-Relationship Diagram (ERD)](#-entity-relationship-diagram-erd)
 4. [Core Features & Modules](#-core-features--modules)
-   - [1. Customer Touchscreen Kiosk & Dynamic QR Scan](#1-customer-touchscreen-kiosk--dynamic-qr-scan)
-   - [2. Customer Allergy Verification & Local Dietary Vault](#2-customer-allergy-verification--local-dietary-vault)
-   - [3. Automated Webhook-Based Payment Gateway Engine](#3-automated-webhook-based-payment-gateway-engine)
-   - [4. Real-Time Kitchen Display System (KDS) & Table Service](#4-real-time-kitchen-display-system-kds--table-service)
-   - [5. Role-Based Portals: Admin, Cashier POS, & Staff Operations](#5-role-based-portals-admin-cashier-pos--staff-operations)
-   - [6. Daily Reports Management (Cashier & Staff Z-Reads)](#6-daily-reports-management-cashier--staff-z-reads)
-   - [7. Centralized Audit Trail & Activity Logging](#7-centralized-audit-trail--activity-logging)
+   - [1. Commercial Self-Service Touchscreen Kiosk](#1-commercial-self-service-touchscreen-kiosk)
+   - [2. Dynamic Wi-Fi Connection & QR Code Generation](#2-dynamic-wi-fi-connection--qr-code-generation)
+   - [3. Customer Allergy Verification & Local Dietary Vault](#3-customer-allergy-verification--local-dietary-vault)
+   - [4. Payment Gateway Engine & E-Wallet Sub-Selection](#4-payment-gateway-engine--e-wallet-sub-selection)
+   - [5. Real-Time Kitchen Display System (KDS) & Buzzer Alerts](#5-real-time-kitchen-display-system-kds--buzzer-alerts)
+   - [6. Table Service Assistance & Busser Operations](#6-table-service-assistance--busser-operations)
+   - [7. Role-Based Portals: Admin, Cashier POS, & Staff](#7-role-based-portals-admin-cashier-pos--staff)
+   - [8. Daily Reports Management (Cashier Z-Reads & Staff Shifts)](#8-daily-reports-management-cashier-z-reads--staff-shifts)
+   - [9. Security, Audit Trail & Forensic Logging](#9-security-audit-trail--forensic-logging)
 5. [Database Architecture & File Structure](#-database-architecture--file-structure)
-6. [API Reference & Socket.IO Events](#-api-reference--socketio-events)
+6. [API Reference & Socket.IO Real-Time Events](#-api-reference--socketio-real-time-events)
+   - [REST Endpoints](#rest-endpoints)
+   - [Socket.IO Events Matrix](#socketio-events-matrix)
 7. [Installation & Getting Started](#-installation--getting-started)
-8. [Multi-Restaurant Environment](#-multi-restaurant-environment)
+8. [Multi-Restaurant Tenant Configuration](#-multi-restaurant-tenant-configuration)
+9. [License](#-license)
 
 ---
 
-## 🏛 System Architecture & Overview
+## 🏛 System Architecture & Network Topology
 
-The platform uses a synchronized hybrid architecture with real-time bidirectional WebSocket communication (Socket.IO), Express REST APIs, cryptographic HMAC-SHA256 signature verification, and a persistent JSON database storage layer.
+The platform runs on a dual-server synchronized architecture bound to `0.0.0.0` for ubiquitous local network and mobile access:
+- **Frontend Presentation Layer (`Vite` / React 19 on Port 3000):** Delivers the Touchscreen Kiosk, Customer Mobile Web App, Kitchen Display System (KDS), Cashier POS, and Executive Admin Panel.
+- **Backend Application Layer (`Node.js` / Express / Socket.IO on Port 3001):** Manages state persistence, real-time ticket dispatch, dynamic IP discovery, Windows firewall automation, and HMAC-SHA256 webhook validation.
 
 ```
                       ┌───────────────────────────────────────────────────────────┐
@@ -55,82 +66,221 @@ The platform uses a synchronized hybrid architecture with real-time bidirectiona
 
 ---
 
-## 🔄 End-to-End System Flowchart
+## 🔄 End-to-End System Flowcharts
 
-The following flowchart illustrates the entire customer journey, payment gateway lifecycle, and kitchen fulfillment workflow:
+### A. Omnichannel Ordering & Dietary Safety Flow
+
+The entire customer journey from terminal arrival to pickup:
 
 ```mermaid
 flowchart TD
-    %% Entry & QR
-    Start([Customer Arrives]) --> KioskChoice{Entry Channel}
-    KioskChoice -->|Kiosk Terminal| KioskScreen["View Kiosk Screen (?view=kiosk)"]
-    KioskChoice -->|Mobile Scan| ScanQR["Scan Dynamic Wi-Fi QR Code"]
+    Start([Customer Arrives]) --> ChannelChoice{Ordering Channel}
 
-    ScanQR --> ValidateQR["POST /api/qr/validate (Scoped Session)"]
-    KioskScreen --> KioskWelcome["Kiosk Welcome Screen (Dine-In / Takeout)"]
+    %% Kiosk Flow
+    ChannelChoice -->|Touchscreen Kiosk| KioskWelcome["Step 1: Kiosk Welcome Screen (?view=kiosk)"]
+    KioskWelcome --> SelectDining["Select Dining Option: Dine-In or Takeout"]
+    SelectDining --> KioskCatalog["Step 2: Browse Menu Categories & Combos"]
 
-    %% Allergy Verification
-    ValidateQR --> AllergyModal{"Allergy Prompt: Do you have allergies?"}
-    AllergyModal -->|YES| OpenVault["Open Local Dietary Vault"]
-    AllergyModal -->|NO| NoAllergy["Record 'No allergies declared'"]
+    %% Mobile QR Flow
+    ChannelChoice -->|Mobile Phone| ScanQR["Scan Dynamic Kiosk QR Code"]
+    ScanQR --> ConnectCheck{"Phone on Same Wi-Fi?"}
+    ConnectCheck -->|No / Mobile Data On| ErrUnreachable["ERR_ADDRESS_UNREACHABLE<br/>(Turn off cellular data or switch to Cloud Tunnel)"]
+    ConnectCheck -->|Yes| ValidateSession["POST /api/qr/validate (Scoped Session)"]
 
-    OpenVault --> SelectAllergens["Select Allergens (Standard + Custom Inputs)"]
-    SelectAllergens --> SelectFlavors["Select Flavor Preferences"]
-    SelectFlavors --> SaveDietary["POST /api/qr/allergy-verification (Saved to Session)"]
+    %% Mandatory Allergy Verification Modal
+    ValidateSession --> AllergyModal{"Allergy Verification Modal:<br/>'Do You Have Any Food Allergies?'"}
+    AllergyModal -->|NO, I DON'T HAVE ALLERGIES| NoAllergies["Record 'no_allergies_declared' in QR Session"]
+    AllergyModal -->|YES, I HAVE ALLERGIES| OpenVault["Open Local Dietary Vault"]
 
-    NoAllergy --> CatalogView["Browse Menu Catalog (Auto-Filtered)"]
-    SaveDietary --> CatalogView
-    KioskWelcome --> CatalogView
+    %% Dietary Vault
+    OpenVault --> SelectStandardAllergens["Check Standard Allergens<br/>(Peanuts, Gluten, Dairy, Soy, etc.)"]
+    SelectStandardAllergens --> AddCustomAllergens["Type Custom Exclusions<br/>(MSG, Mustard, Kiwi, etc.)"]
+    AddCustomAllergens --> SelectFlavors["Choose Flavor Preferences<br/>(Spicy, Vegan, Crispy, Smoky, etc.)"]
+    SelectFlavors --> SaveVault["POST /api/qr/allergy-verification<br/>(Encrypted to LocalStorage & Session)"]
 
-    %% Product Selection & Customization
-    CatalogView --> SelectItem["Select Menu Item"]
-    SelectItem --> ProductModal["Open Product Customization Modal"]
-    ProductModal --> CheckSafety{"Allergen Cross-Check"}
-    CheckSafety -->|Contains Excluded Allergen| ShowWarning["Display Red Allergen Safety Alert"]
-    CheckSafety -->|Allergen Free| SafeTag["Display Verified Safe Tag"]
-    ShowWarning --> Customize["Choose Size, Spice Level, Add-Ons & Notes"]
-    SafeTag --> Customize
-    Customize --> AddToCart["Add to Cart & Update Cart Floating Bar"]
+    %% Catalog Filtering
+    NoAllergies --> SafeCatalog["Browse Filtered Menu Catalog"]
+    SaveVault --> SafeCatalog
+    KioskCatalog --> SafeCatalog
 
-    %% Checkout & Payment
-    AddToCart --> ReviewOrder["Open Kiosk Checkout Modal"]
-    ReviewOrder --> ApplyPromo["Validate & Apply Promo Code"]
-    ApplyPromo --> ChoosePayment{"Select Payment Method"}
+    %% Product Details & Allergen Guard
+    SafeCatalog --> ClickProduct["Select Dish to View Details"]
+    ClickProduct --> OpenProductModal["Open Product Details Modal"]
+    OpenProductModal --> AllergenCheck{"Does Dish Contain<br/>Customer's Declared Allergens?"}
+    AllergenCheck -->|Yes| WarningBanner["Display Red Warning Alert:<br/>'Contains Declared Allergen'"]
+    AllergenCheck -->|No| SafeBadge["Display Verified Safe Tag"]
+    WarningBanner --> CustomizeDish["Choose Size, Spice Level, Add-Ons & Notes"]
+    SafeBadge --> CustomizeDish
+    CustomizeDish --> AddToCart["Add to Cart & Update Live Cart Badge"]
 
-    ChoosePayment -->|Cash at Counter| PlaceCashOrder["Place Order (paymentStatus: 'Pending Counter')"]
-    ChoosePayment -->|GCash / Maya / Card| PlaceDigitalOrder["Place Order (paymentStatus: 'Pending')"]
+    %% Checkout & Payment Method Selection
+    AddToCart --> ReviewCart["Open Kiosk Checkout Modal"]
+    ReviewCart --> ValidatePromo["Validate Promo Code (e.g. UMAMI20)"]
+    ValidatePromo --> SelectPayMethod{"Select Payment Method"}
 
-    PlaceCashOrder --> CashierCounter["Cashier POS Register #1"]
-    CashierCounter --> CashierCollect["Cashier Receives Cash & Marks Paid"]
+    SelectPayMethod -->|Cash| SelectCash["Cash at Front Counter POS"]
+    SelectPayMethod -->|Card| SelectCard["Credit / Debit Card Terminal"]
+    SelectPayMethod -->|E-Wallet| OpenEWalletTray["Expand E-Wallet Options Tray<br/>(GCash, Maya, PayPal, MariBank, GrabPay, ShopeePay, GoTyme)"]
+    OpenEWalletTray --> ChooseSpecificWallet["Select Specific Wallet (Active Green Border)"]
 
-    PlaceDigitalOrder --> GatewayWebhook["Payment Gateway Sends Webhook Event"]
-    GatewayWebhook --> VerifySig{"Verify HMAC-SHA256 & Amount Match"}
-    VerifySig -->|Invalid Signature / Mismatch| RejectPay["Reject Event (401/422) & Flag Fraud"]
-    VerifySig -->|Valid Signature & Match| ApprovePay["Mark 'Successful' & Award Loyalty Points"]
+    %% Payment Fulfillment
+    SelectCash --> SubmitCashOrder["Order Created (paymentStatus: 'Pending Counter')"]
+    SubmitCashOrder --> CashierPOS["Head Cashier Receives Cash & Validates"]
+    CashierPOS --> MarkCashPaid["Cashier Marks 'Paid' in POS"]
 
-    %% Kitchen Dispatch
-    CashierCollect --> SendToKitchen["Emit 'new-kitchen-order'"]
-    ApprovePay --> SendToKitchen
+    ChooseSpecificWallet --> SubmitDigitalOrder["Order Created (paymentStatus: 'Pending')"]
+    SelectCard --> SubmitDigitalOrder
+    SubmitDigitalOrder --> GatewayWebhook["Gateway Webhook Call (POST /api/webhooks/payment)"]
+    GatewayWebhook --> HMACVerification{"HMAC-SHA256 & Amount Match?"}
+    HMACVerification -->|Invalid| RejectPayment["Reject 401/422 & Flag Audit Log"]
+    HMACVerification -->|Valid| ApprovePayment["Set paymentStatus: 'Successful'<br/>Credit 10% Loyalty Points"]
 
-    SendToKitchen --> KitchenBoard["Kitchen Display System (KDS)"]
-    KitchenBoard --> ChefPrep["Chef Prepares Meal (Status: 'Preparing')"]
-    ChefPrep --> ChefReady["Chef Marks 'Ready for Pickup'"]
-    ChefReady --> BuzzerChime["Trigger Customer Buzzer & 4-Note Chime"]
-    BuzzerChime --> BusserServe["Busser Serves to Table / Counter Handover"]
-    BusserServe --> OrderCompleted["Order Status: 'Completed'"]
+    %% Kitchen Dispatch & Fulfillment
+    MarkCashPaid --> DispatchKitchen["Socket.IO: 'new-kitchen-order'"]
+    ApprovePayment --> DispatchKitchen
+
+    DispatchKitchen --> KDSView["Kitchen Display System (KDS) View"]
+    KDSView --> ChefPreparing["Chef Starts Preparation (Status: 'Preparing')"]
+    ChefPreparing --> ChefReady["Chef Marks 'Ready for Pickup'"]
+    ChefReady --> BuzzerAlert["Trigger Web Audio 4-Note Chime<br/>& Mobile Hardware Vibration"]
+    BuzzerAlert --> BusserHandover["Busser Delivers to Table / Pickup Counter"]
+    BusserHandover --> CompleteOrder["Order Marked 'Completed'"]
+```
+
+---
+
+### B. Dynamic Wi-Fi & LAN IP Resolution Flow
+
+How the system detects the computer's live IPv4 address across changing Wi-Fi networks and routers without hardcoding:
+
+```mermaid
+flowchart TD
+    BootServer([Server Starts: node server.js]) --> BindPorts["Bind Express & Vite to 0.0.0.0<br/>(Ports 3000 & 3001)"]
+    BindPorts --> CheckFirewall["Ensure Windows Firewall Rules Exist<br/>(Allow TCP 3000-3020 on Any Profile)"]
+
+    CheckFirewall --> NetworkProbe["Periodic Network Watcher (Every 2.5s)"]
+    NetworkProbe --> UdpProbe["Multi-Target Kernel UDP Route Probe<br/>(Targets: 1.1.1.1, 8.8.8.8, 192.168.1.1, etc.)"]
+    UdpProbe --> ScanInterfaces["Read os.networkInterfaces()"]
+
+    ScanInterfaces --> FilterVirtual["Filter out Virtual Adapters<br/>(VirtualBox 192.168.56.x, VMware, Docker, WSL, Loopback)"]
+    FilterVirtual --> WinWlanProbe{"Platform == Windows?"}
+
+    WinWlanProbe -->|Yes| ExecNetsh["Run 'netsh wlan show interfaces'<br/>(Extract SSID, Signal %, Band 5GHz/2.4GHz)"]
+    WinWlanProbe -->|No| GenericAdapter["Read Unix / Linux Network Device"]
+
+    ExecNetsh --> ScoreCandidates["Score Adapter Priorities:<br/>Wi-Fi + Route Match = 25<br/>Wi-Fi Active = 20<br/>Route Match = 18<br/>Ethernet = 10"]
+    GenericAdapter --> ScoreCandidates
+
+    ScoreCandidates --> PickBest["Select Top Ranked IP (e.g. 192.168.1.18)"]
+    PickBest --> CompareFingerprint{"IP or SSID Changed?"}
+
+    CompareFingerprint -->|No| SleepWait["Wait 2.5s for Next Cycle"]
+    SleepWait --> NetworkProbe
+
+    CompareFingerprint -->|Yes| BroadcastSocket["Broadcast Socket.IO: 'network-ip-changed'<br/>Update Cache at /api/network-info"]
+    BroadcastSocket --> KioskQRUpdate["Kiosk Regenerates QR Code with Live IP:<br/>http://<LIVE_IP>:3000/?view=mobile&kioskId=..."]
+    BroadcastSocket --> AdminQRUpdate["Admin Table QR Codes Auto-Updated"]
+    KioskQRUpdate --> SleepWait
+```
+
+---
+
+### C. Payment Method & E-Wallet Sub-Selection Flow
+
+```mermaid
+flowchart LR
+    subgraph Payment_Selection [Customer Checkout]
+        CashBtn["💵 Cash"]
+        CardBtn["💳 Card"]
+        EWalletBtn["📱 E-Wallet"]
+    end
+
+    subgraph EWallet_Tray [Supported Digital Wallets Tray]
+        GCash["GCash"]
+        Maya["Maya"]
+        PayPal["PayPal"]
+        MariBank["MariBank"]
+        GrabPay["GrabPay"]
+        ShopeePay["ShopeePay"]
+        GoTyme["GoTyme Bank"]
+    end
+
+    subgraph Verification_Engine [Security & Dispatch Engine]
+        OrderPending["Create Pending Order"]
+        HMACCheck["HMAC-SHA256 Signature Verification"]
+        TimestampCheck["Replay Attack Check (<= 300s window)"]
+        AmountCheck["Exact Amount & Currency Check (PHP)"]
+        ApproveOrder["Set 'Successful' & Award Loyalty Points"]
+        KitchenDispatch["Emit 'new-kitchen-order'"]
+    end
+
+    EWalletBtn -->|Expands Tray| EWallet_Tray
+    GCash --> OrderPending
+    Maya --> OrderPending
+    PayPal --> OrderPending
+    MariBank --> OrderPending
+    GrabPay --> OrderPending
+    ShopeePay --> OrderPending
+    GoTyme --> OrderPending
+    CardBtn --> OrderPending
+
+    OrderPending --> HMACCheck
+    HMACCheck --> TimestampCheck
+    TimestampCheck --> AmountCheck
+    AmountCheck --> ApproveOrder
+    ApproveOrder --> KitchenDispatch
+```
+
+---
+
+### D. Employee Lifecycle, POS Shifts & Daily Reports Flow
+
+```mermaid
+flowchart TD
+    AdminLogin([User Logs In via /api/admin/login]) --> RoleCheck{Employee Account Type}
+
+    %% Admin Portal
+    RoleCheck -->|administrator| AdminPanel["Admin View (?view=admin)"]
+    AdminPanel --> ManageAccounts["Employee Accounts CRUD<br/>(Create, Edit, Lock, Reset PW)"]
+    AdminPanel --> ManageMenu["Menu Catalog, Inventory & Tax Rates"]
+    AdminPanel --> ManageWebhooks["Payment Webhook Logs & Gateway Config"]
+    AdminPanel --> ReviewDailyReports["Review & Approve Daily Z-Reads"]
+
+    %% Cashier Portal
+    RoleCheck -->|cashier| CashierPOS["Cashier Dashboard (?view=admin role:cashier)"]
+    CashierPOS --> InputOpeningFloat["1. Input Beginning Shift Cash Float (e.g. ₱3,000)"]
+    InputOpeningFloat --> POSOperations["2. POS Terminal Sales, Cash Collection & Voids"]
+    POSOperations --> EndShiftCashier["3. End of Shift: Open Cashier Daily Report (Z-Read)"]
+    EndShiftCashier --> DenominationCount["4. Enter Physical Cash Breakdown:<br/>₱1000, ₱500, ₱200, ₱100, ₱50, ₱20 Bills & Coins"]
+    DenominationCount --> AutoVariance["5. Automated Over/Short Calculation:<br/>(Actual Counted Cash - Expected Cash)"]
+    AutoVariance --> SubmitCashierReport["6. POST /api/daily-reports (Status: 'Pending Review')"]
+
+    %% Staff Portal
+    RoleCheck -->|staff| StaffTerminal["Staff Dashboard (?view=admin role:staff)"]
+    StaffTerminal --> StationTasks["1. Complete Kitchen & Station Task Checklists"]
+    StaffTerminal --> ServiceCalls["2. Resolve Table Service & Busser Calls"]
+    StaffTerminal --> EndShiftStaff["3. Submit Staff Daily Shift Report"]
+    EndShiftStaff --> SubmitStaffReport["4. POST /api/daily-reports (Status: 'Pending Review')"]
+
+    %% Executive Approval
+    SubmitCashierReport --> ReviewDailyReports
+    SubmitStaffReport --> ReviewDailyReports
+    ReviewDailyReports --> ExecutiveApproval["Administrator Approves & Remarks Report"]
+    ExecutiveApproval --> ExportReports["Export Reports to Printable HTML or CSV"]
 ```
 
 ---
 
 ## 🗄 Entity-Relationship Diagram (ERD)
 
-The system maintains a relational-style entity structure stored and synchronized across JSON databases:
+The system maintains a relational-style entity schema stored in the persistent JSON storage layer with foreign keys and cascade validations:
 
 ```mermaid
 erDiagram
     EMPLOYEE ||--o{ DAILY_REPORT : submits
     EMPLOYEE ||--o{ STAFF_TASK : assigned_to
     EMPLOYEE ||--o{ AUDIT_LOG : generates
+    DAILY_REPORT ||--o{ DENOMINATION_BREAKDOWN : contains
     CUSTOMER ||--o{ ORDER : places
     CUSTOMER ||--o{ QR_SESSION : owns
     ORDER ||--|{ ORDER_ITEM : contains
@@ -139,19 +289,23 @@ erDiagram
     MENU_ITEM ||--|{ INGREDIENT : contains
     CATEGORY ||--o{ MENU_ITEM : categorizes
     PROMOTION ||--o{ ORDER : applies_to
+    TABLE ||--o{ SERVICE_REQUEST : creates
+    TABLE ||--o{ ORDER : assigned_to
 
     EMPLOYEE {
         string id PK "EMP-001"
         string username "admin / maria.cashier / kitchen"
-        string name "Full Name"
+        string name "Full Legal Name"
         string email "email@umamicraft.com"
         string accountType "admin | cashier | staff"
         string role "Super Admin | Head Cashier | Kitchen Staff"
         string status "Active | Inactive"
-        string password "Stored Hashed / Salted"
+        string password "Hashed / Salted"
         string registerId "POS-01 (Front Counter)"
-        float openingFloat "Beginning shift cash"
-        string shift "Morning | Evening | Mid"
+        float openingFloat "Beginning shift cash float"
+        string shift "Morning | Evening | Mid | Full Day"
+        string contactInfo "Mobile phone number"
+        string department "Executive / Front Counter / Kitchen"
         string lastLogin "ISO Timestamp"
     }
 
@@ -159,21 +313,23 @@ erDiagram
         string id PK "CUST-101"
         string name "Juan Dela Cruz"
         string email "customer@email.com"
-        string membershipTier "Gold Gourmet Club"
-        int pointsBalance "Loyalty Points"
+        string membershipTier "Gold Gourmet Club | Silver | Bronze"
+        int pointsBalance "Loyalty Points Balance"
+        float lifetimeSpend "Total Spend to Date"
         string status "Active | Suspended"
     }
 
     QR_SESSION {
-        string sessionId PK "QRS-W54ESK-XXXX"
+        string sessionId PK "QRS-W54ESK-1794511"
         string kioskId "W54ESK"
         string restaurantId "umami"
+        string tableNumber "Table 04 / Counter"
         string allergyStatus "unanswered | allergies_declared | no_allergies_declared"
         boolean hasAllergies "true | false"
-        string_array allergens "Declared allergens"
-        string_array customAllergens "User typed custom exclusions"
-        string_array preferences "Flavor tags"
-        timestamp expiresAt "4-hour TTL"
+        string_array allergens "Declared standard allergens"
+        string_array customAllergens "Customer typed exclusions"
+        string_array preferences "Flavor preferences tags"
+        timestamp expiresAt "4-hour expiration TTL"
     }
 
     MENU_ITEM {
@@ -184,11 +340,12 @@ erDiagram
         float price "380.00"
         float promoPrice "320.00"
         boolean available "true | false"
-        int stock "Current inventory quantity"
-        string_array allergens "soy, gluten"
-        string_array tags "spicy, savory"
+        int stock "Current inventory count"
+        string_array allergens "soy, gluten, sesame"
+        string_array tags "spicy, savory, recommended"
         string prepTime "10 mins"
-        string ingredients "Ground pork, chili oil, soy"
+        string description "Handmade pork dumplings tossed in fiery Sichuan chili crisp"
+        string ingredients "Ground pork, chili oil, scallions, soy"
     }
 
     INGREDIENT {
@@ -197,31 +354,44 @@ erDiagram
         string unit "g"
     }
 
+    CATEGORY {
+        string id PK "cat_appetizers"
+        string name "Appetizers"
+        string icon "🥟"
+        int displayOrder "1"
+    }
+
     ORDER {
-        string orderId PK "ORD-1234"
-        string customer "Customer Name / Guest"
+        string orderId PK "ORD-20261113-001"
+        string customer "Guest / Customer Name"
+        string customerId "CUSTOMER FK"
         string diningOption "Dine-In | Takeout"
-        string tableNumber "Table 1 / Counter"
+        string tableNumber "Table 04 / Takeout Counter"
         string kioskId "W54ESK | MOBILE_01"
         string status "Pending Payment | New | Preparing | Ready for Pickup | Completed"
-        string payment "GCash | Maya | Card | Cash"
-        string paymentStatus "Pending | Successful | Approved | Refunded | Voided"
-        float totalPrice "Calculated Order Total"
-        float discountAmount "Applied Promo Discount"
+        string payment "Cash | E-Wallet | Card"
+        string eWalletProvider "GCash | Maya | PayPal | MariBank | GrabPay | ShopeePay | GoTyme"
+        string paymentStatus "Pending | Pending Counter | Successful | Refunded | Voided"
+        float subtotal "Subtotal before tax"
+        float taxAmount "Tax amount (12% VAT)"
+        float serviceCharge "Optional service charge"
+        float discountAmount "Applied promo discount"
+        float totalPrice "Final Order Amount (PHP)"
         string promoCode "UMAMI20"
-        string_array allergens "Excluded customer allergens"
-        timestamp createdAt "Order creation time"
+        string_array allergens "Customer excluded allergens"
+        timestamp createdAt "Order creation timestamp"
+        timestamp paidAt "Payment verification timestamp"
     }
 
     ORDER_ITEM {
         string id "Item Cart ID"
         string originalId "MENU_ITEM FK"
-        string name "Item Name with Size"
-        int quantity "Item Qty"
-        float price "Item Unit Price"
-        string size "Standard | Large"
+        string name "Item Name with Size Modifier"
+        int quantity "Item Quantity"
+        float price "Unit Price in PHP"
+        string size "Standard | Large | Bowl"
         string spiceLevel "Mild | Medium | Extra Spicy"
-        string specialNote "No Onions • Sauce on Side"
+        string specialNote "No Onions • Chili Oil on Side"
     }
 
     PAYMENT_WEBHOOK {
@@ -232,23 +402,39 @@ erDiagram
         string currency "PHP"
         string signatureStatus "Verified (HMAC-SHA256) | Invalid"
         string paymentStatus "Successful | Pending | Failed"
-        boolean serviceActivated "Kitchen & points triggered"
+        boolean serviceActivated "Kitchen ticket & points dispatched"
         timestamp processedAt "ISO Timestamp"
     }
 
     DAILY_REPORT {
-        string id PK "DLR-CSH-20261112-001"
+        string id PK "DLR-CSH-20261113-001"
         string reportType "cashier | staff"
         string employeeId "EMPLOYEE FK"
         string employeeName "Maria Santos"
         string role "Head Cashier"
         string shiftDate "YYYY-MM-DD"
-        float beginningCash "Opening float"
-        float actualCashCount "Closing counted cash"
-        float cashOverShort "Overage or shortage"
+        string registerId "POS-01 (Front Counter)"
+        float beginningCash "Opening float (e.g. ₱3,000)"
         float totalGrossSales "Gross revenue"
-        int totalTransactions "Count of sales"
+        float totalNetSales "Net sales after discounts"
+        float cashSales "Total physical cash received"
+        float digitalSales "Total digital / e-wallet sales"
+        float cardSales "Total card transactions"
+        float actualCashCount "Closing counted physical cash"
+        float cashOverShort "Discrepancy (Counted - Expected)"
+        int totalTransactions "Count of completed orders"
         string reviewStatus "Pending Review | Reviewed | Approved"
+        string adminRemarks "Executive notes"
+    }
+
+    DENOMINATION_BREAKDOWN {
+        int bill1000 "Count of ₱1000 bills"
+        int bill500 "Count of ₱500 bills"
+        int bill200 "Count of ₱200 bills"
+        int bill100 "Count of ₱100 bills"
+        int bill50 "Count of ₱50 bills"
+        int bill20 "Count of ₱20 bills"
+        float coinsTotal "Total value of coins"
     }
 
     STAFF_TASK {
@@ -259,13 +445,22 @@ erDiagram
         string priority "High | Normal | Low"
     }
 
+    SERVICE_REQUEST {
+        string id PK "SRV-001"
+        string tableNumber "Table 04"
+        string type "Call Server | Water Refill | Utensils | Bill"
+        string status "Active | In Progress | Resolved"
+        timestamp createdAt "ISO Timestamp"
+    }
+
     AUDIT_LOG {
-        string id PK "LOG-XXXX"
+        string id PK "LOG-20261113-001"
         string actorId "EMPLOYEE FK"
         string actorName "Chief Administrator"
-        string category "Authentication | Webhook | Menu | Report"
-        string action "Specific action taken"
-        string details "Descriptive audit text"
+        string category "Authentication | Webhook | Menu | Report | Security"
+        string action "Specific action executed"
+        string details "Detailed audit message"
+        string ipAddress "Host / Client IP"
         timestamp timestamp "ISO Timestamp"
     }
 ```
@@ -274,109 +469,132 @@ erDiagram
 
 ## 🚀 Core Features & Modules
 
-### 1. Customer Touchscreen Kiosk & Dynamic QR Scan
-* **Touchscreen Kiosk View (`?view=kiosk`):** Clean and focused self-service terminal interface with high-contrast buttons, responsive layout, and active network diagnostics.
-* **Dynamic Network & Wi-Fi Resolution:**
-  - Automated Windows WLAN interface probe (`netsh wlan show interfaces`) coupled with `os.networkInterfaces()`.
-  - Automatically renders the live active Wi-Fi IP address (e.g., `192.168.1.59:3000`) and SSID directly on the Kiosk QR code.
-  - **Any-Wi-Fi (Cloud Tunnel) Fallback:** Integrated cloud tunnel switcher allowing customers on cellular data or outside networks to connect reliably.
+### 1. Commercial Self-Service Touchscreen Kiosk
+- **Fast-Food Kiosk Flow (McDonald's / Jollibee / Chowking Inspired):**
+  - **Step 1 – Welcome & Dining Selection:** Full-screen hero visual with **Dine-In • Start Order** and **Takeout • Start Order** buttons.
+  - **Step 2 – Category Navigation:** Left-hand / top-nav category pills (Appetizers, Bowls & Mains, Dim Sum & Bites, Noodles, Drinks & Boba, Combos, Mix & Match) with quick filtering and sticky navigation.
+  - **Step 3 – Rich Product Displays:** Visual product cards with high-resolution imagery, pricing, calorie/portion details, tags (*Spicy*, *Savory*, *Special Promo*), and verified allergen badges.
+  - **Step 4 – Interactive Product Customizer (`<KioskProductModal />`):** Full dish description, ingredient composition list, size modifiers, spice sliders, and special instructions. Cross-checks ingredients against active customer dietary restrictions with an unmistakable safety banner.
+  - **Step 5 – Touchscreen Checkout (`<KioskCheckoutModal />`):** Streamlined 2-step checkout with dining option confirmation, table number entry, promo code validator, and comprehensive payment method selection.
 
-### 2. Customer Allergy Verification & Local Dietary Vault
-* **Mandatory Post-QR Scan Verification Modal:**
-  - When scanning from mobile, customers are immediately prompted: **"Do You Have Any Food Allergies?"**
-  - Requires explicit **YES** or **NO** selection.
-  - Selecting **NO** records `"No allergies declared"` for the dining session.
-  - Selecting **YES** directs the customer into the **Local Dietary Vault**.
-* **Local Dietary Vault (`mvault-root`):**
-  - **Section 1: Exclude Allergens:** Interactive multi-select checklists covering Peanuts, Gluten/Wheat, Dairy, Soy, Shellfish, Eggs, Fish, Tree Nuts, and Sesame.
-  - **Custom Allergen Input:** Dynamic text input for custom exclusions (e.g. MSG, Mustard, Kiwi) with removable tag chips.
-  - **Section 2: Flavor Preferences:** Independent flavor profile preferences (Spicy, Vegan, Sweet, Savory, Healthy, Citrus, Crispy, Smoky) kept strictly decoupled from medical allergies.
-  - **Local Storage Privacy Vault:** Selections persist securely in client storage and link only to the active QR session without cross-customer session leakage.
-* **Automated Catalog & Ingredient Checking:**
-  - Dynamic filtering hides hazardous dishes from the safe catalog view.
-  - In `<KioskProductModal />`, if a dish contains a customer's declared allergen, an alert banner is displayed.
-  - Menu items without verified allergen data are labeled: *Allergen Info Unverified — Ask Server*.
+### 2. Dynamic Wi-Fi Connection & QR Code Generation
+- **Zero Hardcoded IP Addresses:** Solves `ERR_ADDRESS_UNREACHABLE` dynamically by eliminating hardcoded references (`192.168.1.59`, `192.168.1.18`, `192.168.1.16`).
+- **Kernel Routing Table Probe:** Node.js executes UDP probes against multiple targets (`1.1.1.1`, `8.8.8.8`, `192.168.1.1`) to reliably identify the primary gateway interface without sending external packets.
+- **WLAN Interface Discovery:** Leverages `netsh wlan show interfaces` on Windows to read the active SSID, band (5 GHz / 2.4 GHz), and signal strength.
+- **Automatic QR Regeneration:** Automatically refreshes the QR code URL whenever the host moves to a different router, house, or restaurant location:
+  ```
+  http://<CURRENT_HOST_IP>:3000/?view=mobile&kioskId=<kioskId>&kioskPort=3001&restaurant=umami
+  ```
+- **Windows Firewall Automation:** Server startup automatically ensures inbound TCP traffic on ports 3000–3020 is allowed on any network profile. A one-click repair endpoint (`POST /api/network/fix-firewall`) and [allow-firewall.bat](file:///c:/Users/USER/allergicSuggestion/allow-firewall.bat) are provided for non-elevated instances.
+- **Universal Cloud Tunnel Backup:** Built-in toggle to switch to **"Any-Wi-Fi (Cloud Tunnel)"** if router AP Client Isolation is active.
 
-### 3. Automated Webhook-Based Payment Gateway Engine
-* **Zero Manual Verification Required:** Replaces manual cashier receipt reviews with real-time automated webhook callbacks from payment gateways (PayMongo, GCash, Maya, Stripe, Credit/Debit Card).
-* **Security & Cryptography:**
-  - **HMAC-SHA256 Signatures:** Timing-safe signature validation (`crypto.timingSafeEqual`) across multiple gateway headers (`x-signature`, `paymongo-signature`, `stripe-signature`).
-  - **Replay Attack Defense:** Enforces a 300-second maximum timestamp drift window.
-  - **Idempotency & Duplicate Protection:** Caches event IDs to prevent duplicate billing or repeated order dispatches.
-  - **Exact Amount & Currency Matching:** Verifies that the gateway payload's amount and currency match order database records down to the centavo before updating status.
-* **Auto-Dispatch to Kitchen:** Upon receiving a verified `Successful` webhook status, orders are updated to `New` and instantly routed to the Kitchen Display System (`new-kitchen-order`).
-* **Automated Customer Account Rewards:** Automatically credits customer accounts with loyalty points (+10% of total spend) upon confirmed payment.
+### 3. Customer Allergy Verification & Local Dietary Vault
+- **Mandatory Pre-Ordering Verification:**
+  - Upon scanning the QR code, mobile diners are immediately prompted with a clear dialog: **"Do You Have Any Food Allergies?"**
+  - Choosing **"NO, I DON'T HAVE ALLERGIES"** immediately logs `"no_allergies_declared"` and transitions into the menu.
+  - Choosing **"YES, I HAVE ALLERGIES"** guides the diner into the **Local Dietary Vault**.
+- **Local Dietary Vault (`mvault-root`):**
+  - **Standard Allergen Exclusions:** Multi-select interactive toggles for Peanuts, Gluten/Wheat, Dairy, Soy, Shellfish, Eggs, Fish, Tree Nuts, and Sesame.
+  - **Custom Allergen Input:** Freeform text input for specific exclusions (e.g., MSG, Mustard, Kiwi, Celery) stored as tag chips.
+  - **Flavor Profile Preferences:** Independent tags for Spicy, Vegan, Sweet, Savory, Healthy, Citrus & Tangy, Crispy Crunch, and Smoky & Charred.
+  - **Privacy Guarantee:** All data persists strictly in client `localStorage` and binds temporarily to the scoped session token, preventing data leakage across different guests.
+  - Clean header featuring the `🛡️ UMAMI CRAFT FUSION ID` badge.
 
-### 4. Real-Time Kitchen Display System (KDS) & Table Service
-* **Live Ticket Flow:** Kitchen tickets display table numbers, items, sizes, spice levels, add-ons, special notes, and highlighted allergen tags.
-* **Buzzer Fanfare & Audio Alerts:**
-  - Synthesized 4-note ready fanfare chime (Web Audio API) when an order is marked *Ready for Pickup*.
-  - Continuous hardware vibration alerts on customer mobile devices.
-* **Table Service & Assistance Calls:** Integrated `<TableServiceModal />` allowing diners to summon servers for napkins, water, utensil refills, or bill settlement.
+### 4. Payment Gateway Engine & E-Wallet Sub-Selection
+- **Payment Method Hierarchy:**
+  - **Cash:** Directs customer to pay at Front Counter POS (order status: `Pending Counter`).
+  - **Card:** Routes to debit/credit POS terminal.
+  - **E-Wallet:** Expands an online digital wallet tray with individual logos and active green highlight states:
+    - **GCash**
+    - **Maya**
+    - **PayPal**
+    - **MariBank**
+    - **GrabPay**
+    - **ShopeePay**
+    - **GoTyme Bank**
+- **Automated Webhook Engine:**
+  - **Timing-Safe HMAC-SHA256 Signatures:** `crypto.timingSafeEqual` prevents side-channel timing attacks across `paymongo-signature`, `stripe-signature`, and custom headers.
+  - **Replay Attack Defense:** 300-second maximum timestamp drift threshold.
+  - **Idempotency Cache:** Prevents duplicate debits or duplicate kitchen ticket printing.
+  - **Exact Centavo Matching:** Rejects payments where amount or currency diverges from database order totals.
+  - **Loyalty Rewards:** Automatically credits 10% of total spend into the customer's account balance.
 
-### 5. Role-Based Portals: Admin, Cashier POS, & Staff Operations
-Unified authentication (`/api/admin/login`) automatically routes authenticated credentials to their dedicated portal:
+### 5. Real-Time Kitchen Display System (KDS) & Buzzer Alerts
+- **Interactive Kitchen Board (`?view=kitchen`):** Grouped by status (*New*, *Preparing*, *Ready for Pickup*, *Completed*).
+- **Allergen Highlighting:** Orders containing special dietary restrictions prominently flash red badges so chefs prioritize cross-contamination safeguards.
+- **Audio Chime & Vibration:** Web Audio API triggers a crisp 4-note synthesized fanfare when an order is ready, alongside physical device vibration on customer mobile phones.
 
-| Role / Account Type | Default Credentials | Destination Interface | Permissions & Responsibilities |
+### 6. Table Service Assistance & Busser Operations
+- **Table Service Modal (`<TableServiceModal />`):** Mobile diners can request server assistance (Napkins, Water Refill, Utensils, Bill Settlement, or General Assistance).
+- **Busser View (`?view=busser`):** Real-time queue for bussers and floor runners to acknowledge and fulfill table requests and manage dining turnover.
+
+### 7. Role-Based Portals: Admin, Cashier POS, & Staff
+A unified authentication portal (`/api/admin/login`) validates credentials and securely routes actors based on account type:
+
+| Role | Default Credentials | Viewport | Responsibilities |
 | :--- | :--- | :--- | :--- |
-| **Super Admin** | `admin` / `admin123` | **Admin Panel** (`AdminView`) | Full system access: Account CRUD, Daily Reports approval, Menu editing, Inventory, Payment Webhook Manager, and Audit Logs. |
-| **Head Cashier** | `cashier.maria` / `cashier123` | **Cashier Dashboard** (`CashierDashboard`) | Fast touchscreen POS terminal, cash drawer float management, shift transactions, refund/void processing, and Cashier Daily Z-Read reports. |
-| **Kitchen Staff** | `kitchen@umamicraft.com` / `staff123` | **Staff Dashboard** (`StaffDashboard`) | Live kitchen preparation queue, assigned station checklists, table service calls, and Staff Daily Shift Reports. |
+| **Super Admin** | `admin` / `admin123` | `AdminView` | Employee accounts CRUD, menu editing, daily report approvals, payment webhook logs, and immutable security audit logs. |
+| **Head Cashier** | `cashier.maria` / `cashier123` | `CashierDashboard` | Fast-paced touchscreen POS, beginning shift float entry, payment collection, voids/refunds, and Cashier Daily Z-Read submission. |
+| **Kitchen Staff** | `kitchen@umamicraft.com` / `staff123` | `StaffDashboard` | Kitchen prep queue, station task checklists, table service calls, and Staff Daily Shift Report submission. |
 
-### 6. Daily Reports Management (Cashier & Staff Z-Reads)
-* **Cashier Daily Report (Z-Read):**
-  - Shift summary tracking beginning cash float, total cash sales, digital gateway sales, discounts, refunds, and voided orders.
-  - Cash denomination breakdown table (₱1000, ₱500, ₱200, ₱100, ₱50, ₱20) calculating expected vs. actual drawer count with automated cash overage or shortage calculations.
-* **Staff Daily Report:**
-  - Shift logging with time in/out, shift schedule, completed tasks count, table calls handled, and staff remarks.
-* **Admin Review & Export:**
-  - Executive review workflow allowing administrators to review, approve, add administrative remarks, and export reports to printable HTML or spreadsheet CSV formats.
+### 8. Daily Reports Management (Cashier Z-Reads & Staff Shifts)
+- **Cashier Daily Report (Z-Read):**
+  - Calculates gross sales, discounts, refunds, voids, and net cash vs. digital payments.
+  - **Denomination Breakdown Table:** Cashiers enter the exact count of physical bills (₱1000, ₱500, ₱200, ₱100, ₱50, ₱20) and coins.
+  - Automated variance calculation:
+    $$\text{Cash Over/Short} = \text{Actual Counted Cash} - \left(\text{Beginning Float} + \text{Net Cash Sales}\right)$$
+- **Staff Daily Shift Report:** Records clock-in/out times, tasks completed, table calls handled, and incident remarks.
+- **Executive Review & Export:** Administrators review, add administrative remarks, approve reports, and export to printable HTML or CSV formats.
 
-### 7. Centralized Audit Trail & Activity Logging
-Every security-sensitive event (successful logins, blocked deactivated account logins, price changes, refund authorizations, and webhook signature rejections) is written to `data/audit_logs.json` with actor metadata, IP address, and timestamp.
+### 9. Security, Audit Trail & Forensic Logging
+- Immutable logging of every security-relevant action into `data/audit_logs.json` (logins, failed authentication, price updates, refunds, webhook signature rejections).
+- Salted and hashed password security with protected API sanitization (passwords never returned in GET payloads).
 
 ---
 
 ## 💾 Database Architecture & File Structure
 
-All operational databases are stored under the `/data` directory:
-
 ```
 allergicSuggestion/
+├── allow-firewall.bat           # Windows Defender Firewall auto-allow batch script
 ├── data/
-│   ├── admin_auth.json          # Salted hash credentials for primary administrator
-│   ├── audit_logs.json          # Immutable security and authentication event log
+│   ├── admin_auth.json          # Master administrator credentials
+│   ├── audit_logs.json          # Immutable forensic security audit log
+│   ├── categories.json          # Food and beverage category taxonomy
 │   ├── customer_accounts.json   # Customer loyalty club memberships & point balances
 │   ├── daily_reports.json       # Submitted Cashier Z-Reads & Staff Daily Reports
-│   ├── drinks.json              # Drinks, Boba, & beverage catalog with size tiers
+│   ├── drinks.json              # Drinks & Boba beverage catalog with size tiers
 │   ├── employees.json           # Registered Admin, Cashier, and Staff employee accounts
 │   ├── orders.json              # Comprehensive storewide active & completed orders
 │   ├── payment_webhooks.json    # Cryptographic audit log of gateway webhook payloads
 │   ├── preferences.json         # Dynamic allergen and flavor preference taxonomies
-│   ├── promos.json              # Discount codes, dates, and promotional banners
+│   ├── promos.json              # Active promo discount codes and banners
 │   ├── service_requests.json    # Live customer table assistance calls
 │   ├── staff_tasks.json         # Operational shift checklists for staff members
 │   └── menus/
 │       ├── umami.json           # Umami Craft Fusion primary food catalog
 │       ├── bella.json           # Bella Italia multi-tenant menu catalog
 │       └── verde.json           # Verde Greens multi-tenant menu catalog
-├── server.js                    # Core Express backend, Socket.IO hub & Webhook engine
-├── scripts/
-│   └── kill-ports.js            # Cross-platform port clearing utility (IPv4 & IPv6)
+├── server.js                    # Express backend, Socket.IO hub & Webhook engine
+├── vite.config.js               # Vite frontend configuration (bound to 0.0.0.0)
 └── src/
-    ├── App.jsx                  # Primary routing, authentication gatekeeper & modals
+    ├── App.jsx                  # Primary routing, role gatekeeper & modals
     ├── components/
+    │   ├── AccessDeniedView.jsx     # Security lockout viewport for unauthorized roles
+    │   ├── AdminLoginModal.jsx      # Unified role-based modal login
+    │   ├── AdminSecurityModal.jsx   # Sensitive action PIN verification
     │   ├── AdminView.jsx            # Administrator command center
     │   ├── AllergyVerificationModal.jsx # Touchscreen allergy verification pop-up
+    │   ├── BusserView.jsx           # Busser table turnover and service queue
     │   ├── CashierDashboard.jsx     # High-speed Cashier POS & Daily Report terminal
     │   ├── DailyReportsManager.jsx  # Admin Daily Shift Reports management & exports
     │   ├── EmployeeAccountManager.jsx # Role-based employee account administration
-    │   ├── KioskCheckoutModal.jsx   # 2-step touchscreen checkout & payment selector
-    │   ├── KioskProductModal.jsx    # Item details, verified ingredients & add-on modal
+    │   ├── KioskCheckoutModal.jsx   # Touchscreen checkout & E-Wallet selector
+    │   ├── KioskProductModal.jsx    # Dish details, ingredients list & safety alerts
     │   ├── KioskView.jsx            # Touchscreen Kiosk terminal & dynamic QR display
     │   ├── KitchenView.jsx          # Kitchen Display System (KDS) board
     │   ├── MobileView.jsx           # Customer mobile ordering & Local Dietary Vault
-    │   ├── PaymentWebhookManager.jsx# Admin Webhook gateway monitor & testbed simulator
+    │   ├── PaymentWebhookManager.jsx# Admin Webhook gateway monitor & simulator
     │   ├── StaffDashboard.jsx       # Staff preparation queue, tasks & daily reports
     │   └── TableServiceModal.jsx    # Table assistance & server summon modal
     └── utils/
@@ -386,41 +604,50 @@ allergicSuggestion/
 
 ---
 
-## 🔌 API Reference & Socket.IO Events
+## 🔌 API Reference & Socket.IO Real-Time Events
 
-### Key REST Endpoints
+### REST Endpoints
 
 | Method | Endpoint | Description |
 | :--- | :--- | :--- |
-| `POST` | `/api/qr/validate` | Validates scanned QR session, binds kiosk ID and restaurant configuration. |
-| `POST` | `/api/qr/allergy-verification` | Records explicit YES/NO allergy response and stores excluded allergens. |
-| `POST` | `/api/menu/check-allergens` | Cross-checks item ingredients against customer declared allergens. |
-| `POST` | `/api/webhooks/payment` | Universal automated payment gateway webhook endpoint (HMAC verified). |
-| `POST` | `/api/webhooks/paymongo` | PayMongo webhook listener with replay attack protection. |
-| `POST` | `/api/webhooks/simulate` | Developer & cashier simulation endpoint to test webhook workflows. |
+| `GET` | `/api/network-info` | Returns live active LAN IP, Wi-Fi SSID, signal strength, and ports. |
+| `GET` | `/api/network/diagnostics` | Comprehensive adapter diagnostic report and QR routing URLs. |
+| `POST`| `/api/network/fix-firewall` | Automatically applies Windows Defender Firewall allow rules for ports 3000–3020. |
+| `POST`| `/api/qr/validate` | Validates scanned QR session, binds kiosk ID and restaurant configuration. |
+| `POST`| `/api/qr/allergy-verification` | Records explicit YES/NO allergy response and stores excluded allergens. |
+| `POST`| `/api/menu/check-allergens` | Cross-checks dish ingredients against customer declared allergens. |
+| `POST`| `/api/webhooks/payment` | Universal automated payment gateway webhook endpoint (HMAC verified). |
+| `POST`| `/api/webhooks/paymongo` | PayMongo webhook listener with replay attack protection. |
+| `POST`| `/api/webhooks/simulate` | Webhook simulation testing harness. |
 | `GET` | `/api/webhooks/logs` | Retrieves cryptographic webhook event audit logs. |
-| `POST` | `/api/admin/login` | Unified role-based authentication (Admin, Cashier, Staff). |
+| `POST`| `/api/admin/login` | Unified role-based authentication (Admin, Cashier, Staff). |
 | `GET` | `/api/employees` | Retrieves employee list (passwords omitted). |
-| `POST` | `/api/employees` | Creates or updates an employee account. |
-| `GET` | `/api/daily-reports` | Retrieves filtered cashier and staff daily reports. |
-| `POST` | `/api/daily-reports` | Submits a new shift daily report (Cashier Z-Read or Staff report). |
-| `GET` | `/api/customer-accounts` | Retrieves customer membership tiers and loyalty points. |
+| `POST`| `/api/employees` | Creates or updates an employee account. |
+| `DELETE`| `/api/employees/:id` | Deactivates or removes an employee account. |
+| `GET` | `/api/daily-reports` | Retrieves cashier Z-reads and staff daily reports. |
+| `POST`| `/api/daily-reports` | Submits a new shift daily report with cash denomination breakdown. |
+| `PUT` | `/api/daily-reports/:id` | Admin updates report status (*Approved* / *Reviewed*) with administrative remarks. |
+| `GET` | `/api/orders` | Retrieves order history with optional filtering. |
+| `POST`| `/api/orders` | Submits a new order to the system. |
+| `PUT` | `/api/orders/:id/status` | Updates order lifecycle status (*Preparing*, *Ready*, *Completed*). |
+| `GET` | `/api/customer-accounts` | Retrieves customer loyalty membership tiers and points balances. |
 | `GET` | `/api/menu` | Retrieves menu products (supports `?restaurant=umami` scoping). |
 | `GET` | `/api/restaurant` | Returns active restaurant metadata, LAN IP, and Wi-Fi state. |
 
-### Socket.IO Real-Time Events
+### Socket.IO Events Matrix
 
-| Channel / Event | Direction | Purpose |
-| :--- | :--- | :--- |
-| `join-session` | Client → Server | Client joins a room for a specific `kioskId` or staff role. |
-| `place-order` | Client → Server | Customer submits order for payment and kitchen routing. |
-| `new-order` | Server → Client | Broadcasts newly submitted order to dashboards. |
-| `new-kitchen-order` | Server → Kitchen | Dispatches confirmed, paid ticket to kitchen display. |
-| `order-status-updated`| Server → Client | Real-time order progress update (*Preparing*, *Ready*, *Completed*). |
-| `payment-webhook-received` | Server → Client | Broadcasts verified webhook event to dashboards. |
-| `service-request` | Client → Server | Diner calls server for table assistance. |
-| `service-requests-updated` | Server → Staff | Synchronizes active table calls across staff terminals. |
-| `daily-reports-updated` | Server → Dashboards | Real-time notification of newly submitted shift reports. |
+| Event Name | Direction | Payload | Description |
+| :--- | :--- | :--- | :--- |
+| `join-session` | Client → Server | `{ kioskId, role }` | Joins a scoped WebSocket room for live sync. |
+| `network-ip-changed` | Server → Client | `{ ip, ssid, wifiConnected, signal }` | Broadcasts new LAN IP whenever the host changes Wi-Fi. |
+| `place-order` | Client → Server | `{ order }` | Submits customer order for payment and kitchen routing. |
+| `new-order` | Server → Client | `{ order }` | Broadcasts newly submitted order to dashboards. |
+| `new-kitchen-order` | Server → Kitchen | `{ order }` | Dispatches confirmed, paid ticket to the kitchen display. |
+| `order-status-updated`| Server → Client | `{ orderId, status }` | Real-time order progress update (*Preparing*, *Ready*, *Completed*). |
+| `payment-webhook-received` | Server → Client | `{ eventId, gateway, status }` | Broadcasts verified webhook event to dashboards. |
+| `service-request` | Client → Server | `{ tableNumber, type }` | Customer calls server for assistance. |
+| `service-requests-updated` | Server → Staff | `{ requests }` | Synchronizes active table calls across staff terminals. |
+| `daily-reports-updated` | Server → Admin | `{ reports }` | Real-time notification of newly submitted shift reports. |
 
 ---
 
@@ -447,24 +674,31 @@ allergicSuggestion/
    npm run kill:ports
    ```
 
-4. **Start Backend & Frontend in Development Mode:**
+4. **Allow Windows Defender Firewall (Recommended on Windows):**
+   Right-click `allow-firewall.bat` and select **"Run as administrator"**, or run:
+   ```bash
+   npm run allow-firewall
+   ```
+
+5. **Start Backend & Frontend in Development Mode:**
    ```bash
    npm run dev
    ```
-   *Alternatively, start the Umami Craft Fusion specific suite:*
+   *Or run the dedicated Umami Craft Fusion instance:*
    ```bash
    npm run dev:umami
    ```
 
-5. **Access the application in your browser:**
+6. **Access the application in your browser:**
    - **Touchscreen Kiosk Display:** [http://localhost:3000/?view=kiosk](http://localhost:3000/?view=kiosk)
    - **Customer Mobile / QR Ordering:** [http://localhost:3000/?view=mobile](http://localhost:3000/?view=mobile)
    - **Kitchen Display System (KDS):** [http://localhost:3000/?view=kitchen](http://localhost:3000/?view=kitchen)
+   - **Busser & Table Service View:** [http://localhost:3000/?view=busser](http://localhost:3000/?view=busser)
    - **Executive Administration Panel:** [http://localhost:3000/?view=admin](http://localhost:3000/?view=admin)
 
 ### Build & Quality Verification
 
-Run the Oxlint code linter:
+Run the code linter:
 ```bash
 npm run lint
 ```
@@ -476,7 +710,7 @@ npm test
 
 ---
 
-## 🌐 Multi-Restaurant Environment
+## 🌐 Multi-Restaurant Tenant Configuration
 
 The platform supports multi-tenant configurations with independent catalog data, branding, and port mappings:
 
