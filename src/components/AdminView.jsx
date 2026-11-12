@@ -3,6 +3,10 @@ import { io } from 'socket.io-client';
 import { QRCodeSVG } from 'qrcode.react';
 import MenuPreferencesManager from './MenuPreferencesManager';
 import CulinaryIconPicker from './CulinaryIconPicker';
+import DailyReportsManager from './DailyReportsManager';
+import EmployeeAccountManager from './EmployeeAccountManager';
+import PaymentWebhookManager from './PaymentWebhookManager';
+import { CreditCard } from 'lucide-react';
 import {
   LayoutDashboard,
   UtensilsCrossed,
@@ -78,11 +82,15 @@ import {
   VolumeX,
   ExternalLink,
   Radio,
-  Upload
+  Upload,
+  Globe,
+  FileSpreadsheet
 } from 'lucide-react';
 
-export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, socketConnected, socket }) {
+export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, socketConnected, socket, currentUser }) {
   const [activeTab, setActiveTab] = useState('overview');
+  const [accountSubTab, setAccountSubTab] = useState('all');
+  const [reportsSubTab, setReportsSubTab] = useState('all');
   const [menuItems, setMenuItems] = useState(() => {
     try {
       const saved = localStorage.getItem('umami_admin_menu');
@@ -125,11 +133,31 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
     ];
   });
 
-  // Sync categories to localStorage whenever they change
+  // Sync categories to localStorage and backend API whenever they change
+  const categoriesHydratedRef = useRef(false);
+  useEffect(() => {
+    fetch('/api/categories')
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (Array.isArray(data) && data.length > 0) {
+          setCategories(data);
+        }
+        categoriesHydratedRef.current = true;
+      })
+      .catch(() => { categoriesHydratedRef.current = true; });
+  }, []);
+
   useEffect(() => {
     try {
       localStorage.setItem('umami_categories', JSON.stringify(categories));
     } catch {}
+    if (categoriesHydratedRef.current) {
+      fetch('/api/categories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(categories)
+      }).catch(() => {});
+    }
   }, [categories]);
 
   const [orders, setOrders] = useState(() => {
@@ -848,10 +876,30 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
     ];
   });
 
+  const combosHydratedRef = useRef(false);
+  useEffect(() => {
+    fetch('/api/combos')
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (Array.isArray(data) && data.length > 0) {
+          setCombos(data);
+        }
+        combosHydratedRef.current = true;
+      })
+      .catch(() => { combosHydratedRef.current = true; });
+  }, []);
+
   useEffect(() => {
     try {
       localStorage.setItem('umami_combos', JSON.stringify(combos));
     } catch {}
+    if (combosHydratedRef.current) {
+      fetch('/api/combos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(combos)
+      }).catch(() => {});
+    }
   }, [combos]);
 
   const [comboSearch, setComboSearch] = useState('');
@@ -955,10 +1003,30 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
     ];
   });
 
+  const mixMatchHydratedRef = useRef(false);
+  useEffect(() => {
+    fetch('/api/mixmatch')
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (Array.isArray(data) && data.length > 0) {
+          setMixMatchRules(data);
+        }
+        mixMatchHydratedRef.current = true;
+      })
+      .catch(() => { mixMatchHydratedRef.current = true; });
+  }, []);
+
   useEffect(() => {
     try {
       localStorage.setItem('umami_mixmatch', JSON.stringify(mixMatchRules));
     } catch {}
+    if (mixMatchHydratedRef.current) {
+      fetch('/api/mixmatch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(mixMatchRules)
+      }).catch(() => {});
+    }
   }, [mixMatchRules]);
 
   const [mixMatchSearch, setMixMatchSearch] = useState('');
@@ -971,10 +1039,12 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
   const [editingMixMatch, setEditingMixMatch] = useState(null);
 
   const [staffUsers, setStaffUsers] = useState([
-    { id: 'U-1', name: 'Chief Admin', email: 'admin@umamicraft.com', role: 'Super Admin', status: 'active' },
-    { id: 'U-2', name: 'Master Chef Kenji', email: 'kitchen@umamicraft.com', role: 'Kitchen Staff', status: 'active' },
-    { id: 'U-3', name: 'Food Runner Leo', email: 'busser@umamicraft.com', role: 'Busser', status: 'active' },
-    { id: 'U-4', name: 'Cashier Sarah', email: 'cashier@umamicraft.com', role: 'Cashier', status: 'active' },
+    { id: 'U-1', name: 'Chief Admin', email: 'admin@umamicraft.com', role: 'Super Admin', status: 'active', department: 'Executive Management' },
+    { id: 'U-2', name: 'Maria Santos', email: 'cashier.maria@umamicraft.com', role: 'Head Cashier', status: 'active', department: 'Front Counter Register #1' },
+    { id: 'U-3', name: 'Carlos Rivera', email: 'cashier.carlos@umamicraft.com', role: 'Cashier', status: 'active', department: 'Takeout Register #2' },
+    { id: 'U-4', name: 'Master Chef Kenji', email: 'kitchen@umamicraft.com', role: 'Kitchen Staff', status: 'active', department: 'Kitchen & Wok Station' },
+    { id: 'U-5', name: 'Food Runner Leo', email: 'busser@umamicraft.com', role: 'Busser', status: 'active', department: 'Dining Area & Floor' },
+    { id: 'U-6', name: 'Finance Admin Sarah', email: 'finance.admin@umamicraft.com', role: 'Admin', status: 'active', department: 'Finance & Auditing' },
   ]);
 
   // Modals state
@@ -2483,6 +2553,38 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
         </div>
 
         <div className="admin-top-right">
+          {currentUser && (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '4px 12px',
+              background: '#ffffff',
+              border: '1px solid #e5e7eb',
+              borderRadius: '20px',
+              boxShadow: '0 1px 2px rgba(0,0,0,0.04)'
+            }}>
+              <div style={{
+                width: '26px',
+                height: '26px',
+                borderRadius: '50%',
+                background: currentUser.role?.toLowerCase().includes('cashier') ? '#059669' : '#C24522',
+                color: '#fff',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '12px',
+                fontWeight: 800
+              }}>
+                {currentUser.name ? currentUser.name[0] : 'U'}
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.15 }}>
+                <span style={{ fontSize: '12.5px', fontWeight: 700, color: '#111827' }}>{currentUser.name || 'Staff User'}</span>
+                <span style={{ fontSize: '10.5px', color: currentUser.role?.toLowerCase().includes('cashier') ? '#059669' : '#C24522', fontWeight: 600 }}>{currentUser.role || 'Staff'}</span>
+              </div>
+            </div>
+          )}
+
           <div className="admin-sync-badge">
             <span
               className={`admin-pulse-dot ${internalSocketConnected ? 'active' : 'disconnected'}`}
@@ -2582,6 +2684,12 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
               <span>Orders</span>
             </button>
 
+            <button className={`admin-nav-item ${activeTab === 'webhooks' ? 'active' : ''}`} onClick={() => setActiveTab('webhooks')}>
+              <CreditCard size={17} />
+              <span>Payment Webhooks & Gateway</span>
+              <span className="admin-nav-badge" style={{ background: '#059669', color: '#fff', fontSize: '10px', padding: '2px 6px', borderRadius: '6px' }}>Auto</span>
+            </button>
+
             <button className={`admin-nav-item ${activeTab === 'kitchen' ? 'active' : ''}`} onClick={() => setActiveTab('kitchen')}>
               <ChefHat size={17} />
               <span>Kitchen Status</span>
@@ -2603,9 +2711,86 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
               <span>Sales and Analytics</span>
             </button>
 
-            <button className={`admin-nav-item ${activeTab === 'users' ? 'active' : ''}`} onClick={() => setActiveTab('users')}>
+            <button
+              className={`admin-nav-item ${activeTab === 'dailyreports' && reportsSubTab === 'all' ? 'active' : ''}`}
+              onClick={() => {
+                setReportsSubTab('all');
+                setActiveTab('dailyreports');
+              }}
+            >
+              <FileSpreadsheet size={17} />
+              <span>Daily Reports Mgmt</span>
+            </button>
+
+            <button
+              className={`admin-nav-item ${activeTab === 'dailyreports' && reportsSubTab === 'cashier' ? 'active' : ''}`}
+              onClick={() => {
+                setReportsSubTab('cashier');
+                setActiveTab('dailyreports');
+              }}
+              style={{ paddingLeft: '28px', fontSize: '12.5px' }}
+            >
+              <DollarSign size={15} />
+              <span>Cashier Daily Reports</span>
+            </button>
+
+            <button
+              className={`admin-nav-item ${activeTab === 'dailyreports' && reportsSubTab === 'staff' ? 'active' : ''}`}
+              onClick={() => {
+                setReportsSubTab('staff');
+                setActiveTab('dailyreports');
+              }}
+              style={{ paddingLeft: '28px', fontSize: '12.5px' }}
+            >
+              <ChefHat size={15} />
+              <span>Staff Daily Reports</span>
+            </button>
+
+            <button
+              className={`admin-nav-item ${activeTab === 'dailyreports' && reportsSubTab === 'attendance' ? 'active' : ''}`}
+              onClick={() => {
+                setReportsSubTab('attendance');
+                setActiveTab('dailyreports');
+              }}
+              style={{ paddingLeft: '28px', fontSize: '12.5px' }}
+            >
+              <Clock size={15} />
+              <span>Attendance Records</span>
+            </button>
+
+            <button
+              className={`admin-nav-item ${activeTab === 'users' && accountSubTab === 'all' ? 'active' : ''}`}
+              onClick={() => {
+                setAccountSubTab('all');
+                setActiveTab('users');
+              }}
+            >
               <Users size={17} />
-              <span>User and Role Mgmt</span>
+              <span>Employee Account Mgmt</span>
+            </button>
+
+            <button
+              className={`admin-nav-item ${activeTab === 'users' && accountSubTab === 'cashier' ? 'active' : ''}`}
+              onClick={() => {
+                setAccountSubTab('cashier');
+                setActiveTab('users');
+              }}
+              style={{ paddingLeft: '28px', fontSize: '12.5px' }}
+            >
+              <DollarSign size={15} />
+              <span>Cashier Accounts</span>
+            </button>
+
+            <button
+              className={`admin-nav-item ${activeTab === 'users' && accountSubTab === 'staff' ? 'active' : ''}`}
+              onClick={() => {
+                setAccountSubTab('staff');
+                setActiveTab('users');
+              }}
+              style={{ paddingLeft: '28px', fontSize: '12.5px' }}
+            >
+              <ChefHat size={15} />
+              <span>Staff Accounts</span>
             </button>
 
             <button className={`admin-nav-item ${activeTab === 'logs' ? 'active' : ''}`} onClick={() => setActiveTab('logs')}>
@@ -9811,38 +9996,45 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
             </div>
           )}
 
-          {/* TAB 13: USER & ROLE MANAGEMENT */}
-          {activeTab === 'users' && (
-            <div className="admin-tab-pane fade-in">
-              <div className="admin-pane-header">
-                <div>
-                  <h1 className="admin-pane-title">User & Role Management</h1>
-                  <p className="admin-pane-sub">Manage staff accounts, kitchen permissions, and administrator credentials.</p>
-                </div>
-              </div>
+          {/* TAB: DAILY REPORTS MANAGEMENT */}
+          {activeTab === 'dailyreports' && (
+            <DailyReportsManager
+              socket={socket}
+              currentAdminName={currentUser?.name || 'Chief Administrator'}
+              initialCategoryFilter={reportsSubTab}
+              orders={orders}
+              onNavigateToOrders={() => {
+                setActiveTab('orders');
+              }}
+              onNavigateToUsers={() => {
+                setActiveTab('users');
+              }}
+            />
+          )}
 
-              <div className="admin-table-card">
-                <table className="admin-table">
-                  <thead>
-                    <tr>
-                      <th>Staff Name</th>
-                      <th>Email Account</th>
-                      <th>Assigned Role</th>
-                      <th>Account Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {staffUsers.map(usr => (
-                      <tr key={usr.id}>
-                        <td><strong>{usr.name}</strong></td>
-                        <td>{usr.email}</td>
-                        <td><span className="admin-cat-chip">{usr.role}</span></td>
-                        <td><span className="admin-status-toggle active">Active</span></td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+          {/* TAB: PAYMENT WEBHOOKS & GATEWAY AUTOMATION */}
+          {activeTab === 'webhooks' && (
+            <div className="admin-tab-pane fade-in">
+              <PaymentWebhookManager
+                socket={socket}
+                orders={orders}
+                currentAdminName={currentUser?.name || 'Chief Administrator'}
+              />
+            </div>
+          )}
+
+          {/* TAB 13: EMPLOYEE ACCOUNT & ROLE MANAGEMENT */}
+          {activeTab === 'users' && (
+            <div className="admin-tab-pane fade-in" style={{ width: '100%', minWidth: 0, overflowX: 'visible' }}>
+              <EmployeeAccountManager
+                socket={socket}
+                initialTab={accountSubTab}
+                currentUser={currentUser}
+                onNavigateToReports={(roleType) => {
+                  setReportsSubTab(roleType === 'cashier' ? 'cashier' : 'staff');
+                  setActiveTab('dailyreports');
+                }}
+              />
             </div>
           )}
 

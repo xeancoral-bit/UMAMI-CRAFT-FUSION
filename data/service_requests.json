@@ -1,0 +1,28 @@
+[
+  {
+    "id": "SR-0660",
+    "tableNumber": "Table 1",
+    "customer": "Mobile Guest",
+    "category": "Staff Assistance",
+    "notes": "",
+    "sessionId": null,
+    "status": "Pending",
+    "createdAt": "2026-11-11T20:08:00.660Z",
+    "acknowledgedAt": null,
+    "completedAt": null,
+    "attendedBy": null
+  },
+  {
+    "id": "SR-4888",
+    "tableNumber": "Table 1T5NK6",
+    "customer": "Kiosk Diner (#1T5NK6)",
+    "category": "Water Refill",
+    "notes": "",
+    "sessionId": "1T5NK6",
+    "status": "Completed",
+    "createdAt": "2026-11-11T12:06:24.888Z",
+    "acknowledgedAt": "2026-11-11T12:58:38.179Z",
+    "completedAt": "2026-11-11T12:58:39.727Z",
+    "attendedBy": "Chief Administrator"
+  }
+]

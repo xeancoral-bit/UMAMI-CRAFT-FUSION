@@ -19,11 +19,18 @@ function NavBar({
   readyOrdersCount = 0,
   socketConnected = true,
   isAdminAuthenticated = false,
+  currentUser = null,
   onOpenAdminSecurity
 }) {
-  // Always start LOCKED — PIN required every session
-  const [isUnlocked, setIsUnlocked] = useState(false);
+  // Always start LOCKED — PIN required every session unless already authenticated
+  const [isUnlocked, setIsUnlocked] = useState(isAdminAuthenticated);
   const [showPinModal, setShowPinModal] = useState(false);
+
+  useEffect(() => {
+    if (isAdminAuthenticated) {
+      setIsUnlocked(true);
+    }
+  }, [isAdminAuthenticated]);
   const [pinLength, setPinLength] = useState(() => {
     const saved = localStorage.getItem('umami_pin_length');
     return saved ? parseInt(saved, 10) : 9;
@@ -412,10 +419,16 @@ function NavBar({
           <button
             className={`fp-nav-pill ${currentView === 'admin' ? 'active' : ''}`}
             onClick={() => onSelectView('admin')}
-            title="System Administration & Enterprise Settings"
+            title="Role-Based Dashboard Portal (Administrator, Cashier, Staff)"
           >
             <ShieldCheck size={15} />
-            <span>Admin Panel</span>
+            <span>
+              {isAdminAuthenticated && currentUser?.accountType === 'staff'
+                ? 'Staff Dashboard'
+                : isAdminAuthenticated && currentUser?.accountType === 'cashier'
+                ? 'Cashier POS'
+                : 'Admin Panel'}
+            </span>
           </button>
         </nav>
 

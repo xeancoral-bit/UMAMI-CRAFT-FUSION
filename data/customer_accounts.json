@@ -1,0 +1,107 @@
+[
+  {
+    "id": "CUST-101",
+    "name": "Juan Dela Cruz",
+    "email": "juan.delacruz@gmail.com",
+    "phone": "+63 917 123 4567",
+    "membershipId": "MEM-VIP-001",
+    "membershipTier": "Gold Gourmet Club",
+    "membershipStatus": "Active",
+    "subscriptionPlan": "Umami VIP Dining Pass (Monthly)",
+    "subscriptionStatus": "Active",
+    "activatedAt": "2026-11-01T10:00:00.000Z",
+    "expiresAt": "2026-12-01T10:00:00.000Z",
+    "pointsBalance": 520,
+    "totalSpent": 5200,
+    "perks": [
+      "10% Off All Ramen & Chef Specials",
+      "Priority Kitchen Queue",
+      "Free Seasonal Artisan Boba per Visit"
+    ],
+    "lastPaymentReference": "TXN-GCASH-904128",
+    "recentTransactions": [
+      {
+        "transactionId": "TXN-GCASH-904128",
+        "orderId": "ORD-3145",
+        "amount": 708,
+        "type": "Dining Order & Points Credit",
+        "status": "Successful",
+        "date": "2026-11-05T05:46:33.092Z"
+      }
+    ]
+  },
+  {
+    "id": "CUST-102",
+    "name": "Maria Clara Santos",
+    "email": "maria.clara@gmail.com",
+    "phone": "+63 918 987 6543",
+    "membershipId": "MEM-VIP-002",
+    "membershipTier": "Silver Artisan Club",
+    "membershipStatus": "Active",
+    "subscriptionPlan": "Artisan Monthly Dining Club",
+    "subscriptionStatus": "Active",
+    "activatedAt": "2026-10-28T09:30:00.000Z",
+    "expiresAt": "2026-11-28T09:30:00.000Z",
+    "pointsBalance": 340,
+    "totalSpent": 3400,
+    "perks": [
+      "5% Off All Mix & Match Combos",
+      "Complimentary Edamame Appetizer"
+    ],
+    "lastPaymentReference": "TXN-MAYA-441290",
+    "recentTransactions": [
+      {
+        "transactionId": "TXN-MAYA-441290",
+        "orderId": "ORD-4745",
+        "amount": 1088,
+        "type": "Dining Order & Points Credit",
+        "status": "Successful",
+        "date": "2026-11-04T15:29:00.211Z"
+      }
+    ]
+  },
+  {
+    "id": "CUST-103",
+    "name": "Antonio Luna",
+    "email": "antonio.luna@gmail.com",
+    "phone": "+63 920 555 1234",
+    "membershipId": "MEM-VIP-003",
+    "membershipTier": "Platinum Executive Club",
+    "membershipStatus": "Active",
+    "subscriptionPlan": "Executive Corporate Dining Pass",
+    "subscriptionStatus": "Active",
+    "activatedAt": "2026-11-10T14:15:00.000Z",
+    "expiresAt": "2027-11-10T14:15:00.000Z",
+    "pointsBalance": 1250,
+    "totalSpent": 12500,
+    "perks": [
+      "15% Off Total Bill",
+      "Reserved VIP Booth Seating",
+      "Unlimited Artisan Green Tea & Table Valet"
+    ],
+    "lastPaymentReference": "TXN-CARD-881902",
+    "recentTransactions": []
+  },
+  {
+    "id": "CUST-104",
+    "name": "Mobile Diner",
+    "email": "guest.diner@umamicraft.com",
+    "phone": "+63 999 000 0000",
+    "membershipId": "MEM-STD-004",
+    "membershipTier": "Standard Rewards Club",
+    "membershipStatus": "Active",
+    "subscriptionPlan": "Pay-As-You-Dine Membership Rewards",
+    "subscriptionStatus": "Active",
+    "activatedAt": "2026-11-12T00:00:00.000Z",
+    "expiresAt": "2027-11-12T00:00:00.000Z",
+    "pointsBalance": 85,
+    "totalSpent": 850,
+    "perks": [
+      "Digital Receipt Cloud Sync",
+      "Allergen Preference Memory"
+    ],
+    "lastPaymentReference": "TXN-GCASH-331904",
+    "recentTransactions": []
+  }
+]
+

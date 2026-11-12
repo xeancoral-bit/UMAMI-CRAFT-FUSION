@@ -1,0 +1,56 @@
+[
+  {
+    "id": "cat-appetizers",
+    "name": "Appetizers",
+    "icon": "🥟",
+    "image": "https://images.unsplash.com/photo-1563245372-f21724e3856d?auto=format&fit=crop&w=400&q=80",
+    "description": "Handcrafted dumplings, crispy small plates, and savory starters prepared fresh to order.",
+    "order": 1,
+    "active": true
+  },
+  {
+    "id": "cat-noodles",
+    "name": "Noodles",
+    "icon": "🍜",
+    "image": "https://images.unsplash.com/photo-1569718212165-3a8278d5f624?auto=format&fit=crop&w=400&q=80",
+    "description": "Artisanal wheat and rice noodles tossed in slow-simmered broths and signature umami glazes.",
+    "order": 2,
+    "active": true
+  },
+  {
+    "id": "cat-rice-bowls",
+    "name": "Rice Bowls",
+    "icon": "🍛",
+    "image": "https://images.unsplash.com/photo-1455619452474-d2be8b1e70cd?auto=format&fit=crop&w=400&q=80",
+    "description": "Hearty steamed jasmine rice bowls topped with aromatic curries, braised meats, and garden vegetables.",
+    "order": 3,
+    "active": true
+  },
+  {
+    "id": "cat-mains",
+    "name": "Mains",
+    "icon": "🍖",
+    "image": "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=400&q=80",
+    "description": "Signature chef entrees and wok-seared specialties crafted for a complete dining experience.",
+    "order": 4,
+    "active": true
+  },
+  {
+    "id": "cat-desserts",
+    "name": "Desserts",
+    "icon": "🥭",
+    "image": "https://images.unsplash.com/photo-1562440499-64c9a111f713?auto=format&fit=crop&w=400&q=80",
+    "description": "Sweet tropical finishes and traditional Asian-inspired desserts.",
+    "order": 5,
+    "active": true
+  },
+  {
+    "id": "cat-drinks",
+    "name": "Drinks & Boba",
+    "icon": "🧋",
+    "image": "https://images.unsplash.com/photo-1558857563-b371033873b8?auto=format&fit=crop&w=400&q=80",
+    "description": "Specialty milk teas, ceremonial matcha, fresh fruit coolers, and handcrafted beverages.",
+    "order": 6,
+    "active": true
+  }
+]

@@ -1,0 +1,772 @@
+[
+  {
+    "id": "RPT-20261111-001",
+    "reportDate": "2026-11-11",
+    "employeeId": "EMP-101",
+    "employeeName": "Maria Santos",
+    "role": "Cashier",
+    "position": "Head Cashier & Counter Register #1",
+    "shift": "Morning Shift (08:00 - 16:00)",
+    "attendance": {
+      "status": "Present",
+      "clockIn": "07:48 AM",
+      "clockOut": "04:15 PM",
+      "totalHours": 8.45,
+      "breakMinutes": 45,
+      "isLate": false
+    },
+    "reportType": "cashier",
+    "cashierData": {
+      "registerId": "POS-01 (Front Counter)",
+      "openingFloat": 3000,
+      "cashSales": 0,
+      "digitalSales": 4718,
+      "gcashSales": 4718,
+      "cardSales": 0,
+      "totalSales": 4718,
+      "transactionsCount": 9,
+      "cashReceived": 0,
+      "changeGiven": 0,
+      "refundsCount": 0,
+      "refundsAmount": 0,
+      "voidsCount": 0,
+      "expectedCash": 3000,
+      "actualCashCount": 3000,
+      "variance": 0,
+      "varianceStatus": "Balanced",
+      "varianceReason": "System auto-reconciled with POS tape and verified payment records.",
+      "handledOrderIds": [
+        "ORD-3145",
+        "ORD-8125",
+        "ORD-6807",
+        "ORD-8163",
+        "ORD-2632",
+        "ORD-3804",
+        "ORD-4328",
+        "ORD-5563",
+        "ORD-8019"
+      ],
+      "denominations": {
+        "20": 7,
+        "50": 3,
+        "100": 3,
+        "200": 2,
+        "500": 2,
+        "1000": 1,
+        "coins": 10
+      }
+    },
+    "staffData": null,
+    "reportStatus": "Approved",
+    "reviewedBy": "Chief Administrator",
+    "reviewedAt": "2026-11-11T20:27:19.264Z",
+    "reviewNotes": "All register transactions reconciled with POS tape. Drawer count is 100% accurate.",
+    "employeeNotes": "Morning shift ran smoothly. Processed 9 POS orders (₱4,718.00) with zero cashier delays.",
+    "createdAt": "2026-11-11T20:27:19.264Z",
+    "updatedAt": "2026-11-12T18:54:57.730Z"
+  },
+  {
+    "id": "RPT-20261111-002",
+    "reportDate": "2026-11-11",
+    "employeeId": "EMP-102",
+    "employeeName": "Carlos Rivera",
+    "role": "Cashier",
+    "position": "Cashier & Takeout Register #2",
+    "shift": "Evening Shift (16:00 - 00:00)",
+    "attendance": {
+      "status": "Present",
+      "clockIn": "03:52 PM",
+      "clockOut": "11:58 PM",
+      "totalHours": 8.1,
+      "breakMinutes": 45,
+      "isLate": false
+    },
+    "reportType": "cashier",
+    "cashierData": {
+      "registerId": "POS-02 (Takeout & Online)",
+      "openingFloat": 2500,
+      "cashSales": 1500,
+      "digitalSales": 11711.8,
+      "gcashSales": 10061.8,
+      "cardSales": 1650,
+      "totalSales": 13211.8,
+      "transactionsCount": 17,
+      "cashReceived": 1500,
+      "changeGiven": 0,
+      "refundsCount": 0,
+      "refundsAmount": 0,
+      "voidsCount": 0,
+      "expectedCash": 4000,
+      "actualCashCount": 4000,
+      "variance": 0,
+      "varianceStatus": "Balanced",
+      "varianceReason": "System auto-reconciled with POS tape and verified payment records.",
+      "handledOrderIds": [
+        "ORD-4745",
+        "ORD-9205",
+        "ORD-8064",
+        "ORD-8007",
+        "ORD-3974",
+        "ORD-6261",
+        "ORD-5263",
+        "ORD-3844",
+        "ORD-4267",
+        "ORD-9297",
+        "ORD-3509",
+        "ORD-1043",
+        "ORD-1042",
+        "ORD-1041",
+        "ORD-1040",
+        "ORD-1039",
+        "ORD-1038"
+      ],
+      "denominations": {
+        "20": 7,
+        "50": 3,
+        "100": 3,
+        "200": 2,
+        "500": 2,
+        "1000": 2,
+        "coins": 10
+      }
+    },
+    "staffData": null,
+    "reportStatus": "Pending Review",
+    "reviewedBy": null,
+    "reviewedAt": null,
+    "reviewNotes": "",
+    "employeeNotes": "Smooth evening rush. Processed 17 orders (₱13,211.80). GCash and card payments verified on terminal receipts.",
+    "createdAt": "2026-11-11T20:27:19.264Z",
+    "updatedAt": "2026-11-12T18:54:57.730Z"
+  },
+  {
+    "id": "RPT-20261111-003",
+    "reportDate": "2026-11-11",
+    "employeeId": "EMP-201",
+    "employeeName": "Master Chef Kenji",
+    "role": "Kitchen Staff",
+    "position": "Executive Kitchen Head & Wok Master",
+    "shift": "Morning Shift (07:30 - 16:00)",
+    "attendance": {
+      "status": "Present",
+      "clockIn": "07:22 AM",
+      "clockOut": "04:05 PM",
+      "totalHours": 8.7,
+      "breakMinutes": 40,
+      "isLate": false
+    },
+    "reportType": "staff",
+    "cashierData": null,
+    "staffData": {
+      "assignedStation": "Hot Kitchen, Wok Station & Allergen Verification",
+      "tasksCompleted": [
+        "Prepped 45kg rich pork & mushroom umami broth",
+        "Verified critical peanut and shellfish isolation barriers",
+        "Prepared and plated 9 morning tickets (16 total dishes)",
+        "Completed morning temperature audit for meat freezers (-18°C verified)"
+      ],
+      "tasksPending": [
+        "Defrost wagyu slices for tomorrow lunch rush"
+      ],
+      "kitchenOrdersHandled": 9,
+      "tableServiceCallsHandled": 0,
+      "incidentsReported": "None. 100% allergen exclusion compliance on all tickets."
+    },
+    "reportStatus": "Approved",
+    "reviewedBy": "Chief Administrator",
+    "reviewedAt": "2026-11-11T20:27:19.264Z",
+    "reviewNotes": "Outstanding food prep quality and zero food safety incidents.",
+    "employeeNotes": "Allergen warning chime alerted line cooks promptly.",
+    "createdAt": "2026-11-11T20:27:19.264Z",
+    "updatedAt": "2026-11-12T18:54:57.730Z"
+  },
+  {
+    "id": "RPT-20261111-004",
+    "reportDate": "2026-11-11",
+    "employeeId": "EMP-202",
+    "employeeName": "Hiroshi Tanaka",
+    "role": "Kitchen Staff",
+    "position": "Line Cook & Noodle Specialist",
+    "shift": "Evening Shift (15:30 - 23:45)",
+    "attendance": {
+      "status": "Present",
+      "clockIn": "03:25 PM",
+      "clockOut": "11:50 PM",
+      "totalHours": 8.4,
+      "breakMinutes": 35,
+      "isLate": false
+    },
+    "reportType": "staff",
+    "cashierData": null,
+    "staffData": {
+      "assignedStation": "Noodle Boiler, Gyoza Fryer & Cold Station",
+      "tasksCompleted": [
+        "Handled 17 evening tickets (43 total dishes)",
+        "Deep cleaned gyoza griddle and noodle blanchers",
+        "Sealed, labeled, and dated overnight prep vegetables",
+        "Sterilized all cutting boards with food-grade sanitizing wash"
+      ],
+      "tasksPending": [
+        "Reorder scallions and sesame seeds"
+      ],
+      "kitchenOrdersHandled": 17,
+      "tableServiceCallsHandled": 0,
+      "incidentsReported": "None. Kitchen stations fully cleaned for opening shift."
+    },
+    "reportStatus": "Approved",
+    "reviewedBy": "Chief Administrator",
+    "reviewedAt": "2026-11-11T20:27:19.264Z",
+    "reviewNotes": "Closing kitchen sanitation completed ahead of schedule.",
+    "employeeNotes": "Gyoza dough supply replenished for tomorrow morning.",
+    "createdAt": "2026-11-11T20:27:19.264Z",
+    "updatedAt": "2026-11-12T18:54:57.730Z"
+  },
+  {
+    "id": "RPT-20261111-005",
+    "reportDate": "2026-11-11",
+    "employeeId": "EMP-301",
+    "employeeName": "Food Runner Leo",
+    "role": "Busser",
+    "position": "Floor Server, Table Service & Busser Lead",
+    "shift": "Morning Shift (08:00 - 16:30)",
+    "attendance": {
+      "status": "Present",
+      "clockIn": "07:55 AM",
+      "clockOut": "04:32 PM",
+      "totalHours": 8.6,
+      "breakMinutes": 45,
+      "isLate": false
+    },
+    "reportType": "staff",
+    "cashierData": null,
+    "staffData": {
+      "assignedStation": "Dining Area (Tables 1-12) & Beverage Station",
+      "tasksCompleted": [
+        "Attended 1 table service calls (Water refills, extra napkins)",
+        "Served dine-in orders within 3 minutes of kitchen ready chime",
+        "Sanitized tables after customer turnover",
+        "Restocked customer self-service condiment bar"
+      ],
+      "tasksPending": [
+        "Replenish chopstick holders at booths 3 and 4"
+      ],
+      "kitchenOrdersHandled": 0,
+      "tableServiceCallsHandled": 1,
+      "incidentsReported": "None. Table assistance button response time averaged under 90 seconds."
+    },
+    "reportStatus": "Approved",
+    "reviewedBy": "Chief Administrator",
+    "reviewedAt": "2026-11-11T20:27:19.264Z",
+    "reviewNotes": "Great customer feedback on table service speed.",
+    "employeeNotes": "Customers appreciated the immediate water refill response.",
+    "createdAt": "2026-11-11T20:27:19.264Z",
+    "updatedAt": "2026-11-12T18:54:57.730Z"
+  },
+  {
+    "id": "RPT-20261111-006",
+    "reportDate": "2026-11-11",
+    "employeeId": "EMP-302",
+    "employeeName": "Ana Gomez",
+    "role": "Server / Waitstaff",
+    "position": "Dining Room Server & Host",
+    "shift": "Evening Shift (15:45 - 00:15)",
+    "attendance": {
+      "status": "Present",
+      "clockIn": "03:40 PM",
+      "clockOut": "11:58 PM",
+      "totalHours": 8.3,
+      "breakMinutes": 45,
+      "isLate": false
+    },
+    "reportType": "staff",
+    "cashierData": null,
+    "staffData": {
+      "assignedStation": "Front Entrance, Host Stand & Tables 13-20",
+      "tasksCompleted": [
+        "Welcomed and guided dining parties to open tables",
+        "Attended 1 server call requests (bill requests, menu guidance)",
+        "Assisted diners with kiosk QR code scanning and allergen profiling",
+        "Cleaned and sanitized dining room menus and payment terminals"
+      ],
+      "tasksPending": [
+        "Fold napkin sets for tomorrow lunch setup"
+      ],
+      "kitchenOrdersHandled": 0,
+      "tableServiceCallsHandled": 1,
+      "incidentsReported": "None."
+    },
+    "reportStatus": "Pending Review",
+    "reviewedBy": null,
+    "reviewedAt": null,
+    "reviewNotes": "",
+    "employeeNotes": "Dinner shift ran smoothly with minimal wait times.",
+    "createdAt": "2026-11-11T20:27:19.264Z",
+    "updatedAt": "2026-11-12T18:54:57.730Z"
+  },
+  {
+    "id": "RPT-20261111-007",
+    "reportDate": "2026-11-11",
+    "employeeId": "EMP-002",
+    "employeeName": "Finance Admin Sarah",
+    "role": "Store Manager",
+    "position": "Shift Supervisor & Operations Auditor",
+    "shift": "Day Shift (09:00 - 17:00)",
+    "attendance": {
+      "status": "Present",
+      "clockIn": "08:50 AM",
+      "clockOut": "05:10 PM",
+      "totalHours": 8.3,
+      "breakMinutes": 60,
+      "isLate": false
+    },
+    "reportType": "staff",
+    "cashierData": null,
+    "staffData": {
+      "assignedStation": "Store Operations, Inventory Verification & Audit",
+      "tasksCompleted": [
+        "Audited opening and mid-day cash balances on POS-01",
+        "Verified inventory stock levels for rice, noodles, and packaging",
+        "Conducted staff shift briefing on allergen safety protocol",
+        "Reviewed employee shift reports and logged daily sales reconciliation"
+      ],
+      "tasksPending": [
+        "Finalize supplier order for Friday delivery"
+      ],
+      "kitchenOrdersHandled": 0,
+      "tableServiceCallsHandled": 0,
+      "incidentsReported": "None."
+    },
+    "reportStatus": "Approved",
+    "reviewedBy": "Chief Administrator",
+    "reviewedAt": "2026-11-11T20:27:19.264Z",
+    "reviewNotes": "Shift operations fully certified.",
+    "employeeNotes": "Overall restaurant performance on target. Daily revenue reached ₱17,929.80 across 26 orders.",
+    "createdAt": "2026-11-11T20:27:19.264Z",
+    "updatedAt": "2026-11-12T18:54:57.730Z"
+  },
+  {
+    "id": "RPT-20261111-008",
+    "reportDate": "2026-11-11",
+    "employeeId": "EMP-303",
+    "employeeName": "Miguel Ramos",
+    "role": "Busser",
+    "position": "Utility & Busser Support",
+    "shift": "Mid Shift (11:00 - 19:00)",
+    "attendance": {
+      "status": "Late",
+      "clockIn": "11:28 AM",
+      "clockOut": "07:35 PM",
+      "totalHours": 8.1,
+      "breakMinutes": 45,
+      "isLate": true
+    },
+    "reportType": "staff",
+    "cashierData": null,
+    "staffData": {
+      "assignedStation": "Dishwashing Area & Busser Cart Support",
+      "tasksCompleted": [
+        "Washed and sanitized porcelain ramen bowls and gyoza plates",
+        "Kept trash receptacles emptied during peak lunch rush",
+        "Assisted Food Runner Leo with table clearance during peak rush"
+      ],
+      "tasksPending": [
+        "Replace dishwashing chemical canisters"
+      ],
+      "kitchenOrdersHandled": 0,
+      "tableServiceCallsHandled": 2,
+      "incidentsReported": "Late arrival due to road repairs on main avenue. Notified supervisor."
+    },
+    "reportStatus": "Needs Correction",
+    "reviewedBy": "Chief Administrator",
+    "reviewedAt": "2026-11-11T20:27:19.264Z",
+    "reviewNotes": "Please submit signed late slip from supervisor before final sign-off.",
+    "employeeNotes": "Traffic delay caused 28-min late clock in. Completed all assigned duties.",
+    "createdAt": "2026-11-11T20:27:19.264Z",
+    "updatedAt": "2026-11-12T18:54:57.730Z"
+  },
+  {
+    "id": "RPT-20261112-001",
+    "reportDate": "2026-11-12",
+    "employeeId": "EMP-101",
+    "employeeName": "Maria Santos",
+    "role": "Cashier",
+    "position": "Head Cashier & Counter Register #1",
+    "shift": "Morning Shift (08:00 - 16:00)",
+    "attendance": {
+      "status": "Present",
+      "clockIn": "07:48 AM",
+      "clockOut": "04:15 PM",
+      "totalHours": 8.45,
+      "breakMinutes": 45,
+      "isLate": false
+    },
+    "reportType": "cashier",
+    "cashierData": {
+      "registerId": "POS-01 (Front Counter)",
+      "openingFloat": 3000,
+      "cashSales": 0,
+      "digitalSales": 4718,
+      "gcashSales": 4718,
+      "cardSales": 0,
+      "totalSales": 4718,
+      "transactionsCount": 9,
+      "cashReceived": 0,
+      "changeGiven": 0,
+      "refundsCount": 0,
+      "refundsAmount": 0,
+      "voidsCount": 0,
+      "expectedCash": 3000,
+      "actualCashCount": 3000,
+      "variance": 0,
+      "varianceStatus": "Balanced",
+      "varianceReason": "System auto-reconciled with POS tape and verified payment records.",
+      "handledOrderIds": [
+        "ORD-3145",
+        "ORD-8125",
+        "ORD-6807",
+        "ORD-8163",
+        "ORD-2632",
+        "ORD-3804",
+        "ORD-4328",
+        "ORD-5563",
+        "ORD-8019"
+      ],
+      "denominations": {
+        "20": 7,
+        "50": 3,
+        "100": 3,
+        "200": 2,
+        "500": 2,
+        "1000": 1,
+        "coins": 10
+      }
+    },
+    "staffData": null,
+    "reportStatus": "Approved",
+    "reviewedBy": "Chief Administrator",
+    "reviewedAt": "2026-11-11T20:27:19.285Z",
+    "reviewNotes": "All register transactions reconciled with POS tape. Drawer count is 100% accurate.",
+    "employeeNotes": "Morning shift ran smoothly. Processed 9 POS orders (₱4,718.00) with zero cashier delays.",
+    "createdAt": "2026-11-11T20:27:19.285Z",
+    "updatedAt": "2026-11-11T20:27:19.285Z"
+  },
+  {
+    "id": "RPT-20261112-002",
+    "reportDate": "2026-11-12",
+    "employeeId": "EMP-102",
+    "employeeName": "Carlos Rivera",
+    "role": "Cashier",
+    "position": "Cashier & Takeout Register #2",
+    "shift": "Evening Shift (16:00 - 00:00)",
+    "attendance": {
+      "status": "Present",
+      "clockIn": "03:52 PM",
+      "clockOut": "11:58 PM",
+      "totalHours": 8.1,
+      "breakMinutes": 45,
+      "isLate": false
+    },
+    "reportType": "cashier",
+    "cashierData": {
+      "registerId": "POS-02 (Takeout & Online)",
+      "openingFloat": 2500,
+      "cashSales": 1500,
+      "digitalSales": 11711.8,
+      "gcashSales": 10061.8,
+      "cardSales": 1650,
+      "totalSales": 13211.8,
+      "transactionsCount": 17,
+      "cashReceived": 1500,
+      "changeGiven": 0,
+      "refundsCount": 0,
+      "refundsAmount": 0,
+      "voidsCount": 0,
+      "expectedCash": 4000,
+      "actualCashCount": 4000,
+      "variance": 0,
+      "varianceStatus": "Balanced",
+      "varianceReason": "System auto-reconciled with POS tape and verified payment records.",
+      "handledOrderIds": [
+        "ORD-4745",
+        "ORD-9205",
+        "ORD-8064",
+        "ORD-8007",
+        "ORD-3974",
+        "ORD-6261",
+        "ORD-5263",
+        "ORD-3844",
+        "ORD-4267",
+        "ORD-9297",
+        "ORD-3509",
+        "ORD-1043",
+        "ORD-1042",
+        "ORD-1041",
+        "ORD-1040",
+        "ORD-1039",
+        "ORD-1038"
+      ],
+      "denominations": {
+        "20": 7,
+        "50": 3,
+        "100": 3,
+        "200": 2,
+        "500": 2,
+        "1000": 2,
+        "coins": 10
+      }
+    },
+    "staffData": null,
+    "reportStatus": "Pending Review",
+    "reviewedBy": null,
+    "reviewedAt": null,
+    "reviewNotes": "",
+    "employeeNotes": "Smooth evening rush. Processed 17 orders (₱13,211.80). GCash and card payments verified on terminal receipts.",
+    "createdAt": "2026-11-11T20:27:19.285Z",
+    "updatedAt": "2026-11-11T20:27:19.285Z"
+  },
+  {
+    "id": "RPT-20261112-003",
+    "reportDate": "2026-11-12",
+    "employeeId": "EMP-201",
+    "employeeName": "Master Chef Kenji",
+    "role": "Kitchen Staff",
+    "position": "Executive Kitchen Head & Wok Master",
+    "shift": "Morning Shift (07:30 - 16:00)",
+    "attendance": {
+      "status": "Present",
+      "clockIn": "07:22 AM",
+      "clockOut": "04:05 PM",
+      "totalHours": 8.7,
+      "breakMinutes": 40,
+      "isLate": false
+    },
+    "reportType": "staff",
+    "cashierData": null,
+    "staffData": {
+      "assignedStation": "Hot Kitchen, Wok Station & Allergen Verification",
+      "tasksCompleted": [
+        "Prepped 45kg rich pork & mushroom umami broth",
+        "Verified critical peanut and shellfish isolation barriers",
+        "Prepared and plated 9 morning tickets (26 total dishes)",
+        "Completed morning temperature audit for meat freezers (-18°C verified)"
+      ],
+      "tasksPending": [
+        "Defrost wagyu slices for tomorrow lunch rush"
+      ],
+      "kitchenOrdersHandled": 9,
+      "tableServiceCallsHandled": 0,
+      "incidentsReported": "None. 100% allergen exclusion compliance on all tickets."
+    },
+    "reportStatus": "Approved",
+    "reviewedBy": "Chief Administrator",
+    "reviewedAt": "2026-11-11T20:27:19.285Z",
+    "reviewNotes": "Outstanding food prep quality and zero food safety incidents.",
+    "employeeNotes": "Allergen warning chime alerted line cooks promptly.",
+    "createdAt": "2026-11-11T20:27:19.285Z",
+    "updatedAt": "2026-11-11T20:27:19.285Z"
+  },
+  {
+    "id": "RPT-20261112-004",
+    "reportDate": "2026-11-12",
+    "employeeId": "EMP-202",
+    "employeeName": "Hiroshi Tanaka",
+    "role": "Kitchen Staff",
+    "position": "Line Cook & Noodle Specialist",
+    "shift": "Evening Shift (15:30 - 23:45)",
+    "attendance": {
+      "status": "Present",
+      "clockIn": "03:25 PM",
+      "clockOut": "11:50 PM",
+      "totalHours": 8.4,
+      "breakMinutes": 35,
+      "isLate": false
+    },
+    "reportType": "staff",
+    "cashierData": null,
+    "staffData": {
+      "assignedStation": "Noodle Boiler, Gyoza Fryer & Cold Station",
+      "tasksCompleted": [
+        "Handled 17 evening tickets (8 total dishes)",
+        "Deep cleaned gyoza griddle and noodle blanchers",
+        "Sealed, labeled, and dated overnight prep vegetables",
+        "Sterilized all cutting boards with food-grade sanitizing wash"
+      ],
+      "tasksPending": [
+        "Reorder scallions and sesame seeds"
+      ],
+      "kitchenOrdersHandled": 17,
+      "tableServiceCallsHandled": 0,
+      "incidentsReported": "None. Kitchen stations fully cleaned for opening shift."
+    },
+    "reportStatus": "Approved",
+    "reviewedBy": "Chief Administrator",
+    "reviewedAt": "2026-11-11T20:27:19.285Z",
+    "reviewNotes": "Closing kitchen sanitation completed ahead of schedule.",
+    "employeeNotes": "Gyoza dough supply replenished for tomorrow morning.",
+    "createdAt": "2026-11-11T20:27:19.285Z",
+    "updatedAt": "2026-11-11T20:27:19.285Z"
+  },
+  {
+    "id": "RPT-20261112-005",
+    "reportDate": "2026-11-12",
+    "employeeId": "EMP-301",
+    "employeeName": "Food Runner Leo",
+    "role": "Busser",
+    "position": "Floor Server, Table Service & Busser Lead",
+    "shift": "Morning Shift (08:00 - 16:30)",
+    "attendance": {
+      "status": "Present",
+      "clockIn": "07:55 AM",
+      "clockOut": "04:32 PM",
+      "totalHours": 8.6,
+      "breakMinutes": 45,
+      "isLate": false
+    },
+    "reportType": "staff",
+    "cashierData": null,
+    "staffData": {
+      "assignedStation": "Dining Area (Tables 1-12) & Beverage Station",
+      "tasksCompleted": [
+        "Attended 8 table service calls (Water refills, extra napkins)",
+        "Served dine-in orders within 3 minutes of kitchen ready chime",
+        "Sanitized tables after customer turnover",
+        "Restocked customer self-service condiment bar"
+      ],
+      "tasksPending": [
+        "Replenish chopstick holders at booths 3 and 4"
+      ],
+      "kitchenOrdersHandled": 0,
+      "tableServiceCallsHandled": 8,
+      "incidentsReported": "None. Table assistance button response time averaged under 90 seconds."
+    },
+    "reportStatus": "Approved",
+    "reviewedBy": "Chief Administrator",
+    "reviewedAt": "2026-11-11T20:27:19.285Z",
+    "reviewNotes": "Great customer feedback on table service speed.",
+    "employeeNotes": "Customers appreciated the immediate water refill response.",
+    "createdAt": "2026-11-11T20:27:19.285Z",
+    "updatedAt": "2026-11-11T20:27:19.285Z"
+  },
+  {
+    "id": "RPT-20261112-006",
+    "reportDate": "2026-11-12",
+    "employeeId": "EMP-302",
+    "employeeName": "Ana Gomez",
+    "role": "Server / Waitstaff",
+    "position": "Dining Room Server & Host",
+    "shift": "Evening Shift (15:45 - 00:15)",
+    "attendance": {
+      "status": "Present",
+      "clockIn": "03:40 PM",
+      "clockOut": "11:58 PM",
+      "totalHours": 8.3,
+      "breakMinutes": 45,
+      "isLate": false
+    },
+    "reportType": "staff",
+    "cashierData": null,
+    "staffData": {
+      "assignedStation": "Front Entrance, Host Stand & Tables 13-20",
+      "tasksCompleted": [
+        "Welcomed and guided dining parties to open tables",
+        "Attended 6 server call requests (bill requests, menu guidance)",
+        "Assisted diners with kiosk QR code scanning and allergen profiling",
+        "Cleaned and sanitized dining room menus and payment terminals"
+      ],
+      "tasksPending": [
+        "Fold napkin sets for tomorrow lunch setup"
+      ],
+      "kitchenOrdersHandled": 0,
+      "tableServiceCallsHandled": 6,
+      "incidentsReported": "None."
+    },
+    "reportStatus": "Pending Review",
+    "reviewedBy": null,
+    "reviewedAt": null,
+    "reviewNotes": "",
+    "employeeNotes": "Dinner shift ran smoothly with minimal wait times.",
+    "createdAt": "2026-11-11T20:27:19.285Z",
+    "updatedAt": "2026-11-11T20:27:19.285Z"
+  },
+  {
+    "id": "RPT-20261112-007",
+    "reportDate": "2026-11-12",
+    "employeeId": "EMP-002",
+    "employeeName": "Finance Admin Sarah",
+    "role": "Store Manager",
+    "position": "Shift Supervisor & Operations Auditor",
+    "shift": "Day Shift (09:00 - 17:00)",
+    "attendance": {
+      "status": "Present",
+      "clockIn": "08:50 AM",
+      "clockOut": "05:10 PM",
+      "totalHours": 8.3,
+      "breakMinutes": 60,
+      "isLate": false
+    },
+    "reportType": "staff",
+    "cashierData": null,
+    "staffData": {
+      "assignedStation": "Store Operations, Inventory Verification & Audit",
+      "tasksCompleted": [
+        "Audited opening and mid-day cash balances on POS-01",
+        "Verified inventory stock levels for rice, noodles, and packaging",
+        "Conducted staff shift briefing on allergen safety protocol",
+        "Reviewed employee shift reports and logged daily sales reconciliation"
+      ],
+      "tasksPending": [
+        "Finalize supplier order for Friday delivery"
+      ],
+      "kitchenOrdersHandled": 0,
+      "tableServiceCallsHandled": 0,
+      "incidentsReported": "None."
+    },
+    "reportStatus": "Approved",
+    "reviewedBy": "Chief Administrator",
+    "reviewedAt": "2026-11-11T20:27:19.285Z",
+    "reviewNotes": "Shift operations fully certified.",
+    "employeeNotes": "Overall restaurant performance on target. Daily revenue reached ₱17,929.80 across 26 orders.",
+    "createdAt": "2026-11-11T20:27:19.285Z",
+    "updatedAt": "2026-11-11T20:27:19.285Z"
+  },
+  {
+    "id": "RPT-20261112-008",
+    "reportDate": "2026-11-12",
+    "employeeId": "EMP-303",
+    "employeeName": "Miguel Ramos",
+    "role": "Busser",
+    "position": "Utility & Busser Support",
+    "shift": "Mid Shift (11:00 - 19:00)",
+    "attendance": {
+      "status": "Late",
+      "clockIn": "11:28 AM",
+      "clockOut": "07:35 PM",
+      "totalHours": 8.1,
+      "breakMinutes": 45,
+      "isLate": true
+    },
+    "reportType": "staff",
+    "cashierData": null,
+    "staffData": {
+      "assignedStation": "Dishwashing Area & Busser Cart Support",
+      "tasksCompleted": [
+        "Washed and sanitized porcelain ramen bowls and gyoza plates",
+        "Kept trash receptacles emptied during peak lunch rush",
+        "Assisted Food Runner Leo with table clearance during peak rush"
+      ],
+      "tasksPending": [
+        "Replace dishwashing chemical canisters"
+      ],
+      "kitchenOrdersHandled": 0,
+      "tableServiceCallsHandled": 2,
+      "incidentsReported": "Late arrival due to road repairs on main avenue. Notified supervisor."
+    },
+    "reportStatus": "Needs Correction",
+    "reviewedBy": "Chief Administrator",
+    "reviewedAt": "2026-11-11T20:27:19.285Z",
+    "reviewNotes": "Please submit signed late slip from supervisor before final sign-off.",
+    "employeeNotes": "Traffic delay caused 28-min late clock in. Completed all assigned duties.",
+    "createdAt": "2026-11-11T20:27:19.285Z",
+    "updatedAt": "2026-11-11T20:27:19.285Z"
+  }
+]

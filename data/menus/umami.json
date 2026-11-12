@@ -12,7 +12,7 @@
     "reorderLevel": 5,
     "lastUpdated": "Oct 26, 2024 10:24 AM",
     "image": "https://images.unsplash.com/photo-1563245372-f21724e3856d?auto=format&fit=crop&w=600&q=80",
-    "description": "Handmade pork dumplings tossed in fiery Sichuan chili crisp and toasted sesame.",
+    "description": "Handmade pork dumplings tossed in fiery Sichuan chili crisp, aromatic garlic soy reduction, and toasted sesame seeds.",
     "allergens": [
       "soy",
       "gluten"
@@ -25,7 +25,15 @@
     "sizes": "Standard",
     "addons": "",
     "subcategory": "Signature",
-    "ingredients": "Pork, chili oil, sesame",
+    "ingredients": "Ground Pork (180 g), Wheat Dumpling Wrappers (6 pcs), Sichuan Chili Oil (15 ml), Soy Sauce (10 ml), Toasted Sesame Seeds (5 g), Scallions (10 g)",
+    "ingredientsList": [
+      { "name": "Ground Pork", "quantity": "180", "unit": "g" },
+      { "name": "Wheat Dumpling Wrappers", "quantity": "6", "unit": "pcs" },
+      { "name": "Sichuan Chili Oil", "quantity": "15", "unit": "ml" },
+      { "name": "Aged Soy Sauce", "quantity": "10", "unit": "ml" },
+      { "name": "Toasted Sesame Seeds", "quantity": "5", "unit": "g" },
+      { "name": "Fresh Scallions", "quantity": "10", "unit": "g" }
+    ],
     "emoji": "🥟"
   },
   {
@@ -41,7 +49,7 @@
     "reorderLevel": 5,
     "lastUpdated": "Oct 26, 2024 10:24 AM",
     "image": "https://images.unsplash.com/photo-1622205313162-be1d5712a43f?auto=format&fit=crop&w=600&q=80",
-    "description": "Steamed organic edamame tossed in white truffle oil and smoked Maldon salt.",
+    "description": "Steamed organic edamame pods tossed in aromatic white truffle oil, roasted garlic, and smoked Maldon sea salt flakes.",
     "allergens": [
       "soy"
     ],
@@ -53,7 +61,13 @@
     "sizes": "Standard",
     "addons": "",
     "subcategory": "Signature",
-    "ingredients": "Edamame, truffle oil, sea salt",
+    "ingredients": "Organic Edamame Pods (200 g), White Truffle Oil (8 ml), Smoked Maldon Sea Salt (3 g), Roasted Garlic (5 g)",
+    "ingredientsList": [
+      { "name": "Organic Edamame Pods", "quantity": "200", "unit": "g" },
+      { "name": "White Truffle Oil", "quantity": "8", "unit": "ml" },
+      { "name": "Smoked Maldon Sea Salt", "quantity": "3", "unit": "g" },
+      { "name": "Roasted Garlic", "quantity": "5", "unit": "g" }
+    ],
     "emoji": "🫛"
   },
   {
@@ -69,7 +83,7 @@
     "reorderLevel": 5,
     "lastUpdated": "Oct 26, 2024 10:24 AM",
     "image": "https://images.unsplash.com/photo-1569718212165-3a8278d5f624?auto=format&fit=crop&w=600&q=80",
-    "description": "Warm wheat noodles tossed in rich peanut butter reduction, soy glaze, and scallions.",
+    "description": "Warm hand-pulled wheat noodles tossed in rich roasted peanut butter reduction, wildflower honey soy glaze, and crisp scallions.",
     "allergens": [
       "peanuts",
       "soy",
@@ -83,7 +97,14 @@
     "sizes": "Standard",
     "addons": "",
     "subcategory": "Signature",
-    "ingredients": "Noodles, peanut butter, soy sauce",
+    "ingredients": "Fresh Wheat Noodles (220 g), Roasted Peanut Butter (45 g), Wildflower Honey (15 ml), Soy Glaze (20 ml), Scallions (15 g)",
+    "ingredientsList": [
+      { "name": "Fresh Wheat Noodles", "quantity": "220", "unit": "g" },
+      { "name": "Roasted Peanut Butter", "quantity": "45", "unit": "g" },
+      { "name": "Wildflower Honey", "quantity": "15", "unit": "ml" },
+      { "name": "Soy Glaze", "quantity": "20", "unit": "ml" },
+      { "name": "Crisp Scallions", "quantity": "15", "unit": "g" }
+    ],
     "emoji": "🍜"
   },
   {
@@ -99,7 +120,7 @@
     "reorderLevel": 5,
     "lastUpdated": "Oct 26, 2024 10:24 AM",
     "image": "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=600&q=80",
-    "description": "Flash-fried tofu cubes with fiery five-spice pepper salt and sweet tamarind dip.",
+    "description": "Flash-fried organic tofu cubes dusted with fiery five-spice pepper salt, served alongside a tangy sweet tamarind dipping sauce.",
     "allergens": [
       "soy"
     ],
@@ -111,7 +132,13 @@
     "sizes": "Standard",
     "addons": "",
     "subcategory": "Signature",
-    "ingredients": "Tofu, five-spice, pepper",
+    "ingredients": "Organic Firm Tofu (210 g), Five-Spice Seasoning (4 g), Cracked Black Pepper (2 g), Sweet Tamarind Dip (30 ml)",
+    "ingredientsList": [
+      { "name": "Organic Firm Tofu", "quantity": "210", "unit": "g" },
+      { "name": "Five-Spice Seasoning", "quantity": "4", "unit": "g" },
+      { "name": "Cracked Black Pepper", "quantity": "2", "unit": "g" },
+      { "name": "Sweet Tamarind Dip", "quantity": "30", "unit": "ml" }
+    ],
     "emoji": "🥢"
   },
   {
@@ -127,7 +154,7 @@
     "reorderLevel": 10,
     "lastUpdated": "Oct 26, 2024 10:24 AM",
     "image": "https://images.unsplash.com/photo-1455619452474-d2be8b1e70cd?auto=format&fit=crop&w=600&q=80",
-    "description": "Aromatic lemongrass red curry with coconut milk, seasonal veggies, and fragrant jasmine rice.",
+    "description": "Aromatic lemongrass red curry simmered in creamy coconut milk with seasonal garden vegetables over steamed fragrant jasmine rice.",
     "allergens": [],
     "tags": [
       "vegan",
@@ -137,7 +164,14 @@
     "sizes": "Standard",
     "addons": "",
     "subcategory": "Signature",
-    "ingredients": "Coconut milk, red curry paste, jasmine rice",
+    "ingredients": "Steamed Jasmine Rice (250 g), Coconut Milk (180 ml), Red Curry Paste (25 g), Fresh Lemongrass (15 g), Seasonal Vegetables (120 g)",
+    "ingredientsList": [
+      { "name": "Steamed Jasmine Rice", "quantity": "250", "unit": "g" },
+      { "name": "Coconut Milk", "quantity": "180", "unit": "ml" },
+      { "name": "Red Curry Paste", "quantity": "25", "unit": "g" },
+      { "name": "Fresh Lemongrass", "quantity": "15", "unit": "g" },
+      { "name": "Seasonal Vegetables", "quantity": "120", "unit": "g" }
+    ],
     "emoji": "🍛"
   },
   {
@@ -153,7 +187,7 @@
     "reorderLevel": 5,
     "lastUpdated": "Oct 26, 2024 10:24 AM",
     "image": "https://images.unsplash.com/photo-1562440499-64c9a111f713?auto=format&fit=crop&w=600&q=80",
-    "description": "Sweet glutinous rice infused with rich coconut cream, paired with fresh ripe mango slices.",
+    "description": "Warm sweet glutinous rice infused with rich salted coconut cream, served with fresh ripe Philippine mango slices and toasted mung beans.",
     "allergens": [],
     "tags": [
       "vegan",
@@ -163,7 +197,13 @@
     "sizes": "Standard",
     "addons": "",
     "subcategory": "Signature",
-    "ingredients": "Glutinous rice, coconut cream, fresh mango",
+    "ingredients": "Glutinous Sticky Rice (180 g), Sweet Coconut Cream (80 ml), Ripe Philippine Mango (150 g), Toasted Mung Beans (5 g)",
+    "ingredientsList": [
+      { "name": "Glutinous Sticky Rice", "quantity": "180", "unit": "g" },
+      { "name": "Sweet Coconut Cream", "quantity": "80", "unit": "ml" },
+      { "name": "Ripe Philippine Mango", "quantity": "150", "unit": "g" },
+      { "name": "Toasted Mung Beans", "quantity": "5", "unit": "g" }
+    ],
     "emoji": "🥭"
   }
 ]

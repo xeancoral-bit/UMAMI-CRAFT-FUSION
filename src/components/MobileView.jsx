@@ -2,9 +2,14 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { io } from 'socket.io-client';
 import { getAllergens, getFlavorPreferences, subscribePreferences } from '../utils/preferencesService';
 import PesoReceipt from './PesoReceipt';
+import TableServiceModal from './TableServiceModal';
+import KioskProductModal from './KioskProductModal';
+import KioskCheckoutModal from './KioskCheckoutModal';
+import AllergyVerificationModal from './AllergyVerificationModal';
 import {
   Shield,
   CheckCircle,
+  XCircle,
   Flame,
   Leaf,
   Candy,
@@ -43,7 +48,11 @@ import {
   Wheat,
   Milk,
   ShieldAlert,
-  Info
+  Info,
+  Utensils,
+  ShoppingBag,
+  ArrowRight,
+  ShieldCheck
 } from 'lucide-react';
 
 // Play a rich 4-note ready fanfare chime
@@ -285,7 +294,7 @@ const DEFAULT_MIX_MATCH = [
     originalPrice: 560.00,
     badge: 'Save ₱131',
     allergens: [],
-    tags: ['mixmatch', 'popular', 'savory'],
+    tags: ['popular', 'savory'],
     emoji: '🥢',
     image: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=600&q=80'
   },
@@ -297,7 +306,7 @@ const DEFAULT_MIX_MATCH = [
     originalPrice: 490.00,
     badge: 'Save ₱101',
     allergens: ['gluten'],
-    tags: ['mixmatch', 'spicy'],
+    tags: ['spicy'],
     emoji: '🍜',
     image: 'https://images.unsplash.com/photo-1569718212165-3a8278d5f624?auto=format&fit=crop&w=600&q=80'
   },
@@ -309,7 +318,7 @@ const DEFAULT_MIX_MATCH = [
     originalPrice: 420.00,
     badge: 'Save ₱101',
     allergens: [],
-    tags: ['mixmatch', 'sweet'],
+    tags: ['sweet'],
     emoji: '🍧',
     image: 'https://images.unsplash.com/photo-1562440499-64c9a111f713?auto=format&fit=crop&w=600&q=80'
   }
@@ -337,7 +346,7 @@ function MobileView({ kioskId, onResetSession }) {
 
   const activePreferenceOptions = useMemo(() => {
     return (dynamicFlavors || [])
-      .filter(item => item.active !== false)
+      .filter(item => item.active !== false && String(item.id || '').toLowerCase() !== 'mixmatch' && String(item.label || item.name || '').toLowerCase() !== 'mixmatch')
       .sort((a, b) => (a.order || 0) - (b.order || 0));
   }, [dynamicFlavors]);
 
@@ -349,12 +358,24 @@ function MobileView({ kioskId, onResetSession }) {
 
   const [preferences, setPreferences] = useState(() => {
     const saved = localStorage.getItem('synapse_preferences');
-    return saved ? JSON.parse(saved) : [];
+    if (!saved) return [];
+    try {
+      const parsed = JSON.parse(saved);
+      return Array.isArray(parsed) ? parsed.filter(p => String(p).toLowerCase() !== 'mixmatch') : [];
+    } catch (_) {
+      return [];
+    }
   });
 
   const [history, setHistory] = useState(() => {
     const saved = localStorage.getItem('synapse_order_history');
-    return saved ? JSON.parse(saved) : [];
+    if (!saved) return [];
+    try {
+      const parsed = JSON.parse(saved);
+      return Array.isArray(parsed) ? parsed.filter(t => String(t).toLowerCase() !== 'mixmatch') : [];
+    } catch (_) {
+      return [];
+    }
   });
 
   const [cart, setCart] = useState({}); // { [itemId]: quantity }
@@ -553,18 +574,9 @@ function MobileView({ kioskId, onResetSession }) {
   };
 
   const [socketConnected, setSocketConnected] = useState(false);
-  const [isOnboarded, setIsOnboarded] = useState(() => {
-    const savedOnboarded = localStorage.getItem('synapse_onboarded') === 'true';
-    let hasDietaryData = false;
-    try {
-      const a = localStorage.getItem('synapse_allergens');
-      const p = localStorage.getItem('synapse_preferences');
-      if ((a && JSON.parse(a).length > 0) || (p && JSON.parse(p).length > 0)) {
-        hasDietaryData = true;
-      }
-    } catch (e) {}
-    return savedOnboarded || hasDietaryData;
-  });
+  // Start on the Kiosk Welcome Screen for self-service ordering flow
+  const [showWelcomeScreen, setShowWelcomeScreen] = useState(true);
+  const [isOnboarded, setIsOnboarded] = useState(false);
 
   // Toggle visibility (hide / unhide) of Active Dietary Filters section
   const [showDietaryFilters, setShowDietaryFilters] = useState(() => {
@@ -590,12 +602,18 @@ function MobileView({ kioskId, onResetSession }) {
     return saved ? JSON.parse(saved) : null;
   });
   const [activeOrder, setActiveOrder] = useState(() => {
-    const saved = localStorage.getItem('synapse_active_order');
-    return saved ? JSON.parse(saved) : null;
+    try {
+      localStorage.removeItem('synapse_active_order');
+    } catch (_) {}
+    return null;
   });
+  const [showServiceModal, setShowServiceModal] = useState(false);
   const [showReadyCelebration, setShowReadyCelebration] = useState(false);
   const [isBuzzing, setIsBuzzing] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState('all');
+  const [diningOption, setDiningOption] = useState('Dine-In');
+  const [selectedProductForModal, setSelectedProductForModal] = useState(null);
+  const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [notifPermission, setNotifPermission] = useState(
     'Notification' in window ? Notification.permission : 'unavailable'
   );
@@ -629,12 +647,187 @@ function MobileView({ kioskId, onResetSession }) {
   // Setup effective kiosk identification early so hooks can safely reference it
   const effectiveKioskId = kioskId || (activeOrder ? activeOrder.kioskId : 'COUNTER_01');
 
-  // Extract kioskPort parameter from URL to target the correct restaurant instance
+  // Extract kioskPort and restaurant parameters from URL to target the correct restaurant instance
   const urlParams = new URLSearchParams(window.location.search);
   const kioskPort = urlParams.get('kioskPort');
-  // Always use Vite proxy ('') when running on port 3000 or matching port to prevent external firewall blocks
-  const isViteProxyAvailable = window.location.port === '3000' || !kioskPort || kioskPort === window.location.port;
+  const restaurantParam = (urlParams.get('restaurant') || 'umami').trim().toLowerCase();
+  // Always use Vite proxy ('') when running on port 3000, cloud tunnels (loca.lt/https), or matching port to prevent external firewall blocks
+  const isTunnelOrHttps = typeof window !== 'undefined' && (window.location.protocol === 'https:' || window.location.hostname.includes('loca.lt'));
+  const isViteProxyAvailable = window.location.port === '3000' || !kioskPort || kioskPort === window.location.port || isTunnelOrHttps;
   const backendTargetUrl = isViteProxyAvailable ? '' : `http://${window.location.hostname}:${kioskPort}`;
+
+  // QR Session & Allergy Verification State (scoped to restaurant + kioskId so customer data never leaks)
+  const sessionScopeKey = `${restaurantParam}_${effectiveKioskId}`;
+  const [qrSession, setQrSession] = useState(null);
+  const [showAllergyModal, setShowAllergyModal] = useState(false);
+  const [allergyModalError, setAllergyModalError] = useState('');
+  const [allergyStatus, setAllergyStatus] = useState('unanswered'); // 'unanswered' | 'allergies_declared' | 'no_allergies_declared'
+  const [customAllergens, setCustomAllergens] = useState(() => {
+    try {
+      const saved = localStorage.getItem(`synapse_custom_allergens_${sessionScopeKey}`);
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [customAllergyInput, setCustomAllergyInput] = useState('');
+  const [dietaryConfirmToast, setDietaryConfirmToast] = useState('');
+
+  // Validate QR session on mount and immediately prompt "Do You Have Any Food Allergies?" if unanswered
+  useEffect(() => {
+    let cancelled = false;
+    const validateUrl = backendTargetUrl ? `${backendTargetUrl}/api/qr/validate` : '/api/qr/validate';
+    const existingSessionId = sessionStorage.getItem(`qr_session_id_${sessionScopeKey}`) || undefined;
+
+    fetch(validateUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        kioskId: effectiveKioskId,
+        restaurant: restaurantParam,
+        kioskPort: kioskPort || undefined,
+        sessionId: existingSessionId
+      })
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (cancelled) return;
+        if (data?.valid && data.session) {
+          setQrSession(data.session);
+          try {
+            sessionStorage.setItem(`qr_session_id_${sessionScopeKey}`, data.session.sessionId);
+          } catch (_) {}
+          const status = data.session.allergyStatus || 'unanswered';
+          setAllergyStatus(status);
+          if (status === 'unanswered') {
+            setShowAllergyModal(true);
+          } else if (status === 'allergies_declared') {
+            if (Array.isArray(data.session.allergens)) setAllergens(data.session.allergens);
+            if (Array.isArray(data.session.customAllergens)) setCustomAllergens(data.session.customAllergens);
+            if (Array.isArray(data.session.preferences)) setPreferences(data.session.preferences);
+          }
+        } else {
+          setAllergyModalError(data?.error || 'Could not validate QR session.');
+          setShowAllergyModal(true);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setShowAllergyModal(true);
+        }
+      });
+
+    return () => { cancelled = true; };
+  }, [backendTargetUrl, effectiveKioskId, kioskPort, restaurantParam, sessionScopeKey]);
+
+  // Step 5A: Customer selects YES, I HAVE ALLERGIES -> open Local Dietary Vault (Image 1)
+  const handleAllergyModalYes = async () => {
+    setAllergyModalError('');
+    setShowAllergyModal(false);
+    setShowWelcomeScreen(false);
+    setIsOnboarded(false);
+  };
+
+  // Step 5B: Customer selects NO, I DON'T HAVE ALLERGIES -> record "No allergies declared" & go to menu
+  const handleAllergyModalNo = async () => {
+    setAllergyModalError('');
+    try {
+      const verifyUrl = backendTargetUrl ? `${backendTargetUrl}/api/qr/allergy-verification` : '/api/qr/allergy-verification';
+      const res = await fetch(verifyUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          kioskId: effectiveKioskId,
+          restaurant: restaurantParam,
+          sessionId: qrSession?.sessionId,
+          hasAllergies: false,
+          allergens: [],
+          customAllergens: [],
+          preferences
+        })
+      });
+      const data = await res.json();
+      if (data?.session) setQrSession(data.session);
+    } catch (_) {}
+
+    setAllergens([]);
+    setCustomAllergens([]);
+    try {
+      localStorage.setItem('synapse_allergens', JSON.stringify([]));
+      localStorage.setItem(`synapse_custom_allergens_${sessionScopeKey}`, JSON.stringify([]));
+    } catch (_) {}
+
+    setAllergyStatus('no_allergies_declared');
+    setShowAllergyModal(false);
+    setShowWelcomeScreen(false);
+    setIsOnboarded(true);
+    setDietaryConfirmToast('Recorded: No allergies declared for this dining session.');
+    setTimeout(() => setDietaryConfirmToast(''), 4000);
+  };
+
+  // Add / Remove Custom Allergies in Local Dietary Vault
+  const handleAddCustomAllergy = () => {
+    const cleaned = customAllergyInput.trim();
+    if (!cleaned) return;
+    if (!customAllergens.some(a => a.toLowerCase() === cleaned.toLowerCase())) {
+      const next = [...customAllergens, cleaned];
+      setCustomAllergens(next);
+      try {
+        localStorage.setItem(`synapse_custom_allergens_${sessionScopeKey}`, JSON.stringify(next));
+      } catch (_) {}
+    }
+    setCustomAllergyInput('');
+  };
+
+  const handleRemoveCustomAllergy = (target) => {
+    const next = customAllergens.filter(a => a !== target);
+    setCustomAllergens(next);
+    try {
+      localStorage.setItem(`synapse_custom_allergens_${sessionScopeKey}`, JSON.stringify(next));
+    } catch (_) {}
+  };
+
+  // Step 7: Save Preferences from Local Dietary Vault to QR session + local storage
+  const handleSaveLocalDietaryVault = async () => {
+    const totalAllergensSelected = allergens.length + customAllergens.length;
+    const hasDeclaredAllergies = totalAllergensSelected > 0;
+
+    try {
+      const verifyUrl = backendTargetUrl ? `${backendTargetUrl}/api/qr/allergy-verification` : '/api/qr/allergy-verification';
+      const res = await fetch(verifyUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          kioskId: effectiveKioskId,
+          restaurant: restaurantParam,
+          sessionId: qrSession?.sessionId,
+          hasAllergies: hasDeclaredAllergies,
+          allergens,
+          customAllergens,
+          preferences
+        })
+      });
+      const data = await res.json();
+      if (data?.session) setQrSession(data.session);
+    } catch (_) {}
+
+    try {
+      localStorage.setItem('synapse_allergens', JSON.stringify(allergens));
+      localStorage.setItem(`synapse_custom_allergens_${sessionScopeKey}`, JSON.stringify(customAllergens));
+      localStorage.setItem('synapse_preferences', JSON.stringify(preferences));
+      localStorage.setItem('synapse_onboarded', 'true');
+    } catch (_) {}
+
+    setAllergyStatus(hasDeclaredAllergies ? 'allergies_declared' : 'no_allergies_declared');
+    setShowWelcomeScreen(false);
+    setIsOnboarded(true);
+    setDietaryConfirmToast(
+      hasDeclaredAllergies
+        ? `Saved ${totalAllergensSelected} allergen exclusion(s) & ${preferences.length} flavor preference(s).`
+        : 'Preferences saved! Enjoy browsing the menu.'
+    );
+    setTimeout(() => setDietaryConfirmToast(''), 4500);
+  };
 
   // Request notification + vibration permission proactively
   const requestAlertPermissions = useCallback(async () => {
@@ -749,9 +942,10 @@ function MobileView({ kioskId, onResetSession }) {
 
   // Load menu items, drinks, and restaurant metadata dynamically with resilient fallback
   useEffect(() => {
-    const menuEndpoint = backendTargetUrl ? `${backendTargetUrl}/api/menu` : '/api/menu';
-    const drinksEndpoint = backendTargetUrl ? `${backendTargetUrl}/api/drinks` : '/api/drinks';
-    const restEndpoint = backendTargetUrl ? `${backendTargetUrl}/api/restaurant` : '/api/restaurant';
+    const restQuery = `?restaurant=${encodeURIComponent(restaurantParam)}`;
+    const menuEndpoint = backendTargetUrl ? `${backendTargetUrl}/api/menu${restQuery}` : `/api/menu${restQuery}`;
+    const drinksEndpoint = backendTargetUrl ? `${backendTargetUrl}/api/drinks${restQuery}` : `/api/drinks${restQuery}`;
+    const restEndpoint = backendTargetUrl ? `${backendTargetUrl}/api/restaurant${restQuery}` : `/api/restaurant${restQuery}`;
 
     fetch(menuEndpoint)
       .then(res => res.json())
@@ -865,6 +1059,22 @@ function MobileView({ kioskId, onResetSession }) {
     }
   }, []);
 
+  // Remove any legacy 'mixmatch' entry from preferences and history
+  useEffect(() => {
+    setPreferences(prev => {
+      const cleaned = prev.filter(p => String(p).toLowerCase() !== 'mixmatch');
+      return cleaned.length !== prev.length ? cleaned : prev;
+    });
+    setHistory(prev => {
+      const cleaned = prev.filter(t => String(t).toLowerCase() !== 'mixmatch');
+      if (cleaned.length !== prev.length) {
+        try { localStorage.setItem('synapse_order_history', JSON.stringify(cleaned)); } catch (_) {}
+        return cleaned;
+      }
+      return prev;
+    });
+  }, []);
+
   // Sync state to localStorage on changes
   useEffect(() => {
     localStorage.setItem('synapse_allergens', JSON.stringify(allergens));
@@ -893,7 +1103,10 @@ function MobileView({ kioskId, onResetSession }) {
   // Setup WebSocket connection targeting the specific restaurant port
   useEffect(() => {
     const socket = io(backendTargetUrl || undefined, {
-      transports: ['websocket', 'polling']
+      transports: ['polling', 'websocket'],
+      reconnection: true,
+      reconnectionAttempts: Infinity,
+      reconnectionDelay: 1000
     });
     socketRef.current = socket;
 
@@ -1202,66 +1415,94 @@ function MobileView({ kioskId, onResetSession }) {
     return [...foods, ...formattedDrinks, ...formattedCombos, ...mixMatchDeals];
   }, [menuItems, drinks]);
 
-  // Filter items based on user excluded allergens, chosen category, and search query
+  // Helper to check if an item belongs to a category tab
+  const matchesCategoryTab = useCallback((item, tabId) => {
+    const catLower = String(item.category || '').toLowerCase();
+    if (tabId === 'all') return true;
+    if (tabId === 'appetizers') {
+      return ['appetizers', 'starters'].includes(catLower);
+    }
+    if (tabId === 'mains') {
+      return ['rice bowls', 'bowls & mains', 'mains', 'meals', 'burgers', 'chicken'].includes(catLower);
+    }
+    if (tabId === 'dimsum') {
+      return ['dimsum & bites', 'dim sum & bites', 'dim sum', 'desserts', 'snacks', 'add-ons'].includes(catLower);
+    }
+    if (tabId === 'noodles') {
+      return ['noodles', 'ramen'].includes(catLower);
+    }
+    if (tabId === 'drinks') {
+      return item.catalogType === 'drink' || catLower === 'drinks & boba' || catLower === 'drinks';
+    }
+    if (tabId === 'combos') {
+      return item.catalogType === 'combo' || catLower === 'combos & value meals' || catLower === 'combos';
+    }
+    if (tabId === 'mixmatch') {
+      return item.catalogType === 'mixmatch' || catLower === 'mix & match deals' || catLower === 'mix & match';
+    }
+    return catLower === String(tabId || '').toLowerCase();
+  }, []);
+
+  // Filter items based on user excluded allergens (standard + custom), chosen category, and search query
   const safeItems = useMemo(() => {
     return allCatalogItems.filter(item => {
-      // 1. Exclude if item contains any allergen selected by user
-      const hasExcludedAllergen = item.allergens && item.allergens.some(a => allergens.includes(a));
-      if (hasExcludedAllergen) return false;
+      // 1. Exclude if item contains any standard or custom allergen selected by user
+      const hasStandardAllergen = item.allergens && item.allergens.some(a => allergens.includes(a));
+      if (hasStandardAllergen) return false;
 
-      // 2. Filter by category tab
-      if (selectedCategory === 'all') {
-        // all items
-      } else if (selectedCategory === 'mains') {
-        const match = ['Rice Bowls', 'Bowls & Mains', 'Mains', 'Meals', 'Burgers', 'Chicken'].some(c => c.toLowerCase() === (item.category || '').toLowerCase());
-        if (!match) return false;
-      } else if (selectedCategory === 'appetizers') {
-        const match = ['Appetizers', 'Dimsum & Bites', 'Desserts', 'Snacks', 'Add-ons'].some(c => c.toLowerCase() === (item.category || '').toLowerCase());
-        if (!match) return false;
-      } else if (selectedCategory === 'noodles') {
-        const match = ['Noodles', 'Ramen'].some(c => c.toLowerCase() === (item.category || '').toLowerCase());
-        if (!match) return false;
-      } else if (selectedCategory === 'drinks') {
-        if (item.catalogType !== 'drink' && item.category !== 'Drinks & Boba' && item.category !== 'Drinks') return false;
-      } else if (selectedCategory === 'combos') {
-        if (item.catalogType !== 'combo' && item.category !== 'Combos & Value Meals') return false;
-      } else if (selectedCategory === 'mixmatch') {
-        if (item.catalogType !== 'mixmatch' && item.category !== 'Mix & Match Deals') return false;
+      if (customAllergens.length > 0) {
+        const ingBlob = [
+          ...(Array.isArray(item.allergens) ? item.allergens : []),
+          item.ingredients || '',
+          ...(Array.isArray(item.ingredientsList) ? item.ingredientsList.map(r => r.name || '') : [])
+        ].join(' ').toLowerCase();
+        const hasCustomMatch = customAllergens.some(ca => ingBlob.includes(ca.toLowerCase()));
+        if (hasCustomMatch) return false;
       }
 
-      // 3. Search query filter
+      // 2. Filter by category tab
+      if (!matchesCategoryTab(item, selectedCategory)) return false;
+
+      // 3. Search query filter (name, description, category, ingredients)
       if (catalogSearch && catalogSearch.trim()) {
         const q = catalogSearch.toLowerCase().trim();
         const inName = (item.name || '').toLowerCase().includes(q);
         const inDesc = (item.description || '').toLowerCase().includes(q);
         const inCat = (item.category || '').toLowerCase().includes(q);
         const inIng = (item.ingredients || '').toLowerCase().includes(q);
-        if (!inName && !inDesc && !inCat && !inIng) return false;
+        const inIngList = Array.isArray(item.ingredientsList) && item.ingredientsList.some(ing => (ing.name || '').toLowerCase().includes(q));
+        if (!inName && !inDesc && !inCat && !inIng && !inIngList) return false;
       }
 
       return true;
     });
-  }, [allCatalogItems, allergens, selectedCategory, catalogSearch]);
+  }, [allCatalogItems, allergens, selectedCategory, catalogSearch, matchesCategoryTab]);
 
   // Cart Helper Methods supporting both standard and customized items
   const handleAddToCart = (item, customDetails = null) => {
     if (!item.available && !customDetails) return;
     if (customDetails) {
-      const cartKey = `${item.id}-${customDetails.sizeName || 'std'}`;
+      const addonSignature = (customDetails.addons || []).map(a => a.name || a).sort().join('|');
+      const cartKey = `${item.id}-${customDetails.sizeName || 'std'}-${customDetails.spiceLevel || 'reg'}-${addonSignature}-${customDetails.specialNote || ''}`;
       setCart(prev => {
         const existing = prev[cartKey];
         const newQty = (existing?.quantity || 0) + (customDetails.qty || 1);
+        const sizeLabel = customDetails.sizeName && customDetails.sizeName !== 'Standard Serving'
+          ? ` (${customDetails.sizeName})`
+          : '';
         return {
           ...prev,
           [cartKey]: {
             ...item,
             id: cartKey,
             originalId: item.id,
-            name: `${item.name} (${customDetails.sizeName})`,
+            name: `${item.name}${sizeLabel}`,
             price: customDetails.price,
             size: customDetails.sizeName,
             volume: customDetails.volume,
+            spiceLevel: customDetails.spiceLevel || null,
             addons: customDetails.addons || [],
+            specialNote: customDetails.specialNote || '',
             quantity: newQty
           }
         };
@@ -1338,12 +1579,17 @@ function MobileView({ kioskId, onResetSession }) {
   };
 
   // Place multi-item order flow
-  const handlePlaceOrder = () => {
+  const handlePlaceOrder = (checkoutOpts = null) => {
     const cartItems = getCartItems();
     if (cartItems.length === 0) {
       alert("Please add at least one dish to your order.");
       return;
     }
+
+    const chosenDiningOption = checkoutOpts?.diningOption || diningOption || 'Dine-In';
+    const chosenPayment = checkoutOpts?.paymentMethod || 'GCash';
+    const DIGITAL_WALLETS = ['gcash', 'maya', 'paypal', 'maribank', 'grab', 'shopee', 'gotyme', 'card', 'e-wallet'];
+    const isDigitalPayment = DIGITAL_WALLETS.some(w => chosenPayment.toLowerCase().includes(w));
 
     // 1. Update local user history with ordered food item tags (cumulative weighting by quantity)
     const newHistory = [...history];
@@ -1451,8 +1697,11 @@ function MobileView({ kioskId, onResetSession }) {
       tableNumber: effectiveTableNum,
       tableId: scannedTableParam,
       location: effectiveTableNum,
-      customer: 'Mobile Diner',
-      diningOption: 'Dine-In',
+      customer: 'Kiosk Guest',
+      diningOption: chosenDiningOption,
+      payment: chosenPayment,
+      paymentStatus: isDigitalPayment ? 'Pending' : 'Pending Counter Payment',
+      isPaymentVerified: false,
       items: cartItems,
       itemCount: getCartCount(),
       totalPrice,
@@ -1461,7 +1710,7 @@ function MobileView({ kioskId, onResetSession }) {
       promoCode: promoApplied ? promoApplied.code : null,
       orderedTags: allOrderedTags,
       allergens,
-      status: 'Order Received',
+      status: isDigitalPayment ? 'Pending Payment' : 'New',
       gadgetType: 'Customer Device',
       device: currentDeviceType,
       platform: currentDeviceType,
@@ -1484,12 +1733,14 @@ function MobileView({ kioskId, onResetSession }) {
       socketRef.current.emit('place-order', {
         orderId,
         kioskId: kioskId || 'MOBILE_01',
-        customer: 'Mobile Diner',
-        diningOption: 'Dine-In',
+        customer: 'Kiosk Guest',
+        diningOption: chosenDiningOption,
         tableNumber: effectiveTableNum,
         tableId: scannedTableParam,
         location: effectiveTableNum,
-        payment: 'GCash',
+        payment: chosenPayment,
+        paymentStatus: isDigitalPayment ? 'Pending' : 'Pending Counter Payment',
+        isPaymentVerified: false,
         device: currentDeviceType,
         platform: currentDeviceType,
         items: cartItems,
@@ -1500,12 +1751,36 @@ function MobileView({ kioskId, onResetSession }) {
       });
     }
 
+    // For digital payments, trigger automated gateway webhook verification
+    if (isDigitalPayment) {
+      setTimeout(() => {
+        fetch('/api/webhooks/simulate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            scenario: 'success',
+            orderId,
+            amount: totalPrice,
+            gateway: chosenPayment.toLowerCase().includes('card') ? 'card' :
+              chosenPayment.toLowerCase().includes('maya') ? 'maya' :
+              chosenPayment.toLowerCase().includes('paypal') ? 'paypal' :
+              chosenPayment.toLowerCase().includes('maribank') ? 'maribank' :
+              chosenPayment.toLowerCase().includes('grab') ? 'grabpay' :
+              chosenPayment.toLowerCase().includes('shopee') ? 'shopeepay' :
+              chosenPayment.toLowerCase().includes('gotyme') ? 'gotyme' : 'gcash',
+            paymentMethod: chosenPayment
+          })
+        }).catch(() => {});
+      }, 1200);
+    }
+
     // 6. Clear cart and promo locally
     setCart({});
     setPromoCode('');
     setPromoApplied(null);
     setPromoMsg({ text: '', ok: false });
     setIsCartOpen(false);
+    setIsCheckoutOpen(false);
   };
 
   // Dismiss / complete active order session
@@ -1537,6 +1812,7 @@ function MobileView({ kioskId, onResetSession }) {
 
   // Simple taste profiling analytics
   const tagCounts = history.reduce((acc, tag) => {
+    if (String(tag).toLowerCase() === 'mixmatch') return acc;
     acc[tag] = (acc[tag] || 0) + 1;
     return acc;
   }, {});
@@ -2013,11 +2289,35 @@ function MobileView({ kioskId, onResetSession }) {
                   {activeOrder.kioskId && activeOrder.kioskId.startsWith('K-') ? `Kiosk #${activeOrder.kioskId}` : `Table #${activeOrder.kioskId}`} • Placed {new Date(activeOrder.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                 </p>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span className={`pulse-indicator ${socketConnected ? 'active' : 'disconnected'}`}></span>
-                <span style={{ fontSize: '11px', color: socketConnected ? 'var(--text-secondary)' : 'var(--accent-danger)', fontWeight: '600' }}>
-                  {socketConnected ? 'Live' : 'Connecting'}
-                </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <button
+                  type="button"
+                  onClick={() => setShowServiceModal(true)}
+                  title="Call Server / Request Table Service Assistance"
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    padding: '5px 10px',
+                    borderRadius: '20px',
+                    background: 'rgba(245, 158, 11, 0.15)',
+                    border: '1.5px solid rgba(245, 158, 11, 0.5)',
+                    color: '#d97706',
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap'
+                  }}
+                >
+                  <Bell size={12} color="#d97706" />
+                  <span>Call Server</span>
+                </button>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span className={`pulse-indicator ${socketConnected ? 'active' : 'disconnected'}`}></span>
+                  <span style={{ fontSize: '11px', color: socketConnected ? 'var(--text-secondary)' : 'var(--accent-danger)', fontWeight: '600' }}>
+                    {socketConnected ? 'Live' : 'Connecting'}
+                  </span>
+                </div>
               </div>
             </div>
           </div>
@@ -2368,7 +2668,54 @@ function MobileView({ kioskId, onResetSession }) {
               </div>
               <div className="mv-menu-header-controls">
                 <button
-                  onClick={() => setIsOnboarded(false)}
+                  type="button"
+                  onClick={() => setDiningOption(prev => (prev === 'Dine-In' ? 'Takeout' : 'Dine-In'))}
+                  style={{
+                    background: 'rgba(5, 150, 105, 0.1)',
+                    border: '1.5px solid rgba(5, 150, 105, 0.35)',
+                    color: '#059669',
+                    padding: '5px 10px',
+                    borderRadius: '8px',
+                    fontSize: '11px',
+                    fontWeight: '800',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '5px',
+                    whiteSpace: 'nowrap'
+                  }}
+                  title="Tap to switch between Dine-In and Takeout"
+                >
+                  {diningOption === 'Takeout' ? <ShoppingBag size={12} /> : <Utensils size={12} />}
+                  <span>{diningOption}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowServiceModal(true)}
+                  style={{
+                    background: 'rgba(245, 158, 11, 0.15)',
+                    border: '1.5px solid rgba(245, 158, 11, 0.5)',
+                    color: '#d97706',
+                    padding: '5px 10px',
+                    borderRadius: '8px',
+                    fontSize: '11px',
+                    fontWeight: '700',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    whiteSpace: 'nowrap'
+                  }}
+                  title="Call Server / Request Table Service Assistance"
+                >
+                  <Bell size={12} color="#d97706" />
+                  <span>Call Server</span>
+                </button>
+                <button
+                  onClick={() => {
+                    setShowWelcomeScreen(false);
+                    setIsOnboarded(false);
+                  }}
                   style={{
                     background: 'rgba(228, 87, 41, 0.1)',
                     border: '1px solid rgba(228, 87, 41, 0.3)',
@@ -2387,6 +2734,27 @@ function MobileView({ kioskId, onResetSession }) {
                 >
                   <Settings size={12} />
                   <span>Edit Diet</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowWelcomeScreen(true);
+                    setIsOnboarded(false);
+                  }}
+                  style={{
+                    background: 'rgba(28, 25, 23, 0.06)',
+                    border: '1px solid rgba(28, 25, 23, 0.16)',
+                    color: '#44403C',
+                    padding: '5px 10px',
+                    borderRadius: '8px',
+                    fontSize: '11px',
+                    fontWeight: '700',
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap'
+                  }}
+                  title="Return to Kiosk Welcome Screen"
+                >
+                  Start Over
                 </button>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' }}>
                   <span className={`pulse-indicator ${socketConnected ? 'active' : 'disconnected'}`}></span>
@@ -2419,7 +2787,7 @@ function MobileView({ kioskId, onResetSession }) {
                 <h5 style={{ fontSize: '11px', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: '800', margin: 0, letterSpacing: '0.04em' }}>
                   Active Dietary Filters (Syncs Live)
                 </h5>
-                {(allergens.length > 0 || preferences.length > 0) && (
+                {(allergens.length > 0 || preferences.filter(p => String(p).toLowerCase() !== 'mixmatch').length > 0) && (
                   <span style={{
                     fontSize: '10px',
                     fontWeight: '800',
@@ -2429,7 +2797,7 @@ function MobileView({ kioskId, onResetSession }) {
                     color: 'var(--brand-primary, #D94B2B)',
                     whiteSpace: 'nowrap'
                   }}>
-                    {allergens.length + preferences.length} active
+                    {allergens.length + preferences.filter(p => String(p).toLowerCase() !== 'mixmatch').length} active
                   </span>
                 )}
               </div>
@@ -2543,7 +2911,7 @@ function MobileView({ kioskId, onResetSession }) {
                   })}
                 </div>
               </div>
-            ) : (allergens.length > 0 || preferences.length > 0) ? (
+            ) : (allergens.length > 0 || preferences.filter(p => String(p).toLowerCase() !== 'mixmatch').length > 0) ? (
               /* When Hidden but filters are active: Show a clean compact 1-line summary */
               <div 
                 onClick={toggleDietaryFilters}
@@ -2564,7 +2932,7 @@ function MobileView({ kioskId, onResetSession }) {
                     Excl. {a}
                   </span>
                 ))}
-                {preferences.map(p => (
+                {preferences.filter(p => String(p).toLowerCase() !== 'mixmatch').map(p => (
                   <span key={p} style={{ background: 'rgba(45, 106, 79, 0.1)', color: '#059669', padding: '1px 6px', borderRadius: '4px', fontSize: '10px', fontWeight: '700' }}>
                     {p}
                   </span>
@@ -2576,25 +2944,46 @@ function MobileView({ kioskId, onResetSession }) {
           {/* 5-Second Auto-Cycling Promotional Banner Carousel */}
           {renderPromoBannerCarousel()}
 
-          {/* Category Tabs: All, Bowls, Appetizers, Noodles, Drinks, Combos, Mix & Match */}
-          <div className="mv-cat-tabs-scroll">
+          {/* Kiosk Self-Service Ordering Workspace: Left Category Rail + Main Product Grid */}
+          <div className="mv-kiosk-workspace">
+            {/* Category Tabs: All, Appetizers, Bowls & Mains, Dim Sum & Bites, Noodles, Drinks & Boba, Combos, Mix & Match */}
+            <div className="mv-cat-tabs-scroll mv-kiosk-cat-rail">
             {[
-              { id: 'all', label: 'All Items' },
-              { id: 'mains', label: 'Bowls & Mains' },
-              { id: 'appetizers', label: 'Dimsum & Bites' },
-              { id: 'noodles', label: 'Noodles' },
-              { id: 'drinks', label: 'Drinks & Boba' },
-              { id: 'combos', label: 'Combos' },
-              { id: 'mixmatch', label: 'Mix & Match' }
-            ].map(tab => (
-              <button
-                key={tab.id}
-                onClick={() => setSelectedCategory(tab.id)}
-                className={`mv-cat-tab-btn ${selectedCategory === tab.id ? 'active' : ''}`}
-              >
-                {tab.label}
-              </button>
-            ))}
+              { id: 'all', label: 'All Items', icon: '🍽️' },
+              { id: 'appetizers', label: 'Appetizers', icon: '🥟' },
+              { id: 'mains', label: 'Bowls & Mains', icon: '🍚' },
+              { id: 'dimsum', label: 'Dim Sum & Bites', icon: '🥢' },
+              { id: 'noodles', label: 'Noodles', icon: '🍜' },
+              { id: 'drinks', label: 'Drinks & Boba', icon: '🧋' },
+              { id: 'combos', label: 'Combos', icon: '🍱' },
+              { id: 'mixmatch', label: 'Mix & Match', icon: '✨' }
+            ].map(tab => {
+              const catCount = allCatalogItems.filter(item => {
+                const hasExcludedAllergen = item.allergens && item.allergens.some(a => allergens.includes(a));
+                return !hasExcludedAllergen && matchesCategoryTab(item, tab.id);
+              }).length;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setSelectedCategory(tab.id)}
+                  className={`mv-cat-tab-btn ${selectedCategory === tab.id ? 'active' : ''}`}
+                >
+                  <span style={{ marginRight: '5px' }}>{tab.icon}</span>
+                  <span>{tab.label}</span>
+                  <span style={{
+                    marginLeft: '6px',
+                    fontSize: '10px',
+                    fontWeight: 800,
+                    opacity: selectedCategory === tab.id ? 0.95 : 0.65,
+                    background: selectedCategory === tab.id ? 'rgba(255,255,255,0.22)' : 'rgba(0,0,0,0.06)',
+                    padding: '1px 6px',
+                    borderRadius: '999px'
+                  }}>
+                    {catCount}
+                  </span>
+                </button>
+              );
+            })}
           </div>
 
           {/* Ordering Panel */}
@@ -2648,263 +3037,298 @@ function MobileView({ kioskId, onResetSession }) {
               )}
             </div>
 
-            <div className="mv-safe-catalog-list" style={{ display: 'flex', flexDirection: 'column', gap: '10px', overflowY: 'auto', paddingRight: '4px', marginBottom: '12px' }}>
+            <div className="mv-safe-catalog-list mv-kiosk-grid" style={{ overflowY: 'auto', paddingRight: '4px', marginBottom: '16px' }}>
               {safeItems.map(item => {
-                const qtyInCart = typeof cart[item.id] === 'number' ? cart[item.id] : (cart[item.id]?.quantity || 0);
+                // Count total quantity in cart for this item (including customized variants)
+                const qtyInCart = Object.values(cart).reduce((sum, val) => {
+                  if (typeof val === 'object' && val !== null) {
+                    return (String(val.originalId || val.id) === String(item.id)) ? sum + (val.quantity || 1) : sum;
+                  }
+                  return sum;
+                }, 0) + (typeof cart[item.id] === 'number' ? cart[item.id] : 0);
+
                 const isMatch = preferences.some(p => item.tags && item.tags.includes(p));
                 const matchCount = item.tags ? item.tags.filter(p => preferences.includes(p)).length : 0;
                 const isUnavailable = !item.available || item.isExplicitlyUnavailable;
                 const isOutOfStock = item.isOutOfStock || (item.stock !== undefined && item.stock <= 0);
                 const isDrink = item.catalogType === 'drink';
                 const hasMultipleSizes = isDrink && item.sizes && item.sizes.length > 0;
+                const isDisabled = isUnavailable || isOutOfStock;
 
                 return (
                   <div
                     key={item.id}
-                    className="mv-catalog-item-card"
-                    style={{
-                      padding: '12px',
-                      borderRadius: '12px',
-                      background: qtyInCart > 0 ? 'rgba(217, 56, 58, 0.05)' : 'var(--bg-surface)',
-                      border: `1px solid ${qtyInCart > 0 ? 'var(--accent-red)' : 'var(--border-glass)'}`,
-                      transition: 'all 0.15s ease',
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      gap: '12px',
-                      opacity: isUnavailable ? 0.65 : 1
+                    className={`mv-kiosk-card ${qtyInCart > 0 ? 'in-cart' : ''} ${isDisabled ? 'disabled' : ''}`}
+                    onClick={() => {
+                      if (!isDisabled) setSelectedProductForModal(item);
+                    }}
+                    role="button"
+                    tabIndex={isDisabled ? -1 : 0}
+                    onKeyDown={(e) => {
+                      if (!isDisabled && (e.key === 'Enter' || e.key === ' ')) {
+                        e.preventDefault();
+                        setSelectedProductForModal(item);
+                      }
                     }}
                   >
-                    {/* Left: Product Thumbnail Image + Details */}
-                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', flex: 1, minWidth: 0 }}>
+                    {/* Card Top: High-Res Food Photography + Status Badges */}
+                    <div className="mv-kiosk-card-img-wrap">
                       {item.image ? (
-                        <div style={{ width: '48px', height: '48px', borderRadius: '8px', overflow: 'hidden', flexShrink: 0, border: '1px solid var(--border-glass)', background: 'var(--bg-surface-elevated)' }}>
-                          <img
-                            src={item.image}
-                            alt={item.name}
-                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                            onError={(e) => {
-                              e.target.style.display = 'none';
-                              if (e.target.nextSibling) e.target.nextSibling.style.display = 'flex';
-                            }}
-                          />
-                          <div style={{ display: 'none', width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center', fontSize: '22px' }}>
-                            {item.emoji || '🍽️'}
-                          </div>
-                        </div>
-                      ) : (
-                        <span style={{ fontSize: '24px', flexShrink: 0 }}>{item.emoji || '🍽️'}</span>
-                      )}
+                        <img
+                          src={item.image}
+                          alt={item.name}
+                          className="mv-kiosk-card-img"
+                          onError={(e) => {
+                            e.target.style.display = 'none';
+                            if (e.target.nextSibling) e.target.nextSibling.style.display = 'flex';
+                          }}
+                        />
+                      ) : null}
+                      <div className="mv-kiosk-card-emoji-fallback" style={{ display: item.image ? 'none' : 'flex' }}>
+                        {item.emoji || '🍽️'}
+                      </div>
 
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                          <h6 style={{ fontSize: '13.5px', fontWeight: '700', margin: 0, color: 'var(--text-primary)' }}>
-                            {item.name}
-                          </h6>
-                          {item.badge && (
-                            <span style={{ fontSize: '9px', background: '#059669', color: '#ffffff', padding: '2px 6px', borderRadius: '4px', fontWeight: '800' }}>
-                              {item.badge}
-                            </span>
-                          )}
-                          {isMatch && (
-                            <span style={{ fontSize: '9px', background: 'var(--accent-gradient)', color: '#ffffff', padding: '2px 6px', borderRadius: '4px', fontWeight: '700' }}>
-                              MATCH (+{matchCount})
-                            </span>
-                          )}
-                          {item.promoPrice && (
-                            <span style={{ fontSize: '9px', background: '#e11d48', color: '#ffffff', padding: '2px 6px', borderRadius: '4px', fontWeight: '800' }}>
-                              PROMO
-                            </span>
-                          )}
-                          {isUnavailable && (
-                            <span style={{ fontSize: '9px', background: '#ef4444', color: '#ffffff', padding: '2px 6px', borderRadius: '4px', fontWeight: '700' }}>
-                              Unavailable
-                            </span>
-                          )}
-                          {!isUnavailable && isOutOfStock && (
-                            <span style={{ fontSize: '9px', background: '#ef4444', color: '#ffffff', padding: '2px 6px', borderRadius: '4px', fontWeight: '700' }}>
-                              Out of Stock
-                            </span>
-                          )}
-                          {!isUnavailable && !isOutOfStock && item.stock !== undefined && item.stock <= 5 && (
-                            <span style={{ fontSize: '9px', background: '#f59e0b', color: '#ffffff', padding: '2px 6px', borderRadius: '4px', fontWeight: '700' }}>
-                              Only {item.stock} left
-                            </span>
-                          )}
-                        </div>
+                      {/* Top Left Badges */}
+                      <div className="mv-kiosk-card-badges-top">
+                        {item.category && (
+                          <span className="mv-kiosk-cat-pill">
+                            {item.drinkCategory || item.category}
+                          </span>
+                        )}
+                        {item.promoPrice && (
+                          <span className="mv-kiosk-promo-pill">PROMO</span>
+                        )}
+                        {item.badge && (
+                          <span className="mv-kiosk-save-pill">{item.badge}</span>
+                        )}
+                      </div>
 
-                        <p style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '3px', marginBottom: 0, lineHeight: 1.35 }}>
-                          {item.description}
-                        </p>
+                      {/* Top Right Match / Quantity Badge */}
+                      {qtyInCart > 0 ? (
+                        <div className="mv-kiosk-qty-badge">{qtyInCart} in order</div>
+                      ) : isMatch ? (
+                        <div className="mv-kiosk-match-badge">MATCH +{matchCount}</div>
+                      ) : null}
 
-                        <div style={{ display: 'flex', gap: '4px', marginTop: '6px', flexWrap: 'wrap' }}>
-                          {item.category && (
-                            <span className="badge" style={{ fontSize: '9px', padding: '2px 6px', background: 'rgba(228,87,41,0.08)', color: 'var(--accent-red)', border: '1px solid rgba(228,87,41,0.2)' }}>
-                              {item.drinkCategory || item.category}
-                            </span>
-                          )}
-                          {item.tags && item.tags.map(tag => (
-                            <span key={tag} className={`badge ${preferences.includes(tag) ? 'badge-recommend' : 'badge-tag'}`} style={{ fontSize: '9px', padding: '2px 6px' }}>
-                              {tag}
-                            </span>
-                          ))}
-                        </div>
+                      {/* Prep Time / Stock Indicator */}
+                      {isUnavailable ? (
+                        <div className="mv-kiosk-unavailable-overlay">Unavailable</div>
+                      ) : isOutOfStock ? (
+                        <div className="mv-kiosk-unavailable-overlay">Out of Stock</div>
+                      ) : item.prepTime ? (
+                        <div className="mv-kiosk-prep-pill">⏱ {item.prepTime}</div>
+                      ) : null}
+                    </div>
+
+                    {/* Card Body: Title, Description, Tags, Allergens */}
+                    <div className="mv-kiosk-card-body">
+                      <h6 className="mv-kiosk-card-title">{item.name}</h6>
+                      <p className="mv-kiosk-card-desc">
+                        {item.description || 'Crafted fresh to order with authentic Umami Craft Fusion ingredients.'}
+                      </p>
+
+                      {/* Flavor & Allergen Indicators */}
+                      <div className="mv-kiosk-card-tags">
+                        {item.tags && item.tags.slice(0, 3).map(tag => (
+                          <span key={tag} className={`badge ${preferences.includes(tag) ? 'badge-recommend' : 'badge-tag'}`} style={{ fontSize: '9.5px', padding: '2px 7px' }}>
+                            {tag}
+                          </span>
+                        ))}
+                        {Array.isArray(item.allergens) && item.allergens.length > 0 && (
+                          <span style={{ fontSize: '9.5px', padding: '2px 7px', borderRadius: '6px', background: 'rgba(239, 68, 68, 0.08)', color: '#dc2626', fontWeight: 700, border: '1px solid rgba(239, 68, 68, 0.2)' }}>
+                            Contains: {item.allergens.join(', ')}
+                          </span>
+                        )}
                       </div>
                     </div>
 
-                    {/* Right: Price + Add Button / Controls */}
-                    <div className="mv-catalog-item-actions" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px', minWidth: '95px', flexShrink: 0 }}>
-                      <div style={{ textAlign: 'right' }}>
+                    {/* Card Footer: Price + Touchscreen Customize/Add CTA */}
+                    <div className="mv-kiosk-card-footer">
+                      <div>
                         {item.promoPrice ? (
-                          <>
-                            <div style={{ fontSize: '11px', color: 'var(--text-muted)', textDecoration: 'line-through' }}>
-                              ₱{item.price.toFixed(2)}
-                            </div>
-                            <div style={{ fontWeight: '800', fontSize: '14px', color: '#e11d48' }}>
-                              ₱{item.promoPrice.toFixed(2)}
-                            </div>
-                          </>
+                          <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
+                            <span style={{ fontWeight: 900, fontSize: '16px', color: '#e11d48' }}>
+                              ₱{Number(item.promoPrice).toFixed(2)}
+                            </span>
+                            <span style={{ fontSize: '11px', color: 'var(--text-muted)', textDecoration: 'line-through' }}>
+                              ₱{Number(item.price).toFixed(2)}
+                            </span>
+                          </div>
                         ) : (
-                          <div style={{ fontWeight: '800', fontSize: '14px', color: 'inherit' }}>
-                            ₱{item.price.toFixed(2)}
+                          <div style={{ fontWeight: 900, fontSize: '16px', color: 'var(--text-primary)' }}>
+                            ₱{Number(item.price || 0).toFixed(2)}
                           </div>
                         )}
                         {hasMultipleSizes && (
-                          <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '1px' }}>
-                            {item.sizes.length} sizes
+                          <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
+                            {item.sizes.length} sizes available
                           </div>
                         )}
                       </div>
 
-                      {/* Add Button Logic */}
-                      {isUnavailable ? (
-                        <button
-                          disabled
-                          style={{
-                            background: 'rgba(148, 163, 184, 0.12)',
-                            color: '#94a3b8',
-                            border: '1px solid rgba(148, 163, 184, 0.3)',
-                            borderRadius: '8px',
-                            padding: '6px 12px',
-                            fontSize: '11px',
-                            fontWeight: '700',
-                            cursor: 'not-allowed',
-                            opacity: 0.65
-                          }}
-                        >
-                          Unavailable
-                        </button>
-                      ) : isOutOfStock ? (
-                        <button
-                          disabled
-                          style={{
-                            background: 'rgba(239, 68, 68, 0.08)',
-                            color: '#ef4444',
-                            border: '1px solid rgba(239, 68, 68, 0.25)',
-                            borderRadius: '8px',
-                            padding: '6px 12px',
-                            fontSize: '11px',
-                            fontWeight: '700',
-                            cursor: 'not-allowed',
-                            opacity: 0.65
-                          }}
-                        >
-                          Out of Stock
-                        </button>
-                      ) : hasMultipleSizes ? (
-                        <button
-                          onClick={() => {
-                            setSelectedDrinkForModal(item);
-                            setModalSizeIndex(0);
-                            setModalSelectedAddons([]);
-                            setModalQty(1);
-                          }}
-                          style={{
-                            background: 'var(--bg-surface-elevated)',
-                            color: 'var(--text-primary)',
-                            border: '1px solid var(--border-glass)',
-                            borderRadius: '8px',
-                            padding: '6px 12px',
-                            fontSize: '11px',
-                            fontWeight: '700',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '4px',
-                            cursor: 'pointer'
-                          }}
-                        >
-                          <Plus size={12} /> Add
-                        </button>
-                      ) : qtyInCart > 0 ? (
-                        <div className="qty-stepper">
-                          <button
-                            className="qty-btn"
-                            onClick={() => handleUpdateQuantity(item.id, -1)}
-                            title="Decrease quantity"
-                          >
-                            <Minus size={12} />
-                          </button>
-                          <span className="qty-count">{qtyInCart}</span>
-                          <button
-                            className="qty-btn"
-                            onClick={() => handleUpdateQuantity(item.id, 1)}
-                            title="Increase quantity"
-                          >
-                            <Plus size={12} />
-                          </button>
-                        </div>
-                      ) : (
-                        <button
-                          onClick={() => handleAddToCart(item)}
-                          style={{
-                            background: 'var(--bg-surface-elevated)',
-                            color: 'var(--text-primary)',
-                            border: '1px solid var(--border-glass)',
-                            borderRadius: '8px',
-                            padding: '6px 12px',
-                            fontSize: '11px',
-                            fontWeight: '700',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '4px',
-                            cursor: 'pointer'
-                          }}
-                        >
-                          <Plus size={12} /> Add
-                        </button>
-                      )}
+                      <button
+                        type="button"
+                        disabled={isDisabled}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (!isDisabled) setSelectedProductForModal(item);
+                        }}
+                        className={`mv-kiosk-add-btn ${qtyInCart > 0 ? 'added' : ''}`}
+                      >
+                        <Plus size={14} />
+                        <span>{isDisabled ? 'Unavailable' : qtyInCart > 0 ? 'Customize / Add' : 'Select & Add'}</span>
+                      </button>
                     </div>
                   </div>
                 );
               })}
 
               {safeItems.length === 0 && (
-                <div style={{ padding: '28px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>
-                  No items found matching your active filter criteria.
+                <div style={{ gridColumn: '1 / -1', padding: '36px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '14px', background: 'var(--bg-surface)', borderRadius: '16px', border: '1px dashed var(--border-glass)' }}>
+                  No items found matching your active filter criteria. Try switching categories or clearing your search.
                 </div>
               )}
             </div>
 
-            {/* Sticky Floating Bottom Cart Trigger */}
+            {/* Sticky Floating Bottom Kiosk Order Summary Bar */}
             {totalCartCount > 0 && (
-              <div className="cart-floating-bar" onClick={() => setIsCartOpen(true)} style={{ cursor: 'pointer' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <div style={{ background: 'var(--accent-gradient)', color: '#ffffff', width: '32px', height: '32px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '800', fontSize: '13px' }}>
+              <div className="cart-floating-bar mv-kiosk-cart-bar" onClick={() => setIsCheckoutOpen(true)} style={{ cursor: 'pointer' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <div style={{ background: '#ffffff', color: '#C24522', width: '36px', height: '36px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '900', fontSize: '15px', boxShadow: '0 2px 8px rgba(0,0,0,0.15)' }}>
                     {totalCartCount}
                   </div>
                   <div>
-                    <div style={{ fontSize: '13px', fontWeight: '700' }}>View Cart</div>
-                    <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{cartItemsList.length} unique {cartItemsList.length === 1 ? 'item' : 'items'}</div>
+                    <div style={{ fontSize: '14px', fontWeight: '800', color: '#ffffff' }}>
+                      Review Order &amp; Checkout ({diningOption})
+                    </div>
+                    <div style={{ fontSize: '11px', color: 'rgba(255,255,255,0.88)' }}>
+                      {cartItemsList.length} unique {cartItemsList.length === 1 ? 'item' : 'items'} • Tap to customize or pay
+                    </div>
                   </div>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span style={{ fontSize: '16px', fontWeight: '800', color: 'var(--accent-red)' }}>
-                    ₱{totalCartPrice.toFixed(2)}
-                  </span>
-                  <ChevronUp size={18} color="var(--accent-red)" />
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setCart({});
+                      setPromoApplied(null);
+                      setPromoCode('');
+                    }}
+                    style={{
+                      background: 'rgba(0,0,0,0.22)',
+                      border: '1px solid rgba(255,255,255,0.3)',
+                      color: '#ffffff',
+                      padding: '6px 10px',
+                      borderRadius: '8px',
+                      fontSize: '11px',
+                      fontWeight: '700',
+                      cursor: 'pointer'
+                    }}
+                    title="Clear current order"
+                  >
+                    Clear
+                  </button>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'rgba(255,255,255,0.18)', padding: '7px 14px', borderRadius: '10px' }}>
+                    <span style={{ fontSize: '17px', fontWeight: '900', color: '#ffffff' }}>
+                      ₱{totalCartPrice.toFixed(2)}
+                    </span>
+                    <ArrowRight size={18} color="#ffffff" />
+                  </div>
                 </div>
               </div>
             )}
+          </div>
+          </div>
+        </div>
+      ) : showWelcomeScreen ? (
+        /* --- Step 1: Self-Service Kiosk Welcome Screen --- */
+        <div className="mv-kiosk-welcome">
+          <div className="mv-kw-hero-banner">
+            <img
+              src="https://images.unsplash.com/photo-1563245372-f21724e3856d?auto=format&fit=crop&w=1200&q=80"
+              alt={restaurantMeta?.name || 'Umami Craft Fusion'}
+              className="mv-kw-hero-img"
+            />
+            <div className="mv-kw-hero-overlay">
+              <div className="mv-kw-brand-pill">
+                <Sparkles size={13} />
+                <span>{restaurantMeta?.cuisine || 'Asian Craft Fusion'} • Self-Service Kiosk</span>
+              </div>
+              <h2 className="mv-kw-title">{restaurantMeta?.name || 'Umami Craft Fusion'}</h2>
+              <p className="mv-kw-subtitle">
+                {restaurantMeta?.tagline || 'Handcrafted Bowls, Artisanal Dumplings & Street Noodles'}
+              </p>
+              <div className="mv-kw-terminal-tag">
+                <span>Terminal #{effectiveKioskId}</span>
+                <span>•</span>
+                <span>{socketConnected ? 'Live Kitchen Sync Active' : 'Connecting...'}</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="mv-kw-dining-section">
+            <div className="mv-kw-section-label">STEP 1 • CHOOSE YOUR DINING PREFERENCE</div>
+            <div className="mv-kw-dining-grid">
+              <button
+                type="button"
+                className={`mv-kw-dining-card ${diningOption === 'Dine-In' ? 'active' : ''}`}
+                onClick={() => setDiningOption('Dine-In')}
+              >
+                <div className="mv-kw-dining-icon">
+                  <Utensils size={28} />
+                </div>
+                <div className="mv-kw-dining-text">
+                  <strong>Dine-In</strong>
+                  <span>Enjoy freshly prepared meals at your table</span>
+                </div>
+                {diningOption === 'Dine-In' && <CheckCircle size={20} color="#C24522" />}
+              </button>
+
+              <button
+                type="button"
+                className={`mv-kw-dining-card ${diningOption === 'Takeout' ? 'active' : ''}`}
+                onClick={() => setDiningOption('Takeout')}
+              >
+                <div className="mv-kw-dining-icon">
+                  <ShoppingBag size={28} />
+                </div>
+                <div className="mv-kw-dining-text">
+                  <strong>Takeout</strong>
+                  <span>Packed fresh and sealed to go</span>
+                </div>
+                {diningOption === 'Takeout' && <CheckCircle size={20} color="#C24522" />}
+              </button>
+            </div>
+          </div>
+
+          <div className="mv-kw-actions">
+            <button
+              type="button"
+              className="mv-kw-start-btn"
+              onClick={() => {
+                setShowWelcomeScreen(false);
+                setIsOnboarded(true);
+              }}
+            >
+              <span>Tap to Start Order ({diningOption})</span>
+              <ArrowRight size={20} />
+            </button>
+
+            <button
+              type="button"
+              className="mv-kw-diet-btn"
+              onClick={() => {
+                setShowWelcomeScreen(false);
+                setIsOnboarded(false);
+              }}
+            >
+              <ShieldCheck size={17} />
+              <span>
+                Customize Dietary &amp; Allergen Filters
+                {(allergens.length > 0 || preferences.length > 0) ? ` (${allergens.length + preferences.length} active)` : ' (Optional)'}
+              </span>
+            </button>
           </div>
         </div>
       ) : (
@@ -2920,9 +3344,32 @@ function MobileView({ kioskId, onResetSession }) {
 
           {/* ── Hero Header ── */}
           <div className="mvault-hero">
-            <div className="mvault-badge">
-              <Shield size={15} strokeWidth={2.5} color="#059669" />
-              <span>UMAMI CRAFT FUSION ID</span>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', flexWrap: 'wrap' }}>
+              <div className="mvault-badge">
+                <Shield size={15} strokeWidth={2.5} color="#059669" />
+                <span>UMAMI CRAFT FUSION ID</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowServiceModal(true)}
+                title="Call Server / Request Table Service Assistance"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  padding: '4px 10px',
+                  borderRadius: '20px',
+                  background: 'rgba(245, 158, 11, 0.15)',
+                  border: '1.5px solid rgba(245, 158, 11, 0.5)',
+                  color: '#d97706',
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  cursor: 'pointer'
+                }}
+              >
+                <Bell size={12} color="#d97706" />
+                <span>Call Server</span>
+              </button>
             </div>
             <h1 className="mvault-title">
               Local <span className="mvault-title-accent">Dietary Vault</span>
@@ -2972,12 +3419,27 @@ function MobileView({ kioskId, onResetSession }) {
           <div className="mvault-sections-container">
             {/* --- Section 1: Exclude Allergens --- */}
             <div className="mvault-section">
-              <div className="mvault-section-header">
-                <div className="mvault-section-num">1</div>
-                <div>
-                  <div className="mvault-section-title">Exclude Allergens</div>
-                  <div className="mvault-section-sub">STAY SAFE. EAT CONFIDENTLY.</div>
+              <div className="mvault-section-header" style={{ justifyContent: 'space-between', width: '100%' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <div className="mvault-section-num">1</div>
+                  <div>
+                    <div className="mvault-section-title">Exclude Allergens</div>
+                    <div className="mvault-section-sub">STAY SAFE. EAT CONFIDENTLY.</div>
+                  </div>
                 </div>
+                {(allergens.length + customAllergens.length) > 0 && (
+                  <span style={{
+                    fontSize: '11px',
+                    fontWeight: 800,
+                    color: '#DC2626',
+                    background: 'rgba(239, 68, 68, 0.1)',
+                    border: '1px solid rgba(239, 68, 68, 0.25)',
+                    padding: '3px 9px',
+                    borderRadius: '999px'
+                  }}>
+                    {allergens.length + customAllergens.length} selected
+                  </span>
+                )}
               </div>
               <div className="mvault-checklist">
                 {activeAllergenOptions.map(opt => {
@@ -2997,6 +3459,49 @@ function MobileView({ kioskId, onResetSession }) {
                     </label>
                   );
                 })}
+              </div>
+
+              {/* Optional Custom Allergy Input */}
+              <div className="mvault-custom-allergy-box">
+                <label className="mvault-custom-allergy-label">Other Allergy / Ingredient to Exclude (Optional)</label>
+                <div className="mvault-custom-allergy-row">
+                  <input
+                    type="text"
+                    placeholder="e.g. MSG, Kiwi, Mustard..."
+                    value={customAllergyInput}
+                    onChange={(e) => setCustomAllergyInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleAddCustomAllergy();
+                      }
+                    }}
+                    className="mvault-custom-allergy-input"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAddCustomAllergy}
+                    className="mvault-custom-allergy-add-btn"
+                  >
+                    + Add
+                  </button>
+                </div>
+                {customAllergens.length > 0 && (
+                  <div className="mvault-custom-allergy-chips">
+                    {customAllergens.map(ca => (
+                      <span key={ca} className="mvault-custom-allergy-chip">
+                        <span>Excl. {ca}</span>
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveCustomAllergy(ca)}
+                          aria-label={`Remove ${ca}`}
+                        >
+                          <X size={11} />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -3068,28 +3573,20 @@ function MobileView({ kioskId, onResetSession }) {
 
           {/* ── Primary CTA ── */}
           <div className="mvault-cta-group">
-            {kioskId ? (
-              <button
-                onClick={() => { localStorage.setItem('synapse_onboarded', 'true'); setIsOnboarded(true); }}
-                className="mvault-save-btn"
-              >
-                <Save size={16} />
-                <span>Save Preferences</span>
-                <span className="mvault-save-arrow">›</span>
-              </button>
-            ) : (
-              <button
-                onClick={() => { localStorage.setItem('synapse_onboarded', 'true'); setIsOnboarded(true); }}
-                className="mvault-save-btn"
-              >
-                <Save size={16} />
-                <span>Save Preferences</span>
-                <span className="mvault-save-arrow">›</span>
-              </button>
-            )}
             <button
+              type="button"
+              onClick={handleSaveLocalDietaryVault}
+              className="mvault-save-btn"
+            >
+              <Save size={16} />
+              <span>Save Preferences</span>
+              <span className="mvault-save-arrow">›</span>
+            </button>
+            <button
+              type="button"
               onClick={() => {
                 localStorage.setItem('synapse_onboarded', 'true');
+                setShowWelcomeScreen(false);
                 setIsOnboarded(true);
                 if (typeof onResetSession === 'function') onResetSession();
               }}
@@ -3795,11 +4292,39 @@ function MobileView({ kioskId, onResetSession }) {
               <span>Live Paired to Kiosk Terminal #{kioskId}</span>
             </div>
           )}
+          <button
+            type="button"
+            className="kiosk-pill-btn"
+            onClick={() => setShowServiceModal(true)}
+            title="Call Server / Request Table Service Assistance"
+            style={{
+              cursor: 'pointer',
+              background: 'rgba(245, 158, 11, 0.15)',
+              border: '1.5px solid rgba(245, 158, 11, 0.5)',
+              color: '#d97706',
+              fontWeight: 800,
+              gap: '6px',
+              padding: '5px 16px',
+              borderRadius: '9999px',
+              display: 'inline-flex',
+              alignItems: 'center',
+              fontSize: '12px'
+            }}
+          >
+            <Bell size={13} color="#d97706" />
+            <span style={{ color: '#d97706' }}>Call Server</span>
+          </button>
         </div>
       </header>
 
       {/* ── Direct Web Application Viewport (No Laptop or Simulated Device Presentation) ── */}
       <div className="mv-webapp-wrapper">
+        {dietaryConfirmToast && (
+          <div className="mv-dietary-toast" role="status">
+            <ShieldCheck size={16} />
+            <span>{dietaryConfirmToast}</span>
+          </div>
+        )}
         {isBuzzing && (
           <div className="gadget-buzzer-beacon" style={{ marginBottom: '14px', width: '100%', maxWidth: '980px' }}>
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
@@ -3812,6 +4337,56 @@ function MobileView({ kioskId, onResetSession }) {
           {phoneContent}
         </div>
       </div>
+
+      {/* Mandatory Post-QR Scan Allergy Verification Pop-up */}
+      <AllergyVerificationModal
+        isOpen={showAllergyModal}
+        kioskId={effectiveKioskId}
+        restaurantName={restaurantMeta?.name || 'Umami Craft Fusion'}
+        onSelectYes={handleAllergyModalYes}
+        onSelectNo={handleAllergyModalNo}
+        errorMsg={allergyModalError}
+      />
+
+      {/* Table Service & Assistance Call Modal */}
+      <TableServiceModal
+        isOpen={showServiceModal}
+        onClose={() => setShowServiceModal(false)}
+        socket={socketRef.current}
+        tableNumber={activeOrder?.tableNumber || (kioskId && !kioskId.startsWith('K-') ? `Table ${kioskId}` : 'Table 1')}
+        customerName={activeOrder?.customer || 'Mobile Guest'}
+        kioskId={kioskId}
+        sessionId={activeOrder?.orderId || null}
+        apiBase={backendTargetUrl}
+      />
+
+      {/* Product Details, Verified Ingredients & Customization Modal */}
+      <KioskProductModal
+        item={selectedProductForModal}
+        isOpen={Boolean(selectedProductForModal)}
+        onClose={() => setSelectedProductForModal(null)}
+        onAddToCart={handleAddToCart}
+        userAllergens={[...allergens, ...customAllergens]}
+      />
+
+      {/* Interactive Kiosk Order Review & Payment Checkout Modal */}
+      <KioskCheckoutModal
+        isOpen={isCheckoutOpen}
+        onClose={() => setIsCheckoutOpen(false)}
+        cartItems={cartItemsList}
+        diningOption={diningOption}
+        onChangeDiningOption={setDiningOption}
+        onUpdateQuantity={handleUpdateQuantity}
+        onRemoveItem={handleRemoveFromCart}
+        promos={promos}
+        promoCode={promoCode}
+        setPromoCode={setPromoCode}
+        promoApplied={promoApplied}
+        setPromoApplied={setPromoApplied}
+        promoMsg={promoMsg}
+        setPromoMsg={setPromoMsg}
+        onConfirmOrder={handlePlaceOrder}
+      />
     </div>
   );
 }

@@ -64,9 +64,9 @@
     "totalPrice": 708,
     "payment": "GCash",
     "paymentStatus": "Paid Online",
-    "status": "New",
-    "nextStatus": "Start Preparing",
-    "stripeColor": "#2563eb",
+    "status": "Completed",
+    "nextStatus": "Completed",
+    "stripeColor": "#059669",
     "priority": "Normal",
     "isWaitAlert": false,
     "waitTime": "0 min",
@@ -83,15 +83,52 @@
     "device": "Desktop",
     "platform": "Desktop",
     "createdAt": "2026-11-05T05:46:33.092Z",
-    "updatedAt": "2026-11-05T05:46:33.092Z",
+    "updatedAt": "2026-11-05T06:06:24.579Z",
     "statusHistory": [
       {
         "status": "New",
         "timestamp": "2026-11-05T05:46:33.092Z",
         "updatedBy": "Customer App",
         "note": "Order submitted and routed to kitchen queue"
+      },
+      {
+        "status": "Preparing",
+        "timestamp": "2026-11-05T06:06:01.234Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Order advanced to Preparing"
+      },
+      {
+        "status": "Preparing",
+        "timestamp": "2026-11-05T06:06:01.576Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Status updated to Preparing"
+      },
+      {
+        "status": "Ready for Pickup",
+        "timestamp": "2026-11-05T06:06:07.630Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Plated & Ready for pickup"
+      },
+      {
+        "status": "Ready for Pickup",
+        "timestamp": "2026-11-05T06:06:07.644Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Order ready for customer pickup"
+      },
+      {
+        "status": "Completed",
+        "timestamp": "2026-11-05T06:06:24.530Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Order advanced to Completed"
+      },
+      {
+        "status": "Completed",
+        "timestamp": "2026-11-05T06:06:24.579Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Status updated to Completed"
       }
-    ]
+    ],
+    "completedAt": "2026-11-05T06:06:24.530Z"
   },
   {
     "id": "ORD-4745",
@@ -207,7 +244,7 @@
     "device": "Desktop",
     "platform": "Desktop",
     "createdAt": "2026-11-04T15:29:00.211Z",
-    "updatedAt": "2026-11-04T17:00:50.970Z",
+    "updatedAt": "2026-11-11T13:16:17.838Z",
     "statusHistory": [
       {
         "status": "New",
@@ -248,6 +285,42 @@
       {
         "status": "Completed",
         "timestamp": "2026-11-04T17:00:50.970Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Status updated to Completed"
+      },
+      {
+        "status": "Preparing",
+        "timestamp": "2026-11-11T13:16:11.363Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Order advanced to Preparing"
+      },
+      {
+        "status": "Preparing",
+        "timestamp": "2026-11-11T13:16:11.380Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Status updated to Preparing"
+      },
+      {
+        "status": "Ready for Pickup",
+        "timestamp": "2026-11-11T13:16:15.664Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Plated & Ready for pickup"
+      },
+      {
+        "status": "Ready for Pickup",
+        "timestamp": "2026-11-11T13:16:15.677Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Order ready for customer pickup"
+      },
+      {
+        "status": "Completed",
+        "timestamp": "2026-11-11T13:16:17.813Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Order advanced to Completed"
+      },
+      {
+        "status": "Completed",
+        "timestamp": "2026-11-11T13:16:17.838Z",
         "updatedBy": "Kitchen Staff",
         "note": "Status updated to Completed"
       }
@@ -3275,7 +3348,7 @@
     "total": 1010,
     "totalPrice": 1010,
     "payment": "Cash",
-    "paymentStatus": "Pending Cashier",
+    "paymentStatus": "Approved",
     "status": "Completed",
     "nextStatus": "Completed",
     "stripeColor": "#059669",
@@ -3294,7 +3367,7 @@
     "note": "Allergic to nuts. Please prepare on clean board.",
     "isAllergy": true,
     "createdAt": "2026-09-20T14:24:00.000Z",
-    "updatedAt": "2026-09-20T15:33:38.749Z",
+    "updatedAt": "2026-11-11T19:19:58.981Z",
     "statusHistory": [
       {
         "status": "New",
@@ -3337,11 +3410,63 @@
         "timestamp": "2026-09-20T15:33:38.749Z",
         "updatedBy": "Kitchen Staff",
         "note": "Status updated to Completed"
+      },
+      {
+        "status": "New",
+        "timestamp": "2026-11-11T15:19:41.350Z",
+        "updatedBy": "Chief Administrator",
+        "note": "Payment verified & approved by Chief Administrator. Order forwarded to Kitchen Display System."
+      },
+      {
+        "status": "New",
+        "timestamp": "2026-11-11T15:19:41.376Z",
+        "updatedBy": "Chief Administrator",
+        "note": "Payment verified & approved by Chief Administrator. Order forwarded to Kitchen Display System."
+      },
+      {
+        "status": "Preparing",
+        "timestamp": "2026-11-11T19:19:53.103Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Order advanced to Preparing"
+      },
+      {
+        "status": "Preparing",
+        "timestamp": "2026-11-11T19:19:53.115Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Status updated to Preparing"
+      },
+      {
+        "status": "Ready for Pickup",
+        "timestamp": "2026-11-11T19:19:55.893Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Plated & Ready for pickup"
+      },
+      {
+        "status": "Ready for Pickup",
+        "timestamp": "2026-11-11T19:19:55.900Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Order ready for customer pickup"
+      },
+      {
+        "status": "Completed",
+        "timestamp": "2026-11-11T19:19:58.968Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Order advanced to Completed"
+      },
+      {
+        "status": "Completed",
+        "timestamp": "2026-11-11T19:19:58.981Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Status updated to Completed"
       }
     ],
     "completedAt": "2026-09-20T15:33:38.684Z",
     "device": "Tablet",
-    "platform": "Tablet"
+    "platform": "Tablet",
+    "isPaymentVerified": true,
+    "verifiedBy": "Chief Administrator",
+    "verifiedAt": "2026-11-11T15:19:41.376Z",
+    "adminEmail": "admin@umamicraft.com"
   },
   {
     "id": "ORD-1042",

@@ -6,6 +6,8 @@ import KitchenView from './components/KitchenView';
 import BusserView from './components/BusserView';
 import RestaurantView from './components/RestaurantView';
 import AdminView from './components/AdminView';
+import CashierDashboard from './components/CashierDashboard';
+import StaffDashboard from './components/StaffDashboard';
 import AdminLoginModal from './components/AdminLoginModal';
 import AdminSecurityModal from './components/AdminSecurityModal';
 import AccessDeniedView from './components/AccessDeniedView';
@@ -24,23 +26,49 @@ function App() {
     cuisine: 'Asian Craft Fusion',
     tagline: 'Bowls, Dumplings & Artisanal Street Noodles'
   });
+  const [menuCatalog, setMenuCatalog] = useState([]);
+  const [drinksCatalog, setDrinksCatalog] = useState([]);
   const [activeOrdersCount, setActiveOrdersCount] = useState(0);
   const [readyOrdersCount, setReadyOrdersCount] = useState(0);
   const [socketConnected, setSocketConnected] = useState(false);
-  const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
+  const [currentUser, setCurrentUser] = useState(() => {
+    try {
+      const saved = sessionStorage.getItem('umami_auth_user');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+  const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(() => {
+    try {
+      return Boolean(sessionStorage.getItem('umami_auth_user'));
+    } catch {
+      return false;
+    }
+  });
   const [showAdminLoginModal, setShowAdminLoginModal] = useState(false);
   const [showAdminSecurityModal, setShowAdminSecurityModal] = useState(false);
   const socketRef = useRef(null);
 
-  // Load restaurant metadata
+  // Load restaurant metadata, menu, and drinks
   useEffect(() => {
     fetch('/api/restaurant')
       .then(res => res.json())
       .then(data => { if (data?.name) setRestaurantInfo(prev => ({ ...prev, ...data })); })
       .catch(() => {});
+
+    fetch('/api/menu')
+      .then(res => res.json())
+      .then(data => { if (Array.isArray(data)) setMenuCatalog(data); })
+      .catch(() => {});
+
+    fetch('/api/drinks')
+      .then(res => res.json())
+      .then(data => { if (Array.isArray(data)) setDrinksCatalog(data); })
+      .catch(() => {});
   }, []);
 
-  // Global socket for live badge counts in NavBar
+  // Global socket for live badge counts in NavBar and live catalog sync
   useEffect(() => {
     const socket = io();
     socketRef.current = socket;
@@ -64,7 +92,6 @@ function App() {
     });
 
     socket.on('new-kitchen-order', () => {
-      // Refresh count from server
       fetch('/api/orders').then(r => r.json()).then(data => {
         if (Array.isArray(data)) refreshCounts(data);
       }).catch(() => {});
@@ -76,9 +103,19 @@ function App() {
       }).catch(() => {});
     });
 
+    socket.on('menu-updated', (items) => {
+      if (Array.isArray(items)) setMenuCatalog(items);
+    });
+
+    socket.on('drinks-updated', (items) => {
+      if (Array.isArray(items)) setDrinksCatalog(items);
+    });
+
     // Invalidate admin session across tabs/devices if credentials were updated or locked
     socket.on('admin-session-invalidated', (data) => {
       setIsAdminAuthenticated(false);
+      setCurrentUser(null);
+      try { sessionStorage.removeItem('umami_auth_user'); } catch {}
       setShowAdminSecurityModal(false);
       const url = new URL(window.location.href);
       url.searchParams.set('view', 'kiosk');
@@ -105,7 +142,6 @@ function App() {
           setShowAdminLoginModal(true);
         }
       } else {
-        // Without explicit view=mobile, URLs such as /?kioskId=PBWC5A&kioskPort=3001&restaurant=umami load the kiosk terminal
         setCurrentView('kiosk');
       }
     };
@@ -128,7 +164,6 @@ function App() {
 
     const url = new URL(window.location.href);
     url.searchParams.set('view', view);
-    // Clear kioskId when switching to staff views
     if (['kitchen', 'busser', 'restaurant', 'admin'].includes(view)) {
       url.searchParams.delete('kioskId');
       setKioskId(null);
@@ -139,6 +174,10 @@ function App() {
 
   const handleAdminAuthSuccess = (user) => {
     setIsAdminAuthenticated(true);
+    setCurrentUser(user || null);
+    try {
+      sessionStorage.setItem('umami_auth_user', JSON.stringify(user || null));
+    } catch {}
     setShowAdminLoginModal(false);
     const url = new URL(window.location.href);
     url.searchParams.set('view', 'admin');
@@ -148,17 +187,68 @@ function App() {
 
   const handleAdminLogout = () => {
     setIsAdminAuthenticated(false);
+    setCurrentUser(null);
+    try { sessionStorage.removeItem('umami_auth_user'); } catch {}
     setShowAdminSecurityModal(false);
     handleSelectView('kiosk');
   };
 
   const handleAdminLock = () => {
     setIsAdminAuthenticated(false);
+    setCurrentUser(null);
+    try { sessionStorage.removeItem('umami_auth_user'); } catch {}
     setShowAdminSecurityModal(false);
     const url = new URL(window.location.href);
     url.searchParams.set('view', 'kiosk');
     window.history.pushState({}, '', url.toString());
     setCurrentView('kiosk');
+  };
+
+  const renderAuthenticatedPortal = () => {
+    const accountType = String(currentUser?.accountType || '').toLowerCase();
+    const roleLower = String(currentUser?.role || '').toLowerCase();
+
+    if (accountType === 'cashier' || (!accountType && roleLower.includes('cashier'))) {
+      return (
+        <CashierDashboard
+          currentUser={currentUser}
+          onLogout={handleAdminLogout}
+          onLock={handleAdminLock}
+          onLockSession={handleAdminLock}
+          onReturnToKiosk={() => handleSelectView('kiosk')}
+          socketConnected={socketConnected}
+          socket={socketRef.current}
+          menuCatalog={menuCatalog}
+          drinksCatalog={drinksCatalog}
+        />
+      );
+    }
+
+    if (accountType === 'staff' || (!accountType && !roleLower.includes('admin') && !roleLower.includes('manager'))) {
+      return (
+        <StaffDashboard
+          currentUser={currentUser}
+          onLogout={handleAdminLogout}
+          onLock={handleAdminLock}
+          onLockSession={handleAdminLock}
+          onNavigateModule={handleSelectView}
+          onReturnToKiosk={() => handleSelectView('kiosk')}
+          socketConnected={socketConnected}
+          socket={socketRef.current}
+        />
+      );
+    }
+
+    return (
+      <AdminView
+        onLogout={handleAdminLogout}
+        onOpenSecurity={() => setShowAdminSecurityModal(true)}
+        onReturnToKiosk={() => handleSelectView('kiosk')}
+        socketConnected={socketConnected}
+        socket={socketRef.current}
+        currentUser={currentUser}
+      />
+    );
   };
 
   return (
@@ -171,6 +261,7 @@ function App() {
         readyOrdersCount={readyOrdersCount}
         socketConnected={socketConnected}
         isAdminAuthenticated={isAdminAuthenticated}
+        currentUser={currentUser}
         onOpenAdminSecurity={() => setShowAdminSecurityModal(true)}
       />
 
@@ -210,13 +301,7 @@ function App() {
 
         {currentView === 'admin' && (
           isAdminAuthenticated ? (
-            <AdminView
-              onLogout={handleAdminLogout}
-              onOpenSecurity={() => setShowAdminSecurityModal(true)}
-              onReturnToKiosk={() => handleSelectView('kiosk')}
-              socketConnected={socketConnected}
-              socket={socketRef.current}
-            />
+            renderAuthenticatedPortal()
           ) : (
             <AccessDeniedView
               onReturn={() => handleSelectView('kiosk')}
@@ -230,4 +315,3 @@ function App() {
 }
 
 export default App;
-

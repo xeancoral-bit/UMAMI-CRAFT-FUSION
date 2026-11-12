@@ -1332,8 +1332,8 @@ button {
 
 /* ── Formal Three-Column Order Information Row (Time, Device/Platform, Date) ── */
 .ticket-meta-strip {
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
+  display: flex;
+  justify-content: space-between;
   align-items: center;
   gap: 8px;
   width: 100%;
@@ -1360,6 +1360,7 @@ button {
   font-size: 11.5px;
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.01em;
+  flex-shrink: 0;
 }
 
 .ticket-meta-center {
@@ -7041,6 +7042,7 @@ button {
 /* Content Area */
 .admin-content {
   flex: 1;
+  min-width: 0;
   padding: 24px;
   overflow-y: auto;
 }
@@ -9657,4 +9659,1665 @@ button {
   }
 }
 
+/* ==========================================================================
+   COMMERCIAL SELF-SERVICE KIOSK TERMINAL (McDonald's / Jollibee / Chowking Flow)
+   ========================================================================== */
+.kiosk-terminal-shell {
+  width: 100%;
+  max-width: 1380px;
+  margin: 0 auto;
+  background: #FFFFFF;
+  border-radius: 28px;
+  border: 1px solid #EAE2D7;
+  box-shadow: 0 20px 54px rgba(44, 26, 17, 0.08);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
 
+.kiosk-terminal-topbar {
+  background: linear-gradient(180deg, #FFFFFF 0%, #FAF7F2 100%);
+  border-bottom: 1px solid #EAE2D7;
+  padding: 16px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+
+.kiosk-terminal-body {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr) 340px;
+  min-height: 700px;
+  background: #FAF8F5;
+}
+
+.kiosk-category-rail {
+  background: #FFFFFF;
+  border-right: 1px solid #EAE2D7;
+  padding: 16px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow-y: auto;
+}
+
+.kiosk-cat-btn {
+  width: 100%;
+  min-height: 62px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  border: 1.5px solid transparent;
+  background: #FAF8F5;
+  color: #44403C;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  touch-action: manipulation;
+  user-select: none;
+}
+
+.kiosk-cat-btn:hover {
+  background: #FFF4EE;
+  border-color: rgba(194, 69, 34, 0.25);
+  color: #C24522;
+}
+
+.kiosk-cat-btn.active {
+  background: linear-gradient(135deg, #D94B2B 0%, #C24522 100%);
+  color: #FFFFFF;
+  border-color: #C24522;
+  box-shadow: 0 8px 20px rgba(194, 69, 34, 0.26);
+}
+
+.kiosk-cat-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  flex-shrink: 0;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+}
+
+.kiosk-cat-btn.active .kiosk-cat-icon {
+  background: rgba(255, 255, 255, 0.2);
+  color: #FFFFFF;
+}
+
+.kiosk-catalog-stage {
+  padding: 20px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  overflow-y: auto;
+  min-width: 0;
+}
+
+.kiosk-food-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(225px, 1fr));
+  gap: 16px;
+}
+
+.kiosk-food-card {
+  background: #FFFFFF;
+  border-radius: 20px;
+  border: 1.5px solid #EAE2D7;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  cursor: pointer;
+  transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.22s ease, border-color 0.22s ease;
+  box-shadow: 0 4px 14px rgba(28, 25, 23, 0.04);
+  touch-action: manipulation;
+}
+
+.kiosk-food-card:hover {
+  transform: translateY(-4px);
+  border-color: rgba(194, 69, 34, 0.45);
+  box-shadow: 0 14px 30px rgba(194, 69, 34, 0.14);
+}
+
+.kiosk-food-card.matched {
+  border-color: rgba(194, 69, 34, 0.55);
+  box-shadow: 0 8px 24px rgba(194, 69, 34, 0.12);
+}
+
+.kiosk-food-card-img-wrap {
+  position: relative;
+  width: 100%;
+  height: 154px;
+  background: #FAF6F0;
+  overflow: hidden;
+}
+
+.kiosk-food-card-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.45s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.kiosk-food-card:hover .kiosk-food-card-img {
+  transform: scale(1.06);
+}
+
+.kiosk-order-tray {
+  background: #FFFFFF;
+  border-left: 1px solid #EAE2D7;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.kiosk-tray-header {
+  padding: 18px 20px;
+  border-bottom: 1px solid #EAE2D7;
+  background: #FAF7F2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.kiosk-tray-items {
+  flex: 1;
+  overflow-y: auto;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.kiosk-tray-footer {
+  padding: 16px 20px 20px;
+  border-top: 1px solid #EAE2D7;
+  background: #FFFFFF;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.kiosk-mobile-sticky-bar {
+  display: none;
+}
+
+@media (max-width: 1120px) {
+  .kiosk-terminal-body {
+    grid-template-columns: 185px minmax(0, 1fr);
+  }
+  .kiosk-order-tray {
+    display: none;
+  }
+  .kiosk-mobile-sticky-bar {
+    display: flex;
+  }
+}
+
+@media (max-width: 780px) {
+  .kiosk-terminal-body {
+    grid-template-columns: 1fr;
+  }
+  .kiosk-category-rail {
+    border-right: none;
+    border-bottom: 1px solid #EAE2D7;
+    flex-direction: row;
+    overflow-x: auto;
+    padding: 12px;
+  }
+  .kiosk-cat-btn {
+    width: auto;
+    min-height: 48px;
+    padding: 8px 14px;
+    flex-shrink: 0;
+  }
+  .kiosk-cat-icon {
+    width: 30px;
+    height: 30px;
+    font-size: 15px;
+  }
+}
+
+
+
+
+
+/* ══════════════════════════════════════════════════════════════════════════
+   KIOSK TOUCHSCREEN PRODUCT GRID & INTERACTIVE CUSTOMIZATION MODALS
+   ══════════════════════════════════════════════════════════════════════════ */
+
+.mv-kiosk-grid {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fill, minmax(245px, 1fr));
+  gap: 14px;
+  align-items: stretch;
+}
+
+@media (max-width: 520px) {
+  .mv-kiosk-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.mv-kiosk-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  background: #ffffff;
+  border: 1.5px solid #EAE2D7;
+  border-radius: 16px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: transform 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease;
+  box-shadow: 0 2px 10px rgba(44, 26, 17, 0.04);
+}
+
+.mv-kiosk-card:hover:not(.disabled) {
+  transform: translateY(-2px);
+  border-color: #C24522;
+  box-shadow: 0 10px 24px rgba(194, 69, 34, 0.12);
+}
+
+.mv-kiosk-card.in-cart {
+  border-color: #C24522;
+  background: #FFFBF8;
+  box-shadow: 0 4px 16px rgba(194, 69, 34, 0.1);
+}
+
+.mv-kiosk-card.disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.mv-kiosk-card-img-wrap {
+  position: relative;
+  width: 100%;
+  height: 150px;
+  background: #F4ECE1;
+  overflow: hidden;
+}
+
+.mv-kiosk-card-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform 0.3s ease;
+}
+
+.mv-kiosk-card:hover:not(.disabled) .mv-kiosk-card-img {
+  transform: scale(1.04);
+}
+
+.mv-kiosk-card-emoji-fallback {
+  width: 100%;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
+  font-size: 46px;
+  background: #F4ECE1;
+}
+
+.mv-kiosk-card-badges-top {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  z-index: 2;
+}
+
+.mv-kiosk-cat-pill {
+  background: rgba(28, 25, 23, 0.78);
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 999px;
+  backdrop-filter: blur(4px);
+}
+
+.mv-kiosk-promo-pill {
+  background: #E11D48;
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 800;
+  padding: 3px 8px;
+  border-radius: 999px;
+}
+
+.mv-kiosk-save-pill {
+  background: #059669;
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 800;
+  padding: 3px 8px;
+  border-radius: 999px;
+}
+
+.mv-kiosk-qty-badge {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: #C24522;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 800;
+  padding: 4px 9px;
+  border-radius: 999px;
+  box-shadow: 0 2px 8px rgba(194, 69, 34, 0.35);
+  z-index: 2;
+}
+
+.mv-kiosk-match-badge {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: #059669;
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 800;
+  padding: 3px 8px;
+  border-radius: 999px;
+  z-index: 2;
+}
+
+.mv-kiosk-prep-pill {
+  position: absolute;
+  bottom: 8px;
+  right: 10px;
+  background: rgba(255, 255, 255, 0.92);
+  color: #1C1917;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 999px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+
+.mv-kiosk-unavailable-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(28, 25, 23, 0.65);
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.mv-kiosk-card-body {
+  padding: 12px 14px 8px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.mv-kiosk-card-title {
+  margin: 0;
+  font-size: 14.5px;
+  font-weight: 800;
+  color: #1C1917;
+  line-height: 1.25;
+}
+
+.mv-kiosk-card-desc {
+  margin: 0;
+  font-size: 11.5px;
+  color: #57534E;
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.mv-kiosk-card-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 2px;
+}
+
+.mv-kiosk-card-footer {
+  padding: 10px 14px 12px;
+  border-top: 1px solid #F3ECE2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.mv-kiosk-add-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 8px 13px;
+  border-radius: 10px;
+  border: none;
+  background: linear-gradient(135deg, #D94B2B 0%, #C24522 100%);
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+  min-height: 36px;
+  transition: filter 0.15s ease, transform 0.1s ease;
+}
+
+.mv-kiosk-add-btn:hover:not(:disabled) {
+  filter: brightness(1.06);
+}
+
+.mv-kiosk-add-btn:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.mv-kiosk-add-btn.added {
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+}
+
+.mv-kiosk-add-btn:disabled {
+  background: #D6D3D1;
+  color: #78716C;
+  cursor: not-allowed;
+}
+
+.mv-kiosk-cart-bar {
+  background: linear-gradient(135deg, #C24522 0%, #9A3412 100%) !important;
+  color: #ffffff !important;
+  border: none !important;
+  border-radius: 14px !important;
+  padding: 12px 16px !important;
+  box-shadow: 0 10px 28px rgba(194, 69, 34, 0.32) !important;
+}
+
+/* ── Kiosk Modal Backdrop & Shared Close Button ── */
+.kiosk-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(20, 14, 10, 0.65);
+  backdrop-filter: blur(5px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  z-index: 2200;
+  animation: fadeIn 0.18s ease-out;
+}
+
+.kiosk-modal-close-btn {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid #E7E5E4;
+  background: #ffffff;
+  color: #1C1917;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 10;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.kiosk-modal-close-btn:hover {
+  background: #FAF8F5;
+  color: #C24522;
+}
+
+/* ── Kiosk Product Customization Modal ── */
+.kiosk-product-modal {
+  position: relative;
+  width: 100%;
+  max-width: 660px;
+  max-height: 90vh;
+  background: #ffffff;
+  border-radius: 22px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.28);
+}
+
+.kiosk-product-modal-body {
+  padding: 20px;
+  overflow-y: auto;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.kiosk-pm-hero {
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  gap: 18px;
+  align-items: start;
+}
+
+@media (max-width: 580px) {
+  .kiosk-pm-hero {
+    grid-template-columns: 1fr;
+  }
+}
+
+.kiosk-pm-image-wrap {
+  position: relative;
+  width: 100%;
+  height: 170px;
+  border-radius: 16px;
+  overflow: hidden;
+  background: #F4ECE1;
+  border: 1px solid #EAE2D7;
+}
+
+.kiosk-pm-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.kiosk-pm-emoji-fallback {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 54px;
+}
+
+.kiosk-pm-image-badges {
+  position: absolute;
+  bottom: 8px;
+  left: 8px;
+  right: 8px;
+  display: flex;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.kiosk-pm-cat-badge,
+.kiosk-pm-prep-badge {
+  background: rgba(28, 25, 23, 0.8);
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.kiosk-pm-title {
+  margin: 0;
+  font-size: 21px;
+  font-weight: 900;
+  color: #1C1917;
+  padding-right: 30px;
+}
+
+.kiosk-pm-price-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 6px 0;
+}
+
+.kiosk-pm-price {
+  font-size: 22px;
+  font-weight: 900;
+  color: #C24522;
+}
+
+.kiosk-pm-old-price {
+  font-size: 14px;
+  color: #A8A29E;
+  text-decoration: line-through;
+}
+
+.kiosk-pm-desc {
+  margin: 0;
+  font-size: 13.5px;
+  color: #57534E;
+  line-height: 1.5;
+}
+
+.kiosk-pm-tag {
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: #FAF8F5;
+  border: 1px solid #EAE2D7;
+  color: #57534E;
+  text-transform: capitalize;
+}
+
+.kiosk-pm-allergen-alert {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 14px;
+  border-radius: 12px;
+  background: #FEF2F2;
+  border: 1px solid #FECACA;
+  color: #B91C1C;
+  font-size: 12.5px;
+}
+
+.kiosk-pm-section {
+  background: #FAF8F5;
+  border: 1px solid #EAE2D7;
+  border-radius: 16px;
+  padding: 14px 16px;
+}
+
+.kiosk-pm-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.kiosk-pm-section-header h4 {
+  margin: 0;
+  font-size: 13.5px;
+  font-weight: 800;
+  color: #1C1917;
+}
+
+.kiosk-pm-verified-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10.5px;
+  font-weight: 800;
+  color: #059669;
+  background: rgba(5, 150, 105, 0.1);
+  border: 1px solid rgba(5, 150, 105, 0.25);
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
+.kiosk-pm-required-pill {
+  font-size: 10px;
+  font-weight: 800;
+  color: #C24522;
+  background: rgba(194, 69, 34, 0.1);
+  padding: 2px 8px;
+  border-radius: 999px;
+  text-transform: uppercase;
+}
+
+.kiosk-pm-ingredients-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.kiosk-pm-ingredient-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #ffffff;
+  border: 1px solid #E7E5E4;
+  padding: 5px 10px;
+  border-radius: 8px;
+  font-size: 12px;
+}
+
+.kiosk-pm-ing-name {
+  font-weight: 700;
+  color: #1C1917;
+}
+
+.kiosk-pm-ing-qty {
+  font-weight: 700;
+  color: #C24522;
+  font-size: 11px;
+  background: rgba(194, 69, 34, 0.08);
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+.kiosk-pm-allergen-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.kiosk-pm-allergen-pill {
+  font-size: 11px;
+  font-weight: 800;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: rgba(239, 68, 68, 0.1);
+  color: #DC2626;
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  text-transform: uppercase;
+}
+
+.kiosk-pm-allergen-pill.safe {
+  background: rgba(5, 150, 105, 0.1);
+  color: #059669;
+  border: 1px solid rgba(5, 150, 105, 0.25);
+  text-transform: none;
+}
+
+.kiosk-pm-admin-disclaimer {
+  margin: 8px 0 0;
+  font-size: 11px;
+  color: #78716C;
+}
+
+.kiosk-pm-options-grid,
+.kiosk-pm-addons-grid,
+.kiosk-pm-spice-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 8px;
+}
+
+.kiosk-pm-options-grid button,
+.kiosk-pm-addons-grid button,
+.kiosk-pm-spice-grid button {
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1.5px solid #E7E5E4;
+  background: #ffffff;
+  color: #1C1917;
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  transition: all 0.15s ease;
+}
+
+.kiosk-pm-options-grid button.active,
+.kiosk-pm-addons-grid button.active,
+.kiosk-pm-spice-grid button.active {
+  border-color: #C24522;
+  background: rgba(194, 69, 34, 0.06);
+  color: #C24522;
+}
+
+.kiosk-pm-note-input {
+  width: 100%;
+  margin-top: 8px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1.5px solid #E7E5E4;
+  font-size: 13px;
+  outline: none;
+}
+
+.kiosk-pm-note-input:focus {
+  border-color: #C24522;
+}
+
+.kiosk-product-modal-footer {
+  padding: 14px 20px;
+  border-top: 1px solid #EAE2D7;
+  background: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.kiosk-pm-qty-stepper {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  background: #FAF8F5;
+  border: 1.5px solid #EAE2D7;
+  border-radius: 12px;
+  padding: 6px 10px;
+}
+
+.kiosk-pm-qty-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  border: none;
+  background: #ffffff;
+  color: #1C1917;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+}
+
+.kiosk-pm-qty-val {
+  min-width: 24px;
+  text-align: center;
+  font-size: 16px;
+  font-weight: 900;
+}
+
+.kiosk-pm-add-cta {
+  flex: 1;
+  min-height: 48px;
+  border-radius: 14px;
+  border: none;
+  background: linear-gradient(135deg, #D94B2B 0%, #C24522 100%);
+  color: #ffffff;
+  font-size: 15px;
+  font-weight: 900;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  box-shadow: 0 6px 20px rgba(194, 69, 34, 0.3);
+}
+
+/* ── Kiosk Checkout Modal ── */
+.kiosk-checkout-modal {
+  position: relative;
+  width: 100%;
+  max-width: 640px;
+  max-height: 90vh;
+  background: #ffffff;
+  border-radius: 22px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.28);
+}
+
+.kiosk-co-header {
+  padding: 18px 20px;
+  border-bottom: 1px solid #EAE2D7;
+  background: #FAF8F5;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-right: 54px;
+}
+
+.kiosk-co-step-pill {
+  font-size: 11px;
+  font-weight: 800;
+  color: #C24522;
+  background: rgba(194, 69, 34, 0.1);
+  padding: 4px 10px;
+  border-radius: 999px;
+}
+
+.kiosk-co-body {
+  padding: 18px 20px;
+  overflow-y: auto;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.kiosk-co-dining-bar {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.kiosk-co-dining-bar button {
+  padding: 12px;
+  border-radius: 12px;
+  border: 1.5px solid #EAE2D7;
+  background: #ffffff;
+  font-size: 13.5px;
+  font-weight: 800;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.kiosk-co-dining-bar button.active {
+  border-color: #C24522;
+  background: rgba(194, 69, 34, 0.08);
+  color: #C24522;
+}
+
+.kiosk-co-items-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.kiosk-co-item-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid #EAE2D7;
+  background: #FAF8F5;
+}
+
+.kiosk-co-item-thumb {
+  width: 48px;
+  height: 48px;
+  border-radius: 10px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.kiosk-co-qty-stepper {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #ffffff;
+  border: 1px solid #E7E5E4;
+  border-radius: 8px;
+  padding: 3px 6px;
+}
+
+.kiosk-co-qty-stepper button {
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: #FAF8F5;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 800;
+}
+
+.kiosk-co-remove-btn {
+  background: none;
+  border: none;
+  color: #DC2626;
+  cursor: pointer;
+  padding: 4px;
+}
+
+.kiosk-co-promo-box {
+  display: flex;
+  gap: 8px;
+}
+
+.kiosk-co-promo-input {
+  flex: 1;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1.5px solid #EAE2D7;
+  font-size: 13px;
+  text-transform: uppercase;
+  font-weight: 700;
+}
+
+.kiosk-co-promo-btn {
+  padding: 0 16px;
+  border-radius: 10px;
+  border: none;
+  background: #1C1917;
+  color: #ffffff;
+  font-weight: 800;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+
+.kiosk-co-promo-clear {
+  padding: 0 12px;
+  border-radius: 10px;
+  border: 1px solid #E7E5E4;
+  background: #ffffff;
+  color: #78716C;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.kiosk-co-summary-box {
+  background: #FAF8F5;
+  border: 1px solid #EAE2D7;
+  border-radius: 14px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.kiosk-co-summary-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  color: #57534E;
+}
+
+.kiosk-co-summary-total {
+  display: flex;
+  justify-content: space-between;
+  font-size: 17px;
+  font-weight: 900;
+  color: #1C1917;
+  padding-top: 8px;
+  margin-top: 4px;
+  border-top: 1px dashed #D6D3D1;
+}
+
+.kiosk-co-payment-amount-banner {
+  background: linear-gradient(135deg, #1C1917 0%, #292524 100%);
+  color: #ffffff;
+  padding: 14px 18px;
+  border-radius: 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.kiosk-co-payment-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 10px;
+}
+
+.kiosk-co-payment-grid button {
+  padding: 14px;
+  border-radius: 14px;
+  border: 1.5px solid #EAE2D7;
+  background: #ffffff;
+  text-align: left;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  transition: all 0.15s ease;
+}
+
+.kiosk-co-payment-grid button.active {
+  border-color: #059669;
+  background: rgba(5, 150, 105, 0.06);
+}
+
+.kiosk-co-webhook-note {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(5, 150, 105, 0.08);
+  border: 1px solid rgba(5, 150, 105, 0.22);
+  color: #065F46;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.kiosk-co-footer {
+  padding: 14px 20px;
+  border-top: 1px solid #EAE2D7;
+  background: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.kiosk-co-back-btn {
+  padding: 12px 18px;
+  border-radius: 12px;
+  border: 1.5px solid #EAE2D7;
+  background: #ffffff;
+  color: #1C1917;
+  font-weight: 800;
+  font-size: 13.5px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.kiosk-co-next-btn,
+.kiosk-co-confirm-btn {
+  flex: 1;
+  min-height: 48px;
+  border-radius: 12px;
+  border: none;
+  background: linear-gradient(135deg, #D94B2B 0%, #C24522 100%);
+  color: #ffffff;
+  font-weight: 900;
+  font-size: 14.5px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  box-shadow: 0 6px 18px rgba(194, 69, 34, 0.28);
+}
+
+.kiosk-co-confirm-btn {
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+  box-shadow: 0 6px 18px rgba(5, 150, 105, 0.28);
+}
+
+
+/* ── Step 1: Self-Service Kiosk Welcome Screen ── */
+.mv-kiosk-welcome {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 4px 0 8px;
+  animation: fadeIn 0.25s ease-out;
+}
+
+.mv-kw-hero-banner {
+  position: relative;
+  border-radius: 20px;
+  overflow: hidden;
+  min-height: 230px;
+  background: #1C1917;
+  box-shadow: 0 14px 36px rgba(28, 25, 23, 0.16);
+}
+
+.mv-kw-hero-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.48;
+}
+
+.mv-kw-hero-overlay {
+  position: relative;
+  z-index: 2;
+  padding: 28px 26px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-end;
+  min-height: 230px;
+  background: linear-gradient(135deg, rgba(28, 25, 23, 0.88) 0%, rgba(28, 25, 23, 0.35) 100%);
+  color: #ffffff;
+}
+
+.mv-kw-brand-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(217, 75, 43, 0.92);
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 5px 12px;
+  border-radius: 999px;
+  margin-bottom: 10px;
+}
+
+.mv-kw-title {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  color: #ffffff;
+}
+
+.mv-kw-subtitle {
+  margin: 6px 0 12px;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.88);
+  max-width: 520px;
+}
+
+.mv-kw-terminal-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  padding: 5px 12px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #ffffff;
+  backdrop-filter: blur(4px);
+}
+
+.mv-kw-dining-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.mv-kw-section-label {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: #78716C;
+  text-transform: uppercase;
+}
+
+.mv-kw-dining-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+@media (max-width: 560px) {
+  .mv-kw-dining-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.mv-kw-dining-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 18px;
+  border-radius: 16px;
+  border: 2px solid #EAE2D7;
+  background: #FAF8F5;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.16s ease;
+}
+
+.mv-kw-dining-card:hover {
+  border-color: #D94B2B;
+  background: #ffffff;
+}
+
+.mv-kw-dining-card.active {
+  border-color: #C24522;
+  background: #FFF9F5;
+  box-shadow: 0 8px 22px rgba(194, 69, 34, 0.12);
+}
+
+.mv-kw-dining-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  background: #ffffff;
+  border: 1px solid #EAE2D7;
+  color: #C24522;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.mv-kw-dining-card.active .mv-kw-dining-icon {
+  background: #C24522;
+  color: #ffffff;
+  border-color: #C24522;
+}
+
+.mv-kw-dining-text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.mv-kw-dining-text strong {
+  font-size: 16px;
+  font-weight: 900;
+  color: #1C1917;
+}
+
+.mv-kw-dining-text span {
+  font-size: 12px;
+  color: #78716C;
+}
+
+.mv-kw-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.mv-kw-start-btn {
+  width: 100%;
+  min-height: 58px;
+  border-radius: 16px;
+  border: none;
+  background: linear-gradient(135deg, #D94B2B 0%, #C24522 100%);
+  color: #ffffff;
+  font-size: 17px;
+  font-weight: 900;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  box-shadow: 0 10px 28px rgba(194, 69, 34, 0.32);
+  transition: transform 0.12s ease, filter 0.15s ease;
+}
+
+.mv-kw-start-btn:hover {
+  filter: brightness(1.06);
+}
+
+.mv-kw-start-btn:active {
+  transform: scale(0.985);
+}
+
+.mv-kw-diet-btn {
+  width: 100%;
+  min-height: 46px;
+  border-radius: 12px;
+  border: 1.5px solid #EAE2D7;
+  background: #ffffff;
+  color: #44403C;
+  font-size: 13.5px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.mv-kw-diet-btn:hover {
+  background: #FAF8F5;
+  border-color: #059669;
+  color: #059669;
+}
+
+/* ── Kiosk Workspace: Left Category Rail + Main Grid on Wide Touchscreens ── */
+@media (min-width: 860px) {
+  .mv-webapp-wrapper {
+    max-width: 1180px !important;
+  }
+
+  .mv-kiosk-workspace {
+    display: grid;
+    grid-template-columns: 225px 1fr;
+    gap: 18px;
+    align-items: start;
+  }
+
+  .mv-kiosk-cat-rail {
+    flex-direction: column !important;
+    overflow-x: visible !important;
+    position: sticky;
+    top: 12px;
+    background: #FAF8F5;
+    border: 1px solid #EAE2D7;
+    border-radius: 16px;
+    padding: 10px !important;
+    gap: 6px !important;
+  }
+
+  .mv-kiosk-cat-rail .mv-cat-tab-btn {
+    width: 100%;
+    justify-content: space-between;
+    padding: 12px 14px !important;
+    border-radius: 12px !important;
+    font-size: 13px !important;
+    text-align: left;
+  }
+}
+
+
+/* ══════════════════════════════════════════════════════════════════════════
+   ALLERGY VERIFICATION POP-UP MODAL & CUSTOM ALLERGY INPUT
+   ══════════════════════════════════════════════════════════════════════════ */
+
+.allergy-verify-backdrop {
+  z-index: 2500 !important;
+  background: rgba(20, 14, 10, 0.72) !important;
+}
+
+.allergy-verify-modal {
+  width: 100%;
+  max-width: 510px;
+  background: #ffffff;
+  border-radius: 24px;
+  padding: 28px 26px 24px;
+  text-align: center;
+  box-shadow: 0 28px 70px rgba(0, 0, 0, 0.34);
+  border: 1.5px solid #EAE2D7;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.allergy-verify-session-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(5, 150, 105, 0.1);
+  border: 1px solid rgba(5, 150, 105, 0.28);
+  color: #059669;
+  font-size: 11px;
+  font-weight: 800;
+  padding: 4px 12px;
+  border-radius: 999px;
+  margin-bottom: 16px;
+}
+
+.allergy-verify-icon-wrap {
+  width: 72px;
+  height: 72px;
+  border-radius: 22px;
+  background: rgba(194, 69, 34, 0.1);
+  border: 1.5px solid rgba(194, 69, 34, 0.28);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 16px;
+}
+
+.allergy-verify-title {
+  margin: 0 0 8px;
+  font-size: 24px;
+  font-weight: 900;
+  color: #1C1917;
+  line-height: 1.2;
+}
+
+.allergy-verify-desc {
+  margin: 0 0 20px;
+  font-size: 14px;
+  color: #57534E;
+  line-height: 1.5;
+  max-width: 420px;
+}
+
+.allergy-verify-error {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: #FEF2F2;
+  border: 1px solid #FECACA;
+  color: #B91C1C;
+  font-size: 12.5px;
+  font-weight: 700;
+  margin-bottom: 14px;
+}
+
+.allergy-verify-actions {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.allergy-verify-btn {
+  width: 100%;
+  padding: 16px 18px;
+  border-radius: 16px;
+  border: 2px solid transparent;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  text-align: left;
+  transition: transform 0.12s ease, box-shadow 0.15s ease, filter 0.15s ease;
+}
+
+.allergy-verify-btn:active:not(:disabled) {
+  transform: scale(0.985);
+}
+
+.allergy-verify-btn--yes {
+  background: linear-gradient(135deg, #D94B2B 0%, #C24522 100%);
+  color: #ffffff;
+  box-shadow: 0 10px 26px rgba(194, 69, 34, 0.28);
+}
+
+.allergy-verify-btn--yes:hover:not(:disabled) {
+  filter: brightness(1.05);
+}
+
+.allergy-verify-btn--no {
+  background: #FAF8F5;
+  border-color: #D6D3D1;
+  color: #1C1917;
+}
+
+.allergy-verify-btn--no:hover:not(:disabled) {
+  border-color: #059669;
+  background: rgba(5, 150, 105, 0.06);
+  color: #059669;
+}
+
+.allergy-verify-btn-content {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.allergy-verify-btn-title {
+  font-size: 15px;
+  font-weight: 900;
+  letter-spacing: 0.02em;
+}
+
+.allergy-verify-btn-sub {
+  font-size: 12px;
+  opacity: 0.85;
+  font-weight: 500;
+}
+
+.allergy-verify-footer-note {
+  margin: 16px 0 0;
+  font-size: 11.5px;
+  color: #78716C;
+}
+
+/* ── Custom Allergy Input inside Local Dietary Vault ── */
+.mvault-custom-allergy-box {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px dashed #E7E5E4;
+}
+
+.mvault-custom-allergy-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 800;
+  color: #57534E;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 6px;
+}
+
+.mvault-custom-allergy-row {
+  display: flex;
+  gap: 8px;
+}
+
+.mvault-custom-allergy-input {
+  flex: 1;
+  padding: 9px 12px;
+  border-radius: 10px;
+  border: 1.5px solid #E7E5E4;
+  font-size: 12.5px;
+  background: #FAF8F5;
+  outline: none;
+}
+
+.mvault-custom-allergy-input:focus {
+  border-color: #C24522;
+  background: #ffffff;
+}
+
+.mvault-custom-allergy-add-btn {
+  padding: 0 14px;
+  border-radius: 10px;
+  border: none;
+  background: #1C1917;
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.mvault-custom-allergy-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.mvault-custom-allergy-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  color: #DC2626;
+  font-size: 11.5px;
+  font-weight: 800;
+}
+
+.mvault-custom-allergy-chip button {
+  background: none;
+  border: none;
+  color: #DC2626;
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  align-items: center;
+}
+
+.mv-dietary-toast {
+  width: 100%;
+  max-width: 1180px;
+  margin-bottom: 12px;
+  padding: 10px 16px;
+  border-radius: 12px;
+  background: #ECFDF5;
+  border: 1px solid #A7F3D0;
+  color: #065F46;
+  font-size: 13px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 4px 14px rgba(5, 150, 105, 0.12);
+}

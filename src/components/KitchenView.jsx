@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { io } from 'socket.io-client';
+import PesoReceipt from './PesoReceipt';
 import {
   ChefHat,
   Clock,
@@ -30,7 +31,21 @@ function playChime(type = 'new-order') {
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
 
-    if (type === 'new-order') {
+    if (type === 'allergy-alert') {
+      // Urgent, attention-grabbing dual-tone alarm
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(880, now); // A5
+      osc.frequency.setValueAtTime(587.33, now + 0.14); // D5
+      osc.frequency.setValueAtTime(880, now + 0.28); // A5
+      osc.frequency.setValueAtTime(587.33, now + 0.42); // D5
+      gain.gain.setValueAtTime(0.35, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.65);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.65);
+    } else if (type === 'new-order') {
+      // Subtle, elegant culinary chime (A4 -> E5 -> A5)
       osc.type = 'triangle';
       osc.frequency.setValueAtTime(440, now); // A4
       osc.frequency.setValueAtTime(659.25, now + 0.12); // E5
@@ -59,11 +74,65 @@ function playChime(type = 'new-order') {
   }
 }
 
+// Hands-free automated voice alert for critical dietary restrictions
+function speakAllergenAlert(tableOrLocation, allergens = []) {
+  try {
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) return;
+    window.speechSynthesis.cancel(); // Stop any pending speech
+    const rawTable = String(tableOrLocation || 'Table 1').trim();
+    const cleanTable = rawTable.toLowerCase().startsWith('table') ? rawTable : `Table ${rawTable}`;
+    const allergenList = Array.isArray(allergens) && allergens.length > 0 
+      ? allergens.join(', ') 
+      : 'Severe Dietary';
+    
+    // Clear enterprise voice callout: "New Order, Table 1, Critical Peanut Allergy Alert"
+    const speechText = `New Order, ${cleanTable}, Critical ${allergenList} Allergy Alert.`;
+    const utterance = new SpeechSynthesisUtterance(speechText);
+    utterance.rate = 0.92;
+    utterance.pitch = 1.05;
+    utterance.volume = 1.0;
+    window.speechSynthesis.speak(utterance);
+  } catch (e) {
+    console.warn("Kitchen speech synthesis failed:", e);
+  }
+}
+
 function normalizeKitchenStatus(status) {
   if (!status) return 'New';
-  if (status === 'Order Received') return 'New';
-  if (status === 'Cooking') return 'Ready for Pickup';
-  if (status === 'Order Ready' || status === 'Ready') return 'Ready for Pickup';
+  const s = String(status).trim().toLowerCase();
+  if (
+    s === 'order received' ||
+    s === 'received' ||
+    s === 'new' ||
+    s === 'pending' ||
+    s === 'confirmed' ||
+    s === 'payment approved' ||
+    s === 'approved' ||
+    s === 'awaiting prep' ||
+    s === 'queued'
+  ) return 'New';
+  if (
+    s === 'cooking' ||
+    s === 'in preparation' ||
+    s === 'preparing' ||
+    s === 'in progress'
+  ) return 'Preparing';
+  if (
+    s === 'order ready' ||
+    s === 'ready' ||
+    s === 'ready for pickup' ||
+    s === 'ready to serve' ||
+    s === 'ready for serve'
+  ) return 'Ready for Pickup';
+  if (
+    s === 'completed' ||
+    s === 'served' ||
+    s === 'delivered'
+  ) return 'Completed';
+  if (
+    s === 'cancelled' ||
+    s === 'rejected'
+  ) return 'Cancelled';
   return status;
 }
 
@@ -298,6 +367,42 @@ function KitchenView({ onReturnToKiosk }) {
   const [socketConnected, setSocketConnected] = useState(false);
   const [catalogImages, setCatalogImages] = useState({});
   const socketRef = useRef(null);
+  // Track played audio order IDs to ensure audio triggers strictly ONCE per newly approved order
+  const playedAudioOrderIdsRef = useRef(new Set());
+
+  // Allergen Kitchen Safety Protocol cook verification map
+  const [allergenClearedMap, setAllergenClearedMap] = useState(() => {
+    try {
+      const saved = localStorage.getItem('umami_kds_allergen_cleared');
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  });
+
+  const toggleAllergenCleared = (orderId) => {
+    setAllergenClearedMap(prev => {
+      const updated = { ...prev, [orderId]: !prev[orderId] };
+      try {
+        localStorage.setItem('umami_kds_allergen_cleared', JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
+  };
+
+  // Helper for dynamic prep timer color coding
+  const getPrepTimingStage = (elapsedMinutes, normStatus) => {
+    if (normStatus === 'Ready for Pickup' || normStatus === 'Completed' || normStatus === 'Cancelled') {
+      return { stage: 'completed', label: 'DONE', color: '#10b981', bg: 'rgba(16, 185, 129, 0.15)', border: 'rgba(16, 185, 129, 0.3)', isLate: false };
+    }
+    if (elapsedMinutes >= 15) {
+      return { stage: 'overdue', label: `${elapsedMinutes}m • OVERDUE`, color: '#ef4444', bg: 'rgba(239, 68, 68, 0.25)', border: '#ef4444', isLate: true };
+    }
+    if (elapsedMinutes >= 8) {
+      return { stage: 'attention', label: `${elapsedMinutes}m • ATTENTION`, color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.2)', border: '#f59e0b', isLate: false };
+    }
+    return { stage: 'normal', label: `${elapsedMinutes}m • ON TIME`, color: '#10b981', bg: 'rgba(16, 185, 129, 0.15)', border: '#10b981', isLate: false };
+  };
 
   // Live clock
   useEffect(() => {
@@ -370,7 +475,7 @@ function KitchenView({ onReturnToKiosk }) {
         }
       } catch (e) {}
 
-      fetch('/api/orders')
+      fetch('/api/orders?role=kitchen')
         .then(res => res.json())
         .then(data => {
           const apiOrders = Array.isArray(data) ? data : [];
@@ -424,19 +529,40 @@ function KitchenView({ onReturnToKiosk }) {
     socket.on('initial-orders', (existingOrders) => {
       if (Array.isArray(existingOrders)) {
         setOrders(existingOrders);
+        // Pre-populate played set with historical orders to prevent spurious audio on page load/reconnect
+        existingOrders.forEach(o => {
+          const ordId = o.orderId || o.id;
+          if (ordId) playedAudioOrderIdsRef.current.add(ordId);
+        });
       }
     });
 
     socket.on('new-kitchen-order', (newOrder) => {
-      console.log("[Kitchen] Received new incoming order:", newOrder);
+      console.log("[Kitchen] Received newly approved incoming order:", newOrder);
       const newId = newOrder.orderId || newOrder.id;
       setOrders(prev => {
         const exists = prev.some(o => (o.orderId || o.id) === newId);
         if (exists) return prev.map(o => (o.orderId || o.id) === newId ? { ...o, ...newOrder } : o);
         return [newOrder, ...prev];
       });
-      if (soundEnabled) {
-        playChime('new-order');
+
+      // Strictly trigger audio notifications ONLY ONCE per newly approved order
+      if (newId && !playedAudioOrderIdsRef.current.has(newId)) {
+        playedAudioOrderIdsRef.current.add(newId);
+        if (soundEnabled) {
+          const hasAllergens = Array.isArray(newOrder.allergens) && newOrder.allergens.length > 0;
+          if (hasAllergens) {
+            // 1. Play urgent warning tone
+            playChime('allergy-alert');
+            // 2. Follow with automated clear voice announcement after brief chime pause
+            setTimeout(() => {
+              speakAllergenAlert(newOrder.tableNumber || newOrder.tableId || newOrder.kioskId, newOrder.allergens);
+            }, 680);
+          } else {
+            // Subtle, professional notification chime for standard orders
+            playChime('new-order');
+          }
+        }
       }
     });
 
@@ -539,8 +665,23 @@ function KitchenView({ onReturnToKiosk }) {
 
   const getNorm = (order) => normalizeKitchenStatus(order.status);
 
-  // Filtered orders list
-  const filteredOrders = orders.filter(order => {
+  // Kitchen Display eligibility guard:
+  // Only orders with verified/approved payment by Admin can enter KDS
+  // Pending, unverified, and rejected payments must NEVER appear as orders ready for kitchen preparation
+  const isApprovedForKitchen = (order) => {
+    if (!order) return false;
+    const s = String(order.status || '').toLowerCase();
+    const ps = String(order.paymentStatus || '').toLowerCase();
+    if (s.includes('pending') && (s.includes('verification') || s.includes('payment'))) return false;
+    if (s.includes('rejected')) return false;
+    if (ps.includes('pending') || ps.includes('rejected')) return false;
+    return true;
+  };
+
+  const kitchenOrders = orders.filter(isApprovedForKitchen);
+
+  // Filtered orders list - operates strictly on verified, approved kitchen orders
+  const filteredOrders = kitchenOrders.filter(order => {
     const s = getNorm(order);
     if (filter === 'active') return ['New', 'Preparing', 'Ready for Pickup', 'Out for Delivery'].includes(s);
     if (filter === 'received') return s === 'New';
@@ -549,10 +690,10 @@ function KitchenView({ onReturnToKiosk }) {
     return true; // 'all'
   });
 
-  const activeCount = orders.filter(o => ['New', 'Preparing', 'Ready for Pickup', 'Out for Delivery'].includes(getNorm(o))).length;
-  const receivedCount = orders.filter(o => getNorm(o) === 'New').length;
-  const preparingCount = orders.filter(o => getNorm(o) === 'Preparing').length;
-  const readyCount = orders.filter(o => getNorm(o) === 'Ready for Pickup').length;
+  const activeCount = kitchenOrders.filter(o => ['New', 'Preparing', 'Ready for Pickup', 'Out for Delivery'].includes(getNorm(o))).length;
+  const receivedCount = kitchenOrders.filter(o => getNorm(o) === 'New').length;
+  const preparingCount = kitchenOrders.filter(o => getNorm(o) === 'Preparing').length;
+  const readyCount = kitchenOrders.filter(o => getNorm(o) === 'Ready for Pickup').length;
 
   return (
     <div className="kitchen-view-container fade-in">
@@ -625,7 +766,7 @@ function KitchenView({ onReturnToKiosk }) {
             onClick={() => setFilter('received')}
             style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
           >
-            <Receipt size={15} />
+            <PesoReceipt size={15} color={filter === 'received' ? '#18181b' : '#ffffff'} />
             <span>Received</span>
             {receivedCount > 0 && <span className="tab-pill">{receivedCount}</span>}
           </button>
@@ -667,7 +808,9 @@ function KitchenView({ onReturnToKiosk }) {
             const ordId = order.orderId || order.id;
             const normStatus = getNorm(order);
             const elapsed = getElapsedMinutes(order.createdAt);
-            const isLate = elapsed >= 10 && normStatus !== 'Ready for Pickup' && normStatus !== 'Completed';
+            const prepTiming = getPrepTimingStage(elapsed, normStatus);
+            const isLate = prepTiming.isLate;
+            const isAllergenCleared = !!allergenClearedMap[ordId];
             const items = (Array.isArray(order.items) && order.items.length > 0) ? order.items : (order.item ? [order.item] : []);
             const isExpanded = expandedOrders.has(ordId);
 
@@ -681,7 +824,7 @@ function KitchenView({ onReturnToKiosk }) {
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                     <span className="ticket-id">{ordId}</span>
                     <span className="ticket-kiosk">
-                      {order.location || (order.tableNumber ? `Table #${order.tableNumber}` : (order.kioskId && order.kioskId.startsWith('K-') ? `Kiosk #${order.kioskId}` : `Table #${order.kioskId}` || 'Counter'))}
+                      {order.location || (order.tableNumber ? `Table #${order.tableNumber}` : (order.kioskId ? (order.kioskId.startsWith('K-') ? `Kiosk #${order.kioskId}` : `Table #${order.kioskId}`) : 'Counter'))}
                     </span>
                     {order.orderType && (
                       <span style={{
@@ -731,29 +874,31 @@ function KitchenView({ onReturnToKiosk }) {
                   const DeviceIcon = deviceInfo.Icon;
                   return (
                     <div className="ticket-meta-strip" role="group" aria-label="Order Time, Platform, and Date">
-                      {/* Left Column: Time */}
+                      {/* Left Column: Dynamic Elapsed Prep Timer */}
                       <div
                         className="ticket-meta-col ticket-meta-left"
-                        title={`Time placed: ${formatOrderTime(order.createdAt)}`}
+                        title={`Time placed: ${formatOrderTime(order.createdAt)} • Elapsed: ${elapsed} mins (${prepTiming.label})`}
+                        style={{
+                          background: prepTiming.bg,
+                          border: `1px solid ${prepTiming.border}`,
+                          boxShadow: prepTiming.stage === 'overdue' ? '0 0 10px rgba(239, 68, 68, 0.45)' : 'none'
+                        }}
                       >
-                        <Clock size={12} className="ticket-meta-icon" style={{ color: isLate ? '#ef4444' : undefined }} />
-                        <span className="ticket-meta-text" style={{ color: isLate ? '#ef4444' : undefined }}>
+                        <Clock size={12} className="ticket-meta-icon" style={{ color: prepTiming.color }} />
+                        <span className="ticket-meta-text" style={{ color: prepTiming.color, fontWeight: 700 }}>
                           {formatOrderTime(order.createdAt)}
                         </span>
-                        {isLate && (
-                          <span style={{
-                            fontSize: '9px',
-                            fontWeight: 800,
-                            padding: '1px 4px',
-                            borderRadius: '3px',
-                            background: 'rgba(239, 68, 68, 0.2)',
-                            color: '#ef4444',
-                            border: '1px solid rgba(239, 68, 68, 0.35)',
-                            marginLeft: '2px'
-                          }}>
-                            LATE
-                          </span>
-                        )}
+                        <span style={{
+                          fontSize: '9px',
+                          fontWeight: 900,
+                          padding: '1px 5px',
+                          borderRadius: '3px',
+                          background: prepTiming.color,
+                          color: '#ffffff',
+                          marginLeft: '4px'
+                        }}>
+                          {prepTiming.label}
+                        </span>
                       </div>
 
                       {/* Center Column: Device or Platform Used */}
@@ -777,13 +922,52 @@ function KitchenView({ onReturnToKiosk }) {
                   );
                 })()}
 
-                {/* Dietary & Allergen Warnings Strip */}
+                {/* Enterprise Food Safety & Allergen Protocol Strip */}
                 {((order.allergens && order.allergens.length > 0) || (order.orderedTags && order.orderedTags.length > 0)) && (
                   <div className="ticket-dietary-strip">
                     {order.allergens && order.allergens.length > 0 ? (
-                      <div className="ticket-allergen-alert">
-                        <AlertTriangle size={13} color="#ef4444" />
-                        <span>EXCLUDE: {order.allergens.map(a => a.toUpperCase()).join(', ')}</span>
+                      <div style={{
+                        background: isAllergenCleared ? 'rgba(16, 185, 129, 0.12)' : 'rgba(239, 68, 68, 0.16)',
+                        border: isAllergenCleared ? '1.5px solid #10b981' : '1.5px solid #ef4444',
+                        borderRadius: '8px',
+                        padding: '10px 12px',
+                        marginBottom: '6px',
+                        boxShadow: isAllergenCleared ? 'none' : '0 0 12px rgba(239, 68, 68, 0.25)'
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', flexWrap: 'wrap' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <AlertTriangle size={15} color={isAllergenCleared ? '#10b981' : '#ef4444'} />
+                            <span style={{ fontSize: '11.5px', fontWeight: 900, color: isAllergenCleared ? '#10b981' : '#ef4444', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                              CRITICAL ALLERGY PROTOCOL: EXCLUDE {order.allergens.map(a => a.toUpperCase()).join(', ')}
+                            </span>
+                          </div>
+
+                          {/* Cook Safety Verification Button */}
+                          <button
+                            type="button"
+                            onClick={() => toggleAllergenCleared(ordId)}
+                            style={{
+                              padding: '3px 8px',
+                              borderRadius: '4px',
+                              border: isAllergenCleared ? '1px solid #10b981' : '1px solid #ef4444',
+                              background: isAllergenCleared ? '#10b981' : '#ef4444',
+                              color: '#ffffff',
+                              fontSize: '10.5px',
+                              fontWeight: 800,
+                              cursor: 'pointer',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px'
+                            }}
+                          >
+                            <Check size={11} />
+                            <span>{isAllergenCleared ? '✓ Station Sanitized (Cook Cleared)' : 'Verify Station Sanitized'}</span>
+                          </button>
+                        </div>
+
+                        <div style={{ fontSize: '11px', color: isAllergenCleared ? '#6ee7b7' : '#fca5a5', marginTop: '4px', fontStyle: 'italic' }}>
+                          • Sanitize prep station • Use clean pan/wok • Fresh gloves &amp; clean tongs mandatory
+                        </div>
                       </div>
                     ) : (
                       <div className="ticket-dietary-safe">
@@ -938,105 +1122,198 @@ function KitchenView({ onReturnToKiosk }) {
 
                 {/* Ticket Footer / Summary */}
                 <div className="ticket-footer">
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                    <span style={{ fontSize: '12px', color: 'rgba(255, 255, 255, 0.75)' }}>
-                      Items: <strong style={{ color: '#ffffff' }}>{order.itemCount || items.reduce((s, i) => s + (i.quantity || i.qty || 1), 0)}</strong>
-                      {order.payment && (
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    marginBottom: '10px',
+                    padding: '8px 10px',
+                    background: 'rgba(255, 255, 255, 0.05)',
+                    borderRadius: '8px',
+                    border: '1px solid rgba(255, 255, 255, 0.12)'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                      <span style={{ fontSize: '12px', color: '#ffffff', fontWeight: 600 }}>
+                        Items: <strong style={{ color: '#ffffff', fontWeight: 800 }}>{order.itemCount || items.reduce((s, i) => s + (i.quantity || i.qty || 1), 0)}</strong>
+                      </span>
+                      {(order.payment || order.paymentMethod) && (
                         <span style={{
-                          marginLeft: '8px',
                           padding: '2px 8px',
-                          background: 'rgba(255, 255, 255, 0.12)',
-                          border: '1px solid rgba(255, 255, 255, 0.25)',
+                          background: 'rgba(255, 255, 255, 0.18)',
+                          border: '1px solid #ffffff',
                           borderRadius: '6px',
                           fontSize: '11px',
-                          fontWeight: '700',
-                          color: '#ffffff'
+                          fontWeight: '800',
+                          color: '#ffffff',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '5px'
                         }}>
-                          {order.payment}
+                          <PesoReceipt size={13} color="#ffffff" />
+                          <span style={{ color: '#ffffff' }}>{order.payment || order.paymentMethod}</span>
                         </span>
                       )}
-                    </span>
-                    <span style={{ fontSize: '16px', fontWeight: '800', color: '#ffffff', letterSpacing: '0.02em' }}>
-                      ₱{(order.totalPrice || order.total || 0).toFixed(2)}
-                    </span>
+                    </div>
+                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                      <span style={{
+                        fontSize: '16.5px',
+                        fontWeight: '900',
+                        color: '#ffffff',
+                        letterSpacing: '0.02em',
+                        textShadow: '0 0 8px rgba(255, 255, 255, 0.25)'
+                      }}>
+                        ₱{(order.totalPrice || order.total || 0).toFixed(2)}
+                      </span>
+                    </div>
                   </div>
 
-                                    {/* Interactive Action Buttons - Restored ONLY in received, preparing, and ready tabs */}
-                  {(filter === 'received' || filter === 'preparing' || filter === 'ready') && (
+                  {/* Interactive Action Buttons - Restored in active queue, received, preparing, and ready for pickup */}
+                  {(filter === 'active' || filter === 'received' || filter === 'preparing' || filter === 'ready') && (
                     <div className="ticket-actions" style={{ marginTop: '4px', width: '100%' }}>
-                      {(normStatus === 'New' || normStatus === 'Received') && (
+                      {(normStatus === 'New' || filter === 'received') && (
                         <button
                           type="button"
-                          onClick={() => handleUpdateStatus(order.orderId || order.id, 'Preparing')}
+                          onClick={() => handleUpdateStatus(ordId, 'Preparing')}
                           className="ticket-btn btn-start-prep"
                           style={{
                             width: '100%',
                             background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
-                            boxShadow: '0 4px 12px rgba(37, 99, 235, 0.3)'
+                            boxShadow: '0 4px 12px rgba(37, 99, 235, 0.35)',
+                            color: '#ffffff',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '8px',
+                            padding: '12px 16px',
+                            borderRadius: '12px',
+                            fontSize: '13px',
+                            fontWeight: 800,
+                            cursor: 'pointer',
+                            border: 'none',
+                            transition: 'all 0.2s ease'
                           }}
                         >
-                          <ChefHat size={15} />
-                          <span>Start Preparing</span>
+                          <ChefHat size={16} color="#ffffff" />
+                          <span style={{ color: '#ffffff' }}>Start Preparing</span>
                         </button>
                       )}
 
-                      {normStatus === 'Preparing' && (
+                      {(normStatus === 'Preparing' || (filter === 'preparing' && normStatus !== 'New')) && (
                         <div style={{ display: 'flex', gap: '8px', width: '100%' }}>
                           <button
                             type="button"
-                            onClick={() => handleUpdateStatus(order.orderId || order.id, 'New')}
+                            onClick={() => handleUpdateStatus(ordId, 'New')}
                             className="ticket-btn btn-back"
                             title="Return to Received"
+                            style={{
+                              padding: '10px 14px',
+                              borderRadius: '10px',
+                              border: '1px solid rgba(255, 255, 255, 0.2)',
+                              background: 'rgba(255, 255, 255, 0.08)',
+                              color: '#ffffff',
+                              fontWeight: 800,
+                              cursor: 'pointer'
+                            }}
                           >
                             ↩
                           </button>
                           <button
                             type="button"
-                            onClick={() => handleUpdateStatus(order.orderId || order.id, 'Ready for Pickup')}
+                            onClick={() => handleUpdateStatus(ordId, 'Ready for Pickup')}
                             className="ticket-btn btn-mark-ready"
-                            style={{ flex: 1 }}
+                            style={{
+                              flex: 1,
+                              background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+                              boxShadow: '0 4px 12px rgba(37, 99, 235, 0.35)',
+                              color: '#ffffff',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: '8px',
+                              padding: '12px 16px',
+                              borderRadius: '12px',
+                              fontSize: '13px',
+                              fontWeight: 800,
+                              cursor: 'pointer',
+                              border: 'none'
+                            }}
                           >
-                            <BellRing size={15} />
-                            <span>Ready for Pickup</span>
+                            <BellRing size={16} color="#ffffff" />
+                            <span style={{ color: '#ffffff' }}>Ready for Pickup</span>
                           </button>
                         </div>
                       )}
 
-                      {normStatus === 'Ready for Pickup' && (
+                      {(normStatus === 'Ready for Pickup' || (filter === 'ready' && normStatus !== 'New' && normStatus !== 'Preparing')) && (
                         <div style={{ display: 'flex', gap: '8px', width: '100%' }}>
                           <button
                             type="button"
-                            onClick={() => handleUpdateStatus(order.orderId || order.id, 'Preparing')}
+                            onClick={() => handleUpdateStatus(ordId, 'Preparing')}
                             className="ticket-btn btn-back"
                             title="Return to Preparing"
+                            style={{
+                              padding: '10px 14px',
+                              borderRadius: '10px',
+                              border: '1px solid rgba(255, 255, 255, 0.2)',
+                              background: 'rgba(255, 255, 255, 0.08)',
+                              color: '#ffffff',
+                              fontWeight: 800,
+                              cursor: 'pointer'
+                            }}
                           >
                             ↩
                           </button>
                           <button
                             type="button"
-                            onClick={() => handleBuzzGadget(order.orderId || order.id)}
+                            onClick={() => handleBuzzGadget(ordId)}
                             className="ticket-btn btn-back"
                             title="Trigger Customer Pager Alert & Buzzer"
-                            style={{ color: '#f59e0b', borderColor: 'rgba(245, 158, 11, 0.4)', gap: '6px' }}
+                            style={{
+                              padding: '10px 14px',
+                              borderRadius: '10px',
+                              border: '1px solid rgba(245, 158, 11, 0.4)',
+                              background: 'rgba(245, 158, 11, 0.15)',
+                              color: '#fbbf24',
+                              fontWeight: 800,
+                              cursor: 'pointer',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '6px'
+                            }}
                           >
-                            <BellRing size={14} />
+                            <BellRing size={14} color="#fbbf24" />
                             <span>Buzz</span>
                           </button>
                           <button
                             type="button"
-                            onClick={() => handleUpdateStatus(order.orderId || order.id, 'Completed')}
+                            onClick={() => handleUpdateStatus(ordId, 'Completed')}
                             className="ticket-btn btn-mark-ready"
-                            style={{ flex: 1, background: 'linear-gradient(135deg, #059669 0%, #047857 100%)' }}
+                            style={{
+                              flex: 1,
+                              background: 'linear-gradient(135deg, #059669 0%, #047857 100%)',
+                              boxShadow: '0 4px 12px rgba(5, 150, 105, 0.35)',
+                              color: '#ffffff',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: '8px',
+                              padding: '12px 16px',
+                              borderRadius: '12px',
+                              fontSize: '13px',
+                              fontWeight: 800,
+                              cursor: 'pointer',
+                              border: 'none'
+                            }}
                           >
-                            <Check size={15} />
-                            <span>Complete Order ✓</span>
+                            <Check size={16} color="#ffffff" />
+                            <span style={{ color: '#ffffff' }}>Complete Order ✓</span>
                           </button>
                         </div>
                       )}
                     </div>
                   )}
 
-                  {(normStatus === 'Completed' || normStatus === 'Cancelled') && (
+                  {filter === 'all' && (normStatus === 'Completed' || normStatus === 'Cancelled') && (
                     <div className="ticket-actions" style={{ marginTop: '4px', width: '100%' }}>
                       {normStatus === 'Completed' && (
                         <div style={{
