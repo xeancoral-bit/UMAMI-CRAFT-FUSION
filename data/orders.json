@@ -1,5 +1,288 @@
 [
   {
+    "id": "ORD-2127",
+    "orderId": "ORD-2127",
+    "pickupToken": "U-310",
+    "customer": "Kiosk Guest",
+    "orderType": "Dine-In",
+    "diningOption": "Dine-In",
+    "location": "Table Counter",
+    "tableId": "Counter",
+    "tableNumber": "Counter",
+    "kioskId": "1FGHX3",
+    "restaurantId": "umami",
+    "items": [
+      {
+        "id": 1,
+        "name": "Szechuan Dumpling Duo",
+        "qty": 1,
+        "quantity": 1,
+        "price": 349,
+        "image": "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=600&q=80",
+        "emoji": "🍽️",
+        "tags": [],
+        "customizations": []
+      }
+    ],
+    "itemCount": 1,
+    "subtotal": 434,
+    "taxAmount": 0,
+    "discountAmount": 0,
+    "promoCode": null,
+    "total": 434,
+    "totalPrice": 434,
+    "payment": "Card (Visa)",
+    "paymentMethod": "Card (Visa)",
+    "paymentStatus": "Approved",
+    "isPaymentVerified": true,
+    "verifiedBy": "PayMongo (Visa •••• 4242)",
+    "verifiedAt": "2026-11-13T08:02:41.786Z",
+    "referenceNumber": "TXN-UMAMI-MWEOVPPG-4380",
+    "isDuplicateRef": false,
+    "status": "New",
+    "nextStatus": "Start Preparing",
+    "stripeColor": "#059669",
+    "priority": "Normal",
+    "isWaitAlert": false,
+    "waitTime": "0 min",
+    "orderedTags": [],
+    "allergens": [],
+    "note": "",
+    "isAllergy": false,
+    "device": "Kiosk",
+    "platform": "Kiosk",
+    "createdAt": "2026-11-13T08:02:41.786Z",
+    "updatedAt": "2026-11-13T08:02:41.786Z",
+    "statusHistory": [
+      {
+        "status": "New",
+        "timestamp": "2026-11-13T08:02:41.786Z",
+        "updatedBy": "PayMongo (Visa •••• 4242)",
+        "note": "Payment verified via PayMongo (Visa •••• 4242) (Ref: TXN-UMAMI-MWEOVPPG-4380). Auto-sent to Kitchen."
+      }
+    ]
+  },
+  {
+    "id": "ORD-8809",
+    "orderId": "ORD-8809",
+    "pickupToken": "U-249",
+    "customer": "Kiosk Guest",
+    "orderType": "Dine-In",
+    "diningOption": "Dine-In",
+    "location": "Table Counter",
+    "tableId": "Counter",
+    "tableNumber": "Counter",
+    "kioskId": "1FGHX3",
+    "restaurantId": "umami",
+    "items": [
+      {
+        "id": 1,
+        "name": "Szechuan Dumpling Duo",
+        "qty": 1,
+        "quantity": 1,
+        "price": 349,
+        "image": "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=600&q=80",
+        "emoji": "🍽️",
+        "tags": [],
+        "customizations": []
+      },
+      {
+        "id": 2,
+        "name": "Fresh Iced Tea",
+        "qty": 1,
+        "quantity": 1,
+        "price": 85,
+        "image": "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=600&q=80",
+        "emoji": "🍽️",
+        "tags": [],
+        "customizations": []
+      }
+    ],
+    "itemCount": 2,
+    "subtotal": 434,
+    "taxAmount": 0,
+    "discountAmount": 0,
+    "promoCode": null,
+    "total": 434,
+    "totalPrice": 434,
+    "payment": "GCash",
+    "paymentMethod": "GCash",
+    "paymentStatus": "Approved",
+    "isPaymentVerified": true,
+    "verifiedBy": "QR Ph (GCash)",
+    "verifiedAt": "2026-11-13T08:02:22.260Z",
+    "referenceNumber": "TXN-UMAMI-MWEOVAMY-5201",
+    "isDuplicateRef": false,
+    "status": "New",
+    "nextStatus": "Start Preparing",
+    "stripeColor": "#059669",
+    "priority": "Normal",
+    "isWaitAlert": false,
+    "waitTime": "0 min",
+    "orderedTags": [],
+    "allergens": [],
+    "note": "",
+    "isAllergy": false,
+    "device": "Kiosk",
+    "platform": "Kiosk",
+    "createdAt": "2026-11-13T08:02:22.260Z",
+    "updatedAt": "2026-11-13T08:02:22.260Z",
+    "statusHistory": [
+      {
+        "status": "New",
+        "timestamp": "2026-11-13T08:02:22.260Z",
+        "updatedBy": "QR Ph (GCash)",
+        "note": "Payment verified via QR Ph (GCash) (Ref: TXN-UMAMI-MWEOVAMY-5201). Auto-sent to Kitchen."
+      }
+    ]
+  },
+  {
+    "id": "ORD-1717",
+    "orderId": "ORD-1717",
+    "customer": "Kiosk Guest",
+    "orderType": "Dine-In",
+    "diningOption": "Dine-In",
+    "location": "Table 1",
+    "tableId": "Table 1",
+    "tableNumber": "Table 1",
+    "kioskId": "MOBILE_01",
+    "restaurantId": "umami",
+    "item": {
+      "id": "DRK-004-Small-reg--",
+      "sku": "DRK-004",
+      "name": "Mango Shake (Small)",
+      "description": "Refreshing real mangoes blended to perfection.",
+      "price": 85,
+      "promoPrice": null,
+      "available": true,
+      "isExplicitlyUnavailable": false,
+      "isOutOfStock": false,
+      "stock": 44,
+      "sizes": [
+        {
+          "name": "Small",
+          "volume": "355 ml",
+          "price": 85,
+          "stock": 22
+        },
+        {
+          "name": "Medium",
+          "volume": "500 ml",
+          "price": 95,
+          "stock": 14
+        },
+        {
+          "name": "Large",
+          "volume": "700 ml",
+          "price": 105,
+          "stock": 8
+        }
+      ],
+      "addons": [],
+      "allergens": [],
+      "tags": [
+        "vegan",
+        "sweet",
+        "healthy",
+        "drinks"
+      ],
+      "category": "Drinks & Boba",
+      "drinkCategory": "Fruit Shake",
+      "catalogType": "drink",
+      "emoji": "🥭",
+      "image": "data:image/webp;base64,UklGRmIdAABXRUJQVlA4IFYdAAAQtgCdASoOAUsBPp1GnEolpCwrqNU8aYATiU3IUAWAuyVs1mIzGXpdH97y06Me9zNl6U/Fh6jfmz81XzcfSq6r/encbrmcdZtcveVwtqVvFj+T2GOOT1k/BX+2l1nesBaWtanW4YeHNN0mdeVidqYYMFfGF2jjO/EYxHwVK1L7hblme+oVerr/y8GEN7+8HpF71VgDQAVyoxTTvRf2nI/TVjoOUeUvV2nIuWbEr/wVYLUSh2j526LXPlQqk8+J7q+7eqsKK6B85bTnxlMnxora3nRZY/+dqFjrYKGYez6byj1BNFfNaJzTjHulGi/F+uMI6fbol3osOfXEgp9KMOimRnIox2AeTnubwp6UhUL9yoY5Feyxlfch1uTKrYRCawhrGCn9Yb0hwxbTQzlZ5ki8O8ufEMnwPJrFVPLrw6aempDVFx6uRzCRFSKXuekhhrsAddkDYNPkheFDsBmasNbTAioXl46RQHxjG+OKE3sYGD+d9D7GZX05PNc982bM9vidi5GRFAxOyzOEAWskK+vTUwPa3Oyfbta8IFuOmyLMVq8CutQ1SZjiKTEfaDfBVL/q0b8ZNjaTHPnm8VG3Q83+5DGzrdNvkeAwGeWCnxIfxwJZ5k2lZ7jFRS2R5592WB1JboLp1BEKflVxXlOxhpbVwsNP8z2YHvH4RPWAHf+aJgvGLWxQSKQNCQdRy8r7V5rfzCy4Z74L4zFW2TqLw36vd7hx3Yv2AVLVERtpTLRYtYQkhs2XM2pOKZZcDkFD34NjECOBOL8raOZf+F9Br5wpw/OZLt+PXsVOWjvL/W70M4rE12ZAyjLtdOv9yDNAEURT/mcILl/m76GmjfmiY8N+KpQwjVirdiVSrff5XQDkDaoDB/Ax2/kRAFTDxcBr3aom6LCNPm3K3soIrX8l8Tto8lIp1nepgEqryuirIXaWcUFT+a3OspZEbkToKNw65byevwsaAjC/7PkmSaURQr69VL9eVh/SWc+p7hocbly+Yrna+3ugnDX20jZvlx65F7o/Onqfu+i7q7x5nb9Ymi+88Y8zi/HZPeL8vMGo3VneqRpU7Osz1t/Xji96yKMxVAAYOYgeMYhRAly1elWpBSN5vZx+87XsHctUg9A08Ka+CQ0hJxy7VKTCnAo/lvfibmYEDL8ZQI2IJNeCHJcB9FBO3y1JaIiCOwFKUC1j+gLfBHGMec5BMJlHprb4+QI4f9KzkCVC1NpMJJwUPtip7Lcvh/i67ElAO6NuvKOS1KRojG4EXe01teLaMwtZZ3nhANVU02Q5sG0zCtObIihvTJdTyUsQfUb7RHMITYlpP5f+91rhU0fkpVtD6hH1KRm1M/0pNgozHvzA2xUCbjZo/CgJjeslKKbqZcWzBrOwRg+kr+aDSDS5un1Vbi56Ca5CZoI+CVrCO4bTbLuJq7htrHP8QCLyQxwX4m3V2VObFygbZhZO7IfZVIGBB7yS0MwQqbXnYs0Dl0E1DBspYfLEeiaRaJXz1l0aXRMK+v3rTN2V8dlBrAcyNZv/64IUbM7mrr9c+yZLEK4sEtHVnepTbetprNb45xCZ5BpRJ75bRhmbqbRF3vlsd/xBU3M21quVFV3vaw14+A9P/VS91mw7ub01R8dYu6f1h1hfTX9CNmcfQPtjWUBv/PJ1TqdNDRzXJ9fo/OUnRRoH/ZRs5agUI5yQVcj0wj4lD8xkaLly3fnHKxzGgBiWGVXHYyG0T1pmxiGOKsoATQfhwe1+o+fm010qj36oE8posGLTD+jFTqLnOKeoYGguurnni+3OLpIyHbPBJsLQoOR8cC9HCKzoxJwmoAs3ZVXmX1tl6M4cYea3IAPtLAEPBFN1/6KlTg1ABdjQ8YC91ydNeubptBZurwDlfmGWFjmuNv/csv9tCrZQ9wHjont7ME/vTDAa9Ax9Qt0C0ELlJS4/HQhTs2pmVaN4xS9RW9rzJHoAAP7zVPMGd6l2chrALTWZI/wRvXQVTKjTSNwAWrVOIjPl88vD28A4IbqWYK8FEOZ/4w6KiGYXDJS8Yefygweudsxj3qDCUxZkuS8WF9uWJX2C6LPBbkOUe/EDKV47TDXTAPjLCWOBP3TCB86mdg6n29StTzPYFYwtg+kjaFyhafBVSXMFGXDJ+BM7nrAOE8BPZX3D2LJvrR2+qxgDIb0VGi1ljbus+5zLfH1ogY5YpGBqgWbWNEaJY2vV/YiMvV/1kdD5lxXOhXGlRH3yl/GRyEzMgxoNkZFJj++VLJq+9GTarzfq4jEHLM415Hi79hP8t01MKgm7o5hvUbfla1/bIrgiYkWjWIubv9Dsg1kpAPVFbJ+1lDo22a3agiH8/b3OFLLPEscLj9y8/LoNTV8QxmQDQixh9iqO6PRtubqJZ3lNeD0XD5A6rs9m+tVfq+N/TLEQZKbwcwDUDhWpUAMT99jwBS7+/gF0Tbm+TpqOYPbjq1DmgAbCZjQHFDzWVCP2Kl8vrpn4ucenAM02jsTVPbIq7x+KXShPkSuPRErJryoQ2gwmzexfJ9xR5oAT6IYzMHZqmZGUZsez9eIjS2BZAv6rblkkwzom8F7zjq0+W19w1c0cTQKI3FVI8ctrP1i5u89FowF6qTcWfGWuWvXJEltX9h50rFWfL8JD8DA93u1hu827WhqAZ8RUAAAGtAT8rAAwCUvXcui7j/4CLLFGDiODz0pTsl0Aue8q4IGrVCnk4IilM9StTbKuA3RC2a5Cn6Nk48QUax0z7Lt3Gq9Ve0nwlra6lkHEDoWnv1F0EP4U6rtaElufKyO8WFfFNmp/SzlK8nJI3HvHMZb6h1hb4o4ijBvFDb3WRN1q14H8lfGLs9S3vF7tSH7a+H9bbd++SmNaQczGq9fkkYaiZVGH7RSwElpwY9mSHrG3th/uZa88fooGNf88y+PlCV1SguaxEPtujVZHg2qIVu4kNxf1QJ6Xk1wIBbgdTRr2innk9HKnD5Z+bX3N800Mwn2xPw8otiA7DDPr2f4vEwbzeAdj+xROd9kZfqymo5Cv0yk42gyD0d2r+bqMuuz9dOr7gxBtBvMTG1bDP8I0EHhKKdoteDd13cK5PAE1kJqAoQ+9ImY9GXfKCe8tyAhuElR7CFc0jDslDwa23ytL+eS/vuf1lhQZvXVCEVn91BQvW6vjfevNM6Yhg/IaTBXi1wJR6xLwjXrVDMtIGUAFNC4vlJ673p1a9evWnJj0khaLNlcRNnof+cG4ZgafwNgAQwi7KODyvmY6IG5XaJ3qubyas5z0kjzNKUJlJzYN730Qme2cso0nBd37wl5bkmJCqyrnLEgpX+iQvNydExXwEsKwX+J/9FnBnXg+P9S3oj09uLdB8BtDfxy9tgNhCCIMqivY3R7LLqKoJ/YI6g+6EAFxN+S6dhDl6kofu35XR30Htn73qIc36yGkODEFJygGQ4xZNCzJ9Tqvpqwk1t7cIeH+ApYkoNov2ktu1MhicQ7gCQDg0bdheaKgS/NJymLBEKSemN5I6ftMarCvO11oQapaAlgAKByV6hqiHvrbF8Yc+HBpu9wcnMVVSeACFzsC6spepU2GCMWjHXFGTGt3dyQT4lPAQ/rgbMMeM0q9rV7E2soEGikT6Stb0FhsLZrXWEOHVIrfTcCmXfJZjw8RnES3elbl/tuslQj9C3w6nmoeVQdfba6Hiyhb9+u3vXvV9a2RgQk5Z6LX5ZKCOAqmqI+uO84i9PKpyuEF288xv+O/ZsZjtDbg2eaH1mVicY4etBSA8E21Ci/Ph5z5Lx5p2LsNFGX/jcqNZEUR6LgA/aQG44GfqTAigwQcpYRKNaw7QJ5alWFY6E+550otHdvofrM5IdnnhviYIXVqDxC9uc43psZhMk3n3+so+kYo/x1bJ6JiNIQKzCyk1R2pj1QecSDRzqDum32n1cvGFGIZVBv7lI6Yj2+PM3RVQb4W8fflEJlogGa0OHxC2Cp4pVkKc7h8OXQRf1AUGIw6O4hSO9ZDb13sSzCXS9712nPvE+lNNhF8+5JJwrXJecIj2fgJ6vxjMbV4sH/G0cqwCRPUsfn0NsRQDlM/stvXgGVfFHdwVl2z9vaziQy1Vx4eZ47lhHAHxQcIArhSU+PACo1TsFJtENWhfsXmaAHE053MiK5TqKM/y6QFZ/eGU+zM1rL3avp6xzoeVpoiH9A/Ju/lp9fnR3cY5QfPF9YiO3wmw88sUF+s2hWDNjieTnWZn96aXibG38zUr5HzjbamyJf6iNdhtvjhqZrQjvurXMIi8AZK+PP2Ovr8d11Cngf1p8B0zEiTqqCPpu/yTFthPeswCXAl8h+U2YBH3uL2PInBQeelAaZKNiWBq56fSQ2L9VaG9EBDwcPfWJbmON5z9aKDRR2BaNgG9c3p4Dwc+O36f80dxfKB9G+nQYBt1vTSIUqCcxOyDjW4BHkrNlp7FEYIt2+2UsPcZsccMiVkQC/V5npOLzh1H6fnoxmQXvQgveUr8aWXqgvsyYsy2MZaCYk2Czr65IEeUkwd2wTzT4ile9u8kvvzwy7mAv4HvQlTZlz+opm2DpxuNfvcAqIiR3+kyzb6Ay93KSz7ZCUYOGtrdUI7Y5e5XWkF8BW5f5VA4+fPgZ0ShpDRTH/lTmwxgaKqHTWa61LMrSVgx/f9eY5AO8uiTEdDWPmIGWkx5Wc07e0gw3Rq892iw2EB/ghnTbNm1EP/BZcalMUbBzzXNJYM1y5nQEM2C2aeyDuCdgXL5K1uThjPDseww6P226yqfs1npVP33hB7mgaEJ2aJcA/koLwOZ6iYi2rkbeSSEhSL146eXzv6NASP3ixH7f+r7YEkmDsBz3EKTkjBmg/vXi+oOz2za08xh/bREk9FcP1Va4ggSnJgbGdYNmSHGcHCYMZlkDa81uhZuFgCQFIGAnm5mdMMZVAmKuDAUEfu1T0Jry1iENiFL1H8Nihc3DjLrWPnHLNzcz+1/8IpyE/4o9PWGQaSGuz1fuXiSl5I/TDzwYFP1uvzenxLaUX4JpVFFTX8XFEdZoBPOgWjwkb4Qj6+VrwhXlUEF4JRFiGXRF1v4NdUdZETxwChR/1MJc9bm26ngboMs34lpEZQv+epk0ZaSb1HfDA75Sf6BjNOq+nC1z03kvHSJZmkjVtHo0I0wwlPj8TZxxEK+EBHx8qeKEET2J0R8aImg4S3s/ou6yTiIVfBDwBDL4sSL1sIj05jZTuuWqzFOq/PuJYozNMaYtkop5c3LPsdmQVfYgXlk6s2k87XUb8B5jg8bhwND52nNzgLe81IAmwwYrMQSMAHYUSgktARlUXsJXyzjIxPxWt3w8QaU9lpyLBNIevgPdok2EwocPBOFfNVnlyaFFiU9NF9Ga+UiJNgVT9BWxTYx19mQAv/6SKE8yDYTtN3tlrRUmiBMYK1q8FPg4COD0lZJnwqoqtEeyAwkPHgaM12KBRyspQbOwt8YaEv1ELLJPBoL15MICd/nUVONLY44y1nVMnJs7Aux6BW5Vxy3NnLJoC6HwtssGFR8B1vwl2GLjvl9MuKKtYt/XpPW5bnNB3nIWcr+ahISihxoyrmOshKWmR8iQJK/9fXo6EW6vk3+6C4r9h2e6TFkAj/q+T5lYKRDe4B64AJagqKUroVFFfV+ZgV8i3Drx3SSZRsiWppRluZ7tmoL+LPv7GgvqaDm2YhC7TxhG8CUGrDTPoWlHS7ggGRPT2rrNcnDicKALSJ8K+LrVL8wqc3ueh9f8Det5HMMr4/d8VuaSHd/VeGj6HFJuR00DqJhhjbG1GFklAB7rkZYhuMSdA1NDu1e/8PO6kvHBl3KAEnxwA6uwWS67cEJVSOiYb7DoHaW8eVwUQRP8bwt2rS858MjfuGFlo2l8FoBNu1P0xVMUub/XCA/s7LQKGD+RfUFfh4ZGhzFn9erI8j54F+LBVrG99BkPoxwirjFpz1xbYsPG/Og634gyqnMKqW4m3NuaMuoygs/TYrQaNVmEP8ggoNqIISNV4C/NZHFd6IejYby1rFzahPXFJKI/KE0x6F5aAL0r9jQ1Oh4R8cNqfo66TH0graIUneu2s9mZvmQO19WnTjFSplpTrNU+WvLZT9L0O1x93ZSSWb0XNCHtVqzmWtdLX3DOY9aABJough95FLPns6KAhRANiDCdgvoH32KmfppyQIUfZD9a5ZT3yldy/AX57OmvwEwJSPEwNDt8v3RJ82U4Oz/jlW3Iele9+YQ2yY/aruBygipfrX0nMjhh4X+i2+W4TtAcrJOn2NvPM3NyIW0dv6tROQIwJBCZswWaEObSXDQSjwVuorfP6ddL46QqoUnknqvccbtBi7/bQ0uFFL6cDZAp8WbKs9soBNUxkprYLGtntTzpKq9soPIMK2STvMZ4yEQ/4vFlfoFNhAU0I/vitTL0xwNEc/TFZr/8BQyfNxqjpfSYt8ypEe8SM//TRJGsRgppjEj08SPkxShNJbCn3aJX2rNlNCT1ko+zmdkT833v5KDq9j0bdesVu2Yn8KGLDZsXPsB+qaWxMZo4xNcD3HTsyOLHdVpXpMf4yRs2CH+Q01Lac4bquoj3dtw1BQmBobKs7p0L13SUHlLXOknMfz0fBHHNQsdu5K0gRof0y8RdXrp1LP2jadQaErL6cYRfAYTyIUmyNGWEIF7iOn8T9LTqf2ojUlcT2WTnj0N4n1ZCJeSgewB66MhjsmA/b9Sj0+nEHw1RtvlHlyitwnjDHRNI7cGMRBXaOJeJ+HYeIDA7BMApHff1nbPGzzrqvnwHI9hVtCbICHvJjAyHxM/MDWEuDAXeIX/rs2jCoCGC6v8QepIaRnaacboaglda6qtBISdiux526WEqNO0nSK3nO624ig4Ha6CrUuenhRbwRCiMZiHDp/YffWANTWrbliJCS7ZuWjBhDW/0pyr89Rg2iqXwjITtPO1XtDg7Ka4z/7q1Q2bNacqZ7ga5cuGqnlD7EhDWS8hzvFXBZxAMprvmYjT582jpO7F4N6j5tx/rh+2Mt6XTCMUV7Vyay7Fw3MKeLaT3zTmVUe+6Jhzh8v8zmpKgMIENi+Z6UkrQUrAdO9STcv5pkoYfZjsYVws9rwmILRQtZ12pacjerKD6PekBEfhUNMhF6be1SFWHxw0q0aeEpJmR24Eqv9S+tFgK8oIxJZa+HvPZDfL1yD35KUkTVgfUQ7GYpMvTm6YbyNj6rWV4+GGFVisrbEZkhbrmPHJIB0nvxgCVAY/mqYNndSI+aLUwjdgFyJbnWts/jNEItbYGxERkbmkR2Wu8P59brFiqXdMm+0Q6l0BNdOB7v2khp+4L+zOfnbEguNvuvYlBttsFigpTxQcj7ZdLpKoVZK4COHlqbWBnKqAsXlBFi+90YfoczcbvmMY92TfBvcm+cG/lu5/cyo7+TUTmi+K7X8T7PVmSPkX/h1DqIAtwlgqESO+5wWZBH5t4sd4Xxw3XVgBgLE2ZKZqboSn2x07IasMgyBAKFqiH1vuhVu+My84R57CzltTDI4AERmVBBiYOPS+x+cquPBKWWvN62bAAbGJBDtchS3mZ00mWhHFgQ+I7nici4HAPLc5Rlu8JNPDrbYCQ6XEyEKLvoJ/hSLVt0fWzxiiOCDdVQ4X8rtuSq6X+E4irCdvwjuECQhr+TKVDVBSwrSIvw368VKdOFlEkVCRmZNBh1BcjyFHy7oB19d3MOSWQ6j1PzWvn49sGXA4Y3PeH2pBsOa4MNwad5nbzNF4veq7l2a/jrtO1IpipsCbjuJwP5PBGaJaO3z6DFEJvJVdB3O5jf8zG0XlNfcCmETgMbMuuXFXaXsH5zAryp6IcjiMwdlWFKQFX021aFHeb9Ql22H/kuaI8z8JApXGvYmGWhyDWMxL8vnfcFrkYt9i7DXEmv/vwVjFyJ5qTi08Bp7522hmndQzGKKcn2/tQgOjABcrd9fiECTshhGmVBF9tUwSHbFwFpeW0MY0f+1Q9RP/ZsOnyirvvP2Dt2o/sWv2b6jpqGVMNh49rUbxy0uqUrr870QKYEkC4PMLHo3DMGiqHywZ9f3v/zm4PYcY9agBFZl6v9YjEvas8efxgdJaPkP4Q6d/XWoT8HMRrvtIHyc3RxDwHZd8pKV6/ul7s3sjebTRs2UJPlK0P64iiQEVje9DpFnrEPFl3a6H6SrsGWrwQj+0qYK4eup0L/X2xvwDl3TqBk31Yf7b87UH6wmjkL0QJp240mzScIc/m/gpnotGqUKBr6pvk4nMRz4a2VnhOyPGNpqAQzWCAHb7fqVXOXD+THf18+bJeN9u7wOgCVZTznVSqR+//hQqp4JaZAC9glgMj0crdDy3bw4AkFeMWwx5MUam1bJjuuUxDCgwOaI+19LNKk24D71v0vRhdp/eP7Bm662bAS4pf58PjXyEGIv2Iz29TgSidp4wyNS1tM/JAgIu9r7gR3nbQ2SZVHTs8V5rM7ovx0kMp5Hvtqr3SO1KITunPU95E6cxjuGfMI8BsAI2IMGOxt74sxEB/sj9nstgmHAviJOwWRDmqeF+qKWyENUA9iut6A/TyA+KHL/2T59wiXQN2/C32a0umCcssTo7IvWw/FahMTcxxQDKI8f59qoqtGxXeVMob8UVsZAHDxGB2y4KsmvwgU73LAdx9SZlvd8tJM4sBXvai7iTb8uA1mPGlc9TgfaOCx5/M2op71VS6++AK5oQeCrPGeNLTeLeIVxMbFlcrWWb5TU3gADY8ex6q/x1VQt93EmZF76QClx2I1JY6TZFarpXMR7F60PxRsXtHG1tkZlaiQIlVlUkTOIKvGKk+cCu8qticCpTYND5EkLLk7zUa3IGAewGDZsChNIxPNvFqWj5UaQyua/77va+E7vwWKyB7J9J/5bVcotbEtQCKLxTyiZi1AxgPCglSHA00ePeCI/G+HcDHbpwIM4r/76lDwQXDA1ZXZulyEE7p4J3GF/QqmouPi1pv+WO9cZL6rJ6T5qKEybRgnei3JqnPQXLFbTK7DjKdgNBjFPyK0LHH0O3ezfDg/ps3OBqSmVg7S6gGY/S1qytGP6B/bIA8kcwbnA3yTElSxzPiE+7gj2jrwkZLGe1ICGrKIIQK73Ft/+16pG0RMdLkEKuhcEdzk3goelgckkzfEXeZymfvtUOnuPDYBlfTAabrxI2mMeuRpcXUqOaa6u4XOHt9mAeFmToUBzEb7GN1W7ZZrxpEDxy5QdspGZjmXOgMbJRd6wnnhfWdq/eAOQGI+o4l6hTMPvcYQFvChA+1ZdEkXyKpGHA1MVp+k03pluQBGYhayUCmGPdOCFx0QGyt0tqP205az5uR+ysgMywOJFoOJBjBsYB/EazP57IIoTIbplUUpFKxr8joz9keQz24+FFxT0096jdfj/u4EkwIzAYTuBF5ZdeUr3+cU8tqU6Zm+Wd7feN01mbFdQwmOv/RAeKB2+FVCytjDRsB3zXrXePYZz3LtzCiP/yth15z4A6Zy89AwGacuGoCZg9zzfuE1X3up7zAMLm0hO17buRLc2IBItwnKwidPIVLCbK6EVgQ1JB7V2rW5Wz95wahq0fVZLxRggcTVcZSqLkhbRiwETSshEj9bHHYAdQCDgR4RaELnb0cPGI74BYunIJXlKXvcNAxJ5HJdcPBQhpfhCDOjYsobQB0+7dImdhCFr3H+Ed/svQ2CCnX2YStSM2I9GRXT8r2nazC6Wtm72M6KV2oN2lpf+f9YcoLDobUvJmTZ3V6u8HflqYZbkL5aIuKe+3E8Qhc+bUJZqCj7QHgLauyJA1YHbvGHK91Da0rk2aVJGFwQ3G8FDvW35A+Ri7G+0SBhWQCXihaRSM9xU8YdVM/PrlUkdvHdD3KSfqrS4DATFkCVtypMj/h/ZTaIGs4aL3tu0gz66sYffjqUvcX/5iijKWQvzxK6nd0OLIXXPTm5sRL/Hi+sG925j+2j+KZPyHACKtkTpGZlgLk0THsMTq55K4nUgXgsQO3mmvINIZVdWBHEjc6PFd6310kmPuboyaYgEc/LaqfHLtbkjVokDTq+RvtJfL8W5mnMGEEeuIomF/26/3Tvmr8bWkF2SYAAA",
+      "originalId": "DRK-004",
+      "size": "Small",
+      "volume": "355 ml",
+      "spiceLevel": null,
+      "specialNote": "",
+      "quantity": 1
+    },
+    "items": [
+      {
+        "id": "DRK-004-Small-reg--",
+        "name": "Mango Shake (Small)",
+        "qty": 1,
+        "quantity": 1,
+        "price": 85,
+        "image": "data:image/webp;base64,UklGRmIdAABXRUJQVlA4IFYdAAAQtgCdASoOAUsBPp1GnEolpCwrqNU8aYATiU3IUAWAuyVs1mIzGXpdH97y06Me9zNl6U/Fh6jfmz81XzcfSq6r/encbrmcdZtcveVwtqVvFj+T2GOOT1k/BX+2l1nesBaWtanW4YeHNN0mdeVidqYYMFfGF2jjO/EYxHwVK1L7hblme+oVerr/y8GEN7+8HpF71VgDQAVyoxTTvRf2nI/TVjoOUeUvV2nIuWbEr/wVYLUSh2j526LXPlQqk8+J7q+7eqsKK6B85bTnxlMnxora3nRZY/+dqFjrYKGYez6byj1BNFfNaJzTjHulGi/F+uMI6fbol3osOfXEgp9KMOimRnIox2AeTnubwp6UhUL9yoY5Feyxlfch1uTKrYRCawhrGCn9Yb0hwxbTQzlZ5ki8O8ufEMnwPJrFVPLrw6aempDVFx6uRzCRFSKXuekhhrsAddkDYNPkheFDsBmasNbTAioXl46RQHxjG+OKE3sYGD+d9D7GZX05PNc982bM9vidi5GRFAxOyzOEAWskK+vTUwPa3Oyfbta8IFuOmyLMVq8CutQ1SZjiKTEfaDfBVL/q0b8ZNjaTHPnm8VG3Q83+5DGzrdNvkeAwGeWCnxIfxwJZ5k2lZ7jFRS2R5592WB1JboLp1BEKflVxXlOxhpbVwsNP8z2YHvH4RPWAHf+aJgvGLWxQSKQNCQdRy8r7V5rfzCy4Z74L4zFW2TqLw36vd7hx3Yv2AVLVERtpTLRYtYQkhs2XM2pOKZZcDkFD34NjECOBOL8raOZf+F9Br5wpw/OZLt+PXsVOWjvL/W70M4rE12ZAyjLtdOv9yDNAEURT/mcILl/m76GmjfmiY8N+KpQwjVirdiVSrff5XQDkDaoDB/Ax2/kRAFTDxcBr3aom6LCNPm3K3soIrX8l8Tto8lIp1nepgEqryuirIXaWcUFT+a3OspZEbkToKNw65byevwsaAjC/7PkmSaURQr69VL9eVh/SWc+p7hocbly+Yrna+3ugnDX20jZvlx65F7o/Onqfu+i7q7x5nb9Ymi+88Y8zi/HZPeL8vMGo3VneqRpU7Osz1t/Xji96yKMxVAAYOYgeMYhRAly1elWpBSN5vZx+87XsHctUg9A08Ka+CQ0hJxy7VKTCnAo/lvfibmYEDL8ZQI2IJNeCHJcB9FBO3y1JaIiCOwFKUC1j+gLfBHGMec5BMJlHprb4+QI4f9KzkCVC1NpMJJwUPtip7Lcvh/i67ElAO6NuvKOS1KRojG4EXe01teLaMwtZZ3nhANVU02Q5sG0zCtObIihvTJdTyUsQfUb7RHMITYlpP5f+91rhU0fkpVtD6hH1KRm1M/0pNgozHvzA2xUCbjZo/CgJjeslKKbqZcWzBrOwRg+kr+aDSDS5un1Vbi56Ca5CZoI+CVrCO4bTbLuJq7htrHP8QCLyQxwX4m3V2VObFygbZhZO7IfZVIGBB7yS0MwQqbXnYs0Dl0E1DBspYfLEeiaRaJXz1l0aXRMK+v3rTN2V8dlBrAcyNZv/64IUbM7mrr9c+yZLEK4sEtHVnepTbetprNb45xCZ5BpRJ75bRhmbqbRF3vlsd/xBU3M21quVFV3vaw14+A9P/VS91mw7ub01R8dYu6f1h1hfTX9CNmcfQPtjWUBv/PJ1TqdNDRzXJ9fo/OUnRRoH/ZRs5agUI5yQVcj0wj4lD8xkaLly3fnHKxzGgBiWGVXHYyG0T1pmxiGOKsoATQfhwe1+o+fm010qj36oE8posGLTD+jFTqLnOKeoYGguurnni+3OLpIyHbPBJsLQoOR8cC9HCKzoxJwmoAs3ZVXmX1tl6M4cYea3IAPtLAEPBFN1/6KlTg1ABdjQ8YC91ydNeubptBZurwDlfmGWFjmuNv/csv9tCrZQ9wHjont7ME/vTDAa9Ax9Qt0C0ELlJS4/HQhTs2pmVaN4xS9RW9rzJHoAAP7zVPMGd6l2chrALTWZI/wRvXQVTKjTSNwAWrVOIjPl88vD28A4IbqWYK8FEOZ/4w6KiGYXDJS8Yefygweudsxj3qDCUxZkuS8WF9uWJX2C6LPBbkOUe/EDKV47TDXTAPjLCWOBP3TCB86mdg6n29StTzPYFYwtg+kjaFyhafBVSXMFGXDJ+BM7nrAOE8BPZX3D2LJvrR2+qxgDIb0VGi1ljbus+5zLfH1ogY5YpGBqgWbWNEaJY2vV/YiMvV/1kdD5lxXOhXGlRH3yl/GRyEzMgxoNkZFJj++VLJq+9GTarzfq4jEHLM415Hi79hP8t01MKgm7o5hvUbfla1/bIrgiYkWjWIubv9Dsg1kpAPVFbJ+1lDo22a3agiH8/b3OFLLPEscLj9y8/LoNTV8QxmQDQixh9iqO6PRtubqJZ3lNeD0XD5A6rs9m+tVfq+N/TLEQZKbwcwDUDhWpUAMT99jwBS7+/gF0Tbm+TpqOYPbjq1DmgAbCZjQHFDzWVCP2Kl8vrpn4ucenAM02jsTVPbIq7x+KXShPkSuPRErJryoQ2gwmzexfJ9xR5oAT6IYzMHZqmZGUZsez9eIjS2BZAv6rblkkwzom8F7zjq0+W19w1c0cTQKI3FVI8ctrP1i5u89FowF6qTcWfGWuWvXJEltX9h50rFWfL8JD8DA93u1hu827WhqAZ8RUAAAGtAT8rAAwCUvXcui7j/4CLLFGDiODz0pTsl0Aue8q4IGrVCnk4IilM9StTbKuA3RC2a5Cn6Nk48QUax0z7Lt3Gq9Ve0nwlra6lkHEDoWnv1F0EP4U6rtaElufKyO8WFfFNmp/SzlK8nJI3HvHMZb6h1hb4o4ijBvFDb3WRN1q14H8lfGLs9S3vF7tSH7a+H9bbd++SmNaQczGq9fkkYaiZVGH7RSwElpwY9mSHrG3th/uZa88fooGNf88y+PlCV1SguaxEPtujVZHg2qIVu4kNxf1QJ6Xk1wIBbgdTRr2innk9HKnD5Z+bX3N800Mwn2xPw8otiA7DDPr2f4vEwbzeAdj+xROd9kZfqymo5Cv0yk42gyD0d2r+bqMuuz9dOr7gxBtBvMTG1bDP8I0EHhKKdoteDd13cK5PAE1kJqAoQ+9ImY9GXfKCe8tyAhuElR7CFc0jDslDwa23ytL+eS/vuf1lhQZvXVCEVn91BQvW6vjfevNM6Yhg/IaTBXi1wJR6xLwjXrVDMtIGUAFNC4vlJ673p1a9evWnJj0khaLNlcRNnof+cG4ZgafwNgAQwi7KODyvmY6IG5XaJ3qubyas5z0kjzNKUJlJzYN730Qme2cso0nBd37wl5bkmJCqyrnLEgpX+iQvNydExXwEsKwX+J/9FnBnXg+P9S3oj09uLdB8BtDfxy9tgNhCCIMqivY3R7LLqKoJ/YI6g+6EAFxN+S6dhDl6kofu35XR30Htn73qIc36yGkODEFJygGQ4xZNCzJ9Tqvpqwk1t7cIeH+ApYkoNov2ktu1MhicQ7gCQDg0bdheaKgS/NJymLBEKSemN5I6ftMarCvO11oQapaAlgAKByV6hqiHvrbF8Yc+HBpu9wcnMVVSeACFzsC6spepU2GCMWjHXFGTGt3dyQT4lPAQ/rgbMMeM0q9rV7E2soEGikT6Stb0FhsLZrXWEOHVIrfTcCmXfJZjw8RnES3elbl/tuslQj9C3w6nmoeVQdfba6Hiyhb9+u3vXvV9a2RgQk5Z6LX5ZKCOAqmqI+uO84i9PKpyuEF288xv+O/ZsZjtDbg2eaH1mVicY4etBSA8E21Ci/Ph5z5Lx5p2LsNFGX/jcqNZEUR6LgA/aQG44GfqTAigwQcpYRKNaw7QJ5alWFY6E+550otHdvofrM5IdnnhviYIXVqDxC9uc43psZhMk3n3+so+kYo/x1bJ6JiNIQKzCyk1R2pj1QecSDRzqDum32n1cvGFGIZVBv7lI6Yj2+PM3RVQb4W8fflEJlogGa0OHxC2Cp4pVkKc7h8OXQRf1AUGIw6O4hSO9ZDb13sSzCXS9712nPvE+lNNhF8+5JJwrXJecIj2fgJ6vxjMbV4sH/G0cqwCRPUsfn0NsRQDlM/stvXgGVfFHdwVl2z9vaziQy1Vx4eZ47lhHAHxQcIArhSU+PACo1TsFJtENWhfsXmaAHE053MiK5TqKM/y6QFZ/eGU+zM1rL3avp6xzoeVpoiH9A/Ju/lp9fnR3cY5QfPF9YiO3wmw88sUF+s2hWDNjieTnWZn96aXibG38zUr5HzjbamyJf6iNdhtvjhqZrQjvurXMIi8AZK+PP2Ovr8d11Cngf1p8B0zEiTqqCPpu/yTFthPeswCXAl8h+U2YBH3uL2PInBQeelAaZKNiWBq56fSQ2L9VaG9EBDwcPfWJbmON5z9aKDRR2BaNgG9c3p4Dwc+O36f80dxfKB9G+nQYBt1vTSIUqCcxOyDjW4BHkrNlp7FEYIt2+2UsPcZsccMiVkQC/V5npOLzh1H6fnoxmQXvQgveUr8aWXqgvsyYsy2MZaCYk2Czr65IEeUkwd2wTzT4ile9u8kvvzwy7mAv4HvQlTZlz+opm2DpxuNfvcAqIiR3+kyzb6Ay93KSz7ZCUYOGtrdUI7Y5e5XWkF8BW5f5VA4+fPgZ0ShpDRTH/lTmwxgaKqHTWa61LMrSVgx/f9eY5AO8uiTEdDWPmIGWkx5Wc07e0gw3Rq892iw2EB/ghnTbNm1EP/BZcalMUbBzzXNJYM1y5nQEM2C2aeyDuCdgXL5K1uThjPDseww6P226yqfs1npVP33hB7mgaEJ2aJcA/koLwOZ6iYi2rkbeSSEhSL146eXzv6NASP3ixH7f+r7YEkmDsBz3EKTkjBmg/vXi+oOz2za08xh/bREk9FcP1Va4ggSnJgbGdYNmSHGcHCYMZlkDa81uhZuFgCQFIGAnm5mdMMZVAmKuDAUEfu1T0Jry1iENiFL1H8Nihc3DjLrWPnHLNzcz+1/8IpyE/4o9PWGQaSGuz1fuXiSl5I/TDzwYFP1uvzenxLaUX4JpVFFTX8XFEdZoBPOgWjwkb4Qj6+VrwhXlUEF4JRFiGXRF1v4NdUdZETxwChR/1MJc9bm26ngboMs34lpEZQv+epk0ZaSb1HfDA75Sf6BjNOq+nC1z03kvHSJZmkjVtHo0I0wwlPj8TZxxEK+EBHx8qeKEET2J0R8aImg4S3s/ou6yTiIVfBDwBDL4sSL1sIj05jZTuuWqzFOq/PuJYozNMaYtkop5c3LPsdmQVfYgXlk6s2k87XUb8B5jg8bhwND52nNzgLe81IAmwwYrMQSMAHYUSgktARlUXsJXyzjIxPxWt3w8QaU9lpyLBNIevgPdok2EwocPBOFfNVnlyaFFiU9NF9Ga+UiJNgVT9BWxTYx19mQAv/6SKE8yDYTtN3tlrRUmiBMYK1q8FPg4COD0lZJnwqoqtEeyAwkPHgaM12KBRyspQbOwt8YaEv1ELLJPBoL15MICd/nUVONLY44y1nVMnJs7Aux6BW5Vxy3NnLJoC6HwtssGFR8B1vwl2GLjvl9MuKKtYt/XpPW5bnNB3nIWcr+ahISihxoyrmOshKWmR8iQJK/9fXo6EW6vk3+6C4r9h2e6TFkAj/q+T5lYKRDe4B64AJagqKUroVFFfV+ZgV8i3Drx3SSZRsiWppRluZ7tmoL+LPv7GgvqaDm2YhC7TxhG8CUGrDTPoWlHS7ggGRPT2rrNcnDicKALSJ8K+LrVL8wqc3ueh9f8Det5HMMr4/d8VuaSHd/VeGj6HFJuR00DqJhhjbG1GFklAB7rkZYhuMSdA1NDu1e/8PO6kvHBl3KAEnxwA6uwWS67cEJVSOiYb7DoHaW8eVwUQRP8bwt2rS858MjfuGFlo2l8FoBNu1P0xVMUub/XCA/s7LQKGD+RfUFfh4ZGhzFn9erI8j54F+LBVrG99BkPoxwirjFpz1xbYsPG/Og634gyqnMKqW4m3NuaMuoygs/TYrQaNVmEP8ggoNqIISNV4C/NZHFd6IejYby1rFzahPXFJKI/KE0x6F5aAL0r9jQ1Oh4R8cNqfo66TH0graIUneu2s9mZvmQO19WnTjFSplpTrNU+WvLZT9L0O1x93ZSSWb0XNCHtVqzmWtdLX3DOY9aABJough95FLPns6KAhRANiDCdgvoH32KmfppyQIUfZD9a5ZT3yldy/AX57OmvwEwJSPEwNDt8v3RJ82U4Oz/jlW3Iele9+YQ2yY/aruBygipfrX0nMjhh4X+i2+W4TtAcrJOn2NvPM3NyIW0dv6tROQIwJBCZswWaEObSXDQSjwVuorfP6ddL46QqoUnknqvccbtBi7/bQ0uFFL6cDZAp8WbKs9soBNUxkprYLGtntTzpKq9soPIMK2STvMZ4yEQ/4vFlfoFNhAU0I/vitTL0xwNEc/TFZr/8BQyfNxqjpfSYt8ypEe8SM//TRJGsRgppjEj08SPkxShNJbCn3aJX2rNlNCT1ko+zmdkT833v5KDq9j0bdesVu2Yn8KGLDZsXPsB+qaWxMZo4xNcD3HTsyOLHdVpXpMf4yRs2CH+Q01Lac4bquoj3dtw1BQmBobKs7p0L13SUHlLXOknMfz0fBHHNQsdu5K0gRof0y8RdXrp1LP2jadQaErL6cYRfAYTyIUmyNGWEIF7iOn8T9LTqf2ojUlcT2WTnj0N4n1ZCJeSgewB66MhjsmA/b9Sj0+nEHw1RtvlHlyitwnjDHRNI7cGMRBXaOJeJ+HYeIDA7BMApHff1nbPGzzrqvnwHI9hVtCbICHvJjAyHxM/MDWEuDAXeIX/rs2jCoCGC6v8QepIaRnaacboaglda6qtBISdiux526WEqNO0nSK3nO624ig4Ha6CrUuenhRbwRCiMZiHDp/YffWANTWrbliJCS7ZuWjBhDW/0pyr89Rg2iqXwjITtPO1XtDg7Ka4z/7q1Q2bNacqZ7ga5cuGqnlD7EhDWS8hzvFXBZxAMprvmYjT582jpO7F4N6j5tx/rh+2Mt6XTCMUV7Vyay7Fw3MKeLaT3zTmVUe+6Jhzh8v8zmpKgMIENi+Z6UkrQUrAdO9STcv5pkoYfZjsYVws9rwmILRQtZ12pacjerKD6PekBEfhUNMhF6be1SFWHxw0q0aeEpJmR24Eqv9S+tFgK8oIxJZa+HvPZDfL1yD35KUkTVgfUQ7GYpMvTm6YbyNj6rWV4+GGFVisrbEZkhbrmPHJIB0nvxgCVAY/mqYNndSI+aLUwjdgFyJbnWts/jNEItbYGxERkbmkR2Wu8P59brFiqXdMm+0Q6l0BNdOB7v2khp+4L+zOfnbEguNvuvYlBttsFigpTxQcj7ZdLpKoVZK4COHlqbWBnKqAsXlBFi+90YfoczcbvmMY92TfBvcm+cG/lu5/cyo7+TUTmi+K7X8T7PVmSPkX/h1DqIAtwlgqESO+5wWZBH5t4sd4Xxw3XVgBgLE2ZKZqboSn2x07IasMgyBAKFqiH1vuhVu+My84R57CzltTDI4AERmVBBiYOPS+x+cquPBKWWvN62bAAbGJBDtchS3mZ00mWhHFgQ+I7nici4HAPLc5Rlu8JNPDrbYCQ6XEyEKLvoJ/hSLVt0fWzxiiOCDdVQ4X8rtuSq6X+E4irCdvwjuECQhr+TKVDVBSwrSIvw368VKdOFlEkVCRmZNBh1BcjyFHy7oB19d3MOSWQ6j1PzWvn49sGXA4Y3PeH2pBsOa4MNwad5nbzNF4veq7l2a/jrtO1IpipsCbjuJwP5PBGaJaO3z6DFEJvJVdB3O5jf8zG0XlNfcCmETgMbMuuXFXaXsH5zAryp6IcjiMwdlWFKQFX021aFHeb9Ql22H/kuaI8z8JApXGvYmGWhyDWMxL8vnfcFrkYt9i7DXEmv/vwVjFyJ5qTi08Bp7522hmndQzGKKcn2/tQgOjABcrd9fiECTshhGmVBF9tUwSHbFwFpeW0MY0f+1Q9RP/ZsOnyirvvP2Dt2o/sWv2b6jpqGVMNh49rUbxy0uqUrr870QKYEkC4PMLHo3DMGiqHywZ9f3v/zm4PYcY9agBFZl6v9YjEvas8efxgdJaPkP4Q6d/XWoT8HMRrvtIHyc3RxDwHZd8pKV6/ul7s3sjebTRs2UJPlK0P64iiQEVje9DpFnrEPFl3a6H6SrsGWrwQj+0qYK4eup0L/X2xvwDl3TqBk31Yf7b87UH6wmjkL0QJp240mzScIc/m/gpnotGqUKBr6pvk4nMRz4a2VnhOyPGNpqAQzWCAHb7fqVXOXD+THf18+bJeN9u7wOgCVZTznVSqR+//hQqp4JaZAC9glgMj0crdDy3bw4AkFeMWwx5MUam1bJjuuUxDCgwOaI+19LNKk24D71v0vRhdp/eP7Bm662bAS4pf58PjXyEGIv2Iz29TgSidp4wyNS1tM/JAgIu9r7gR3nbQ2SZVHTs8V5rM7ovx0kMp5Hvtqr3SO1KITunPU95E6cxjuGfMI8BsAI2IMGOxt74sxEB/sj9nstgmHAviJOwWRDmqeF+qKWyENUA9iut6A/TyA+KHL/2T59wiXQN2/C32a0umCcssTo7IvWw/FahMTcxxQDKI8f59qoqtGxXeVMob8UVsZAHDxGB2y4KsmvwgU73LAdx9SZlvd8tJM4sBXvai7iTb8uA1mPGlc9TgfaOCx5/M2op71VS6++AK5oQeCrPGeNLTeLeIVxMbFlcrWWb5TU3gADY8ex6q/x1VQt93EmZF76QClx2I1JY6TZFarpXMR7F60PxRsXtHG1tkZlaiQIlVlUkTOIKvGKk+cCu8qticCpTYND5EkLLk7zUa3IGAewGDZsChNIxPNvFqWj5UaQyua/77va+E7vwWKyB7J9J/5bVcotbEtQCKLxTyiZi1AxgPCglSHA00ePeCI/G+HcDHbpwIM4r/76lDwQXDA1ZXZulyEE7p4J3GF/QqmouPi1pv+WO9cZL6rJ6T5qKEybRgnei3JqnPQXLFbTK7DjKdgNBjFPyK0LHH0O3ezfDg/ps3OBqSmVg7S6gGY/S1qytGP6B/bIA8kcwbnA3yTElSxzPiE+7gj2jrwkZLGe1ICGrKIIQK73Ft/+16pG0RMdLkEKuhcEdzk3goelgckkzfEXeZymfvtUOnuPDYBlfTAabrxI2mMeuRpcXUqOaa6u4XOHt9mAeFmToUBzEb7GN1W7ZZrxpEDxy5QdspGZjmXOgMbJRd6wnnhfWdq/eAOQGI+o4l6hTMPvcYQFvChA+1ZdEkXyKpGHA1MVp+k03pluQBGYhayUCmGPdOCFx0QGyt0tqP205az5uR+ysgMywOJFoOJBjBsYB/EazP57IIoTIbplUUpFKxr8joz9keQz24+FFxT0096jdfj/u4EkwIzAYTuBF5ZdeUr3+cU8tqU6Zm+Wd7feN01mbFdQwmOv/RAeKB2+FVCytjDRsB3zXrXePYZz3LtzCiP/yth15z4A6Zy89AwGacuGoCZg9zzfuE1X3up7zAMLm0hO17buRLc2IBItwnKwidPIVLCbK6EVgQ1JB7V2rW5Wz95wahq0fVZLxRggcTVcZSqLkhbRiwETSshEj9bHHYAdQCDgR4RaELnb0cPGI74BYunIJXlKXvcNAxJ5HJdcPBQhpfhCDOjYsobQB0+7dImdhCFr3H+Ed/svQ2CCnX2YStSM2I9GRXT8r2nazC6Wtm72M6KV2oN2lpf+f9YcoLDobUvJmTZ3V6u8HflqYZbkL5aIuKe+3E8Qhc+bUJZqCj7QHgLauyJA1YHbvGHK91Da0rk2aVJGFwQ3G8FDvW35A+Ri7G+0SBhWQCXihaRSM9xU8YdVM/PrlUkdvHdD3KSfqrS4DATFkCVtypMj/h/ZTaIGs4aL3tu0gz66sYffjqUvcX/5iijKWQvzxK6nd0OLIXXPTm5sRL/Hi+sG925j+2j+KZPyHACKtkTpGZlgLk0THsMTq55K4nUgXgsQO3mmvINIZVdWBHEjc6PFd6310kmPuboyaYgEc/LaqfHLtbkjVokDTq+RvtJfL8W5mnMGEEeuIomF/26/3Tvmr8bWkF2SYAAA",
+        "emoji": "🥭",
+        "tags": [
+          "vegan",
+          "sweet",
+          "healthy",
+          "drinks"
+        ],
+        "customizations": []
+      },
+      {
+        "id": "CMB-102-Standard Serving-reg--",
+        "name": "Szechuan Dumpling Duo",
+        "qty": 1,
+        "quantity": 1,
+        "price": 349,
+        "image": "https://images.unsplash.com/photo-1563245372-f21724e3856d?auto=format&fit=crop&w=600&q=80",
+        "emoji": "🍱",
+        "tags": [
+          "combo",
+          "savory"
+        ],
+        "customizations": []
+      }
+    ],
+    "itemCount": 2,
+    "total": 434,
+    "totalPrice": 434,
+    "payment": "GCash",
+    "paymentStatus": "Successful",
+    "isPaymentVerified": true,
+    "receiptImage": null,
+    "referenceNumber": "TXN-GCASH-742337",
+    "isDuplicateRef": false,
+    "duplicateFoundInOrderId": null,
+    "receiptUploadedAt": null,
+    "status": "New",
+    "nextStatus": "Start Preparing",
+    "stripeColor": "#059669",
+    "priority": "Normal",
+    "isWaitAlert": false,
+    "waitTime": "0 min",
+    "orderedTags": [
+      "vegan",
+      "sweet",
+      "healthy",
+      "drinks",
+      "combo",
+      "savory"
+    ],
+    "allergens": [],
+    "note": "",
+    "isAllergy": false,
+    "busserName": null,
+    "device": "Desktop",
+    "platform": "Desktop",
+    "createdAt": "2026-11-13T06:37:20.144Z",
+    "updatedAt": "2026-11-13T06:37:21.375Z",
+    "statusHistory": [
+      {
+        "status": "Pending Payment Verification",
+        "timestamp": "2026-11-13T06:37:20.144Z",
+        "updatedBy": "Customer App",
+        "note": "Order placed. Awaiting payment verification."
+      },
+      {
+        "status": "New",
+        "timestamp": "2026-11-13T06:37:21.369Z",
+        "updatedBy": "Automated Webhook (GCash (PayMongo))",
+        "note": "Payment verified automatically via GCash (PayMongo) webhook (Ref: TXN-GCASH-742337). Sent to Kitchen."
+      }
+    ],
+    "verifiedBy": "Automated Webhook (GCash (PayMongo))",
+    "verifiedAt": "2026-11-13T06:37:21.369Z",
+    "membershipActivated": true,
+    "membershipId": "MEM-VIP-387"
+  },
+  {
     "id": "ORD-3145",
     "orderId": "ORD-3145",
     "customer": "Mobile Diner",

@@ -102,6 +102,36 @@
     ],
     "lastPaymentReference": "TXN-GCASH-331904",
     "recentTransactions": []
+  },
+  {
+    "id": "CUST-272",
+    "name": "Kiosk Guest",
+    "email": "juan.dela.cruz@umamicraft.com",
+    "phone": "+63 917 123 4567",
+    "membershipId": "MEM-VIP-387",
+    "membershipTier": "Gold Gourmet Club",
+    "membershipStatus": "Active",
+    "subscriptionPlan": "Umami VIP Gourmet Club",
+    "subscriptionStatus": "Active",
+    "activatedAt": "2026-11-13T06:37:21.369Z",
+    "expiresAt": "2026-12-13T06:37:21.388Z",
+    "pointsBalance": 43,
+    "totalSpent": 434,
+    "perks": [
+      "10% Off All Specialties",
+      "Priority Kitchen Queue",
+      "Free Boba Perk"
+    ],
+    "recentTransactions": [
+      {
+        "transactionId": "TXN-GCASH-742337",
+        "orderId": "ORD-1717",
+        "amount": 434,
+        "type": "Umami VIP Gourmet Club Automated Webhook Settlement",
+        "status": "Successful",
+        "date": "2026-11-13T06:37:21.369Z"
+      }
+    ],
+    "lastPaymentReference": "TXN-GCASH-742337"
   }
 ]
-

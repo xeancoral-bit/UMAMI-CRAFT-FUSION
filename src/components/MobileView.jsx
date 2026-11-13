@@ -5,6 +5,7 @@ import PesoReceipt from './PesoReceipt';
 import TableServiceModal from './TableServiceModal';
 import KioskProductModal from './KioskProductModal';
 import KioskCheckoutModal from './KioskCheckoutModal';
+import MobileQRScannerModal from './MobileQRScannerModal';
 import AllergyVerificationModal from './AllergyVerificationModal';
 import {
   Shield,
@@ -52,7 +53,10 @@ import {
   Utensils,
   ShoppingBag,
   ArrowRight,
-  ShieldCheck
+  ArrowLeft,
+  CheckCircle2,
+  ShieldCheck,
+  QrCode
 } from 'lucide-react';
 
 // Play a rich 4-note ready fanfare chime
@@ -614,6 +618,7 @@ function MobileView({ kioskId, onResetSession }) {
   const [diningOption, setDiningOption] = useState('Dine-In');
   const [selectedProductForModal, setSelectedProductForModal] = useState(null);
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
+  const [showQRScannerModal, setShowQRScannerModal] = useState(false);
   const [notifPermission, setNotifPermission] = useState(
     'Notification' in window ? Notification.permission : 'unavailable'
   );
@@ -662,6 +667,18 @@ function MobileView({ kioskId, onResetSession }) {
   const [showAllergyModal, setShowAllergyModal] = useState(false);
   const [allergyModalError, setAllergyModalError] = useState('');
   const [allergyStatus, setAllergyStatus] = useState('unanswered'); // 'unanswered' | 'allergies_declared' | 'no_allergies_declared'
+
+  // Step-by-Step Food Allergy & Flavor Preference Flow: 'question' | 'allergens' | 'flavors'
+  const [dietaryStep, setDietaryStep] = useState('question');
+  const [hasAllergiesChoice, setHasAllergiesChoice] = useState(() => {
+    try {
+      const saved = localStorage.getItem(`synapse_has_allergies_${sessionScopeKey}`);
+      return saved !== null ? saved === 'true' : null;
+    } catch {
+      return null;
+    }
+  });
+
   const [customAllergens, setCustomAllergens] = useState(() => {
     try {
       const saved = localStorage.getItem(`synapse_custom_allergens_${sessionScopeKey}`);
@@ -700,69 +717,93 @@ function MobileView({ kioskId, onResetSession }) {
           const status = data.session.allergyStatus || 'unanswered';
           setAllergyStatus(status);
           if (status === 'unanswered') {
-            setShowAllergyModal(true);
+            setShowWelcomeScreen(false);
+            setIsOnboarded(false);
+            setDietaryStep('question');
           } else if (status === 'allergies_declared') {
             if (Array.isArray(data.session.allergens)) setAllergens(data.session.allergens);
             if (Array.isArray(data.session.customAllergens)) setCustomAllergens(data.session.customAllergens);
             if (Array.isArray(data.session.preferences)) setPreferences(data.session.preferences);
+            setHasAllergiesChoice(true);
+          } else if (status === 'no_allergies_declared') {
+            setHasAllergiesChoice(false);
           }
         } else {
           setAllergyModalError(data?.error || 'Could not validate QR session.');
-          setShowAllergyModal(true);
+          setShowWelcomeScreen(false);
+          setIsOnboarded(false);
+          setDietaryStep('question');
         }
       })
       .catch(() => {
         if (!cancelled) {
-          setShowAllergyModal(true);
+          setShowWelcomeScreen(false);
+          setIsOnboarded(false);
+          setDietaryStep('question');
         }
       });
 
     return () => { cancelled = true; };
   }, [backendTargetUrl, effectiveKioskId, kioskPort, restaurantParam, sessionScopeKey]);
 
-  // Step 5A: Customer selects YES, I HAVE ALLERGIES -> open Local Dietary Vault (Image 1)
-  const handleAllergyModalYes = async () => {
+  // Step 1 - Option A: Customer chooses YES, I HAVE ALLERGIES -> navigate to Separate Exclude Allergens page
+  const handleChooseYesAllergies = () => {
     setAllergyModalError('');
     setShowAllergyModal(false);
+    setHasAllergiesChoice(true);
+    try {
+      localStorage.setItem(`synapse_has_allergies_${sessionScopeKey}`, 'true');
+    } catch (_) {}
+    setDietaryStep('allergens');
     setShowWelcomeScreen(false);
     setIsOnboarded(false);
   };
 
-  // Step 5B: Customer selects NO, I DON'T HAVE ALLERGIES -> record "No allergies declared" & go to menu
-  const handleAllergyModalNo = async () => {
+  // Step 1 - Option B: Customer chooses NO, I DON'T HAVE ALLERGIES -> skip Exclude Allergens, navigate to Flavor Preferences page
+  const handleChooseNoAllergies = () => {
     setAllergyModalError('');
+    setShowAllergyModal(false);
+    setHasAllergiesChoice(false);
     try {
-      const verifyUrl = backendTargetUrl ? `${backendTargetUrl}/api/qr/allergy-verification` : '/api/qr/allergy-verification';
-      const res = await fetch(verifyUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          kioskId: effectiveKioskId,
-          restaurant: restaurantParam,
-          sessionId: qrSession?.sessionId,
-          hasAllergies: false,
-          allergens: [],
-          customAllergens: [],
-          preferences
-        })
-      });
-      const data = await res.json();
-      if (data?.session) setQrSession(data.session);
+      localStorage.setItem(`synapse_has_allergies_${sessionScopeKey}`, 'false');
     } catch (_) {}
-
+    // Clear out allergens since customer declared no allergies
     setAllergens([]);
     setCustomAllergens([]);
     try {
       localStorage.setItem('synapse_allergens', JSON.stringify([]));
       localStorage.setItem(`synapse_custom_allergens_${sessionScopeKey}`, JSON.stringify([]));
     } catch (_) {}
-
-    setAllergyStatus('no_allergies_declared');
-    setShowAllergyModal(false);
+    setDietaryStep('flavors');
     setShowWelcomeScreen(false);
-    setIsOnboarded(true);
-    setDietaryConfirmToast('Recorded: No allergies declared for this dining session.');
-    setTimeout(() => setDietaryConfirmToast(''), 4000);
+    setIsOnboarded(false);
+  };
+
+  // Step 2 -> Step 3: From Exclude Allergens to Flavor Preferences
+  const handleContinueToFlavors = () => {
+    setDietaryStep('flavors');
+  };
+
+  // Back navigation:
+  const handleBackFromAllergens = () => {
+    setDietaryStep('question');
+  };
+
+  const handleBackFromFlavors = () => {
+    if (hasAllergiesChoice === true) {
+      setDietaryStep('allergens');
+    } else {
+      setDietaryStep('question');
+    }
+  };
+
+  // Step 5A / 5B modal adapters
+  const handleAllergyModalYes = async () => {
+    handleChooseYesAllergies();
+  };
+
+  const handleAllergyModalNo = async () => {
+    handleChooseNoAllergies();
   };
 
   // Add / Remove Custom Allergies in Local Dietary Vault
@@ -787,10 +828,12 @@ function MobileView({ kioskId, onResetSession }) {
     } catch (_) {}
   };
 
-  // Step 7: Save Preferences from Local Dietary Vault to QR session + local storage
+  // Step 7: Save Preferences from Local Dietary Vault to QR session + local storage & Continue to Menu
   const handleSaveLocalDietaryVault = async () => {
-    const totalAllergensSelected = allergens.length + customAllergens.length;
-    const hasDeclaredAllergies = totalAllergensSelected > 0;
+    const totalAllergensSelected = hasAllergiesChoice === true ? (allergens.length + customAllergens.length) : 0;
+    const hasDeclaredAllergies = hasAllergiesChoice === true && totalAllergensSelected > 0;
+    const effectiveAllergens = hasAllergiesChoice === true ? allergens : [];
+    const effectiveCustomAllergens = hasAllergiesChoice === true ? customAllergens : [];
 
     try {
       const verifyUrl = backendTargetUrl ? `${backendTargetUrl}/api/qr/allergy-verification` : '/api/qr/allergy-verification';
@@ -802,8 +845,8 @@ function MobileView({ kioskId, onResetSession }) {
           restaurant: restaurantParam,
           sessionId: qrSession?.sessionId,
           hasAllergies: hasDeclaredAllergies,
-          allergens,
-          customAllergens,
+          allergens: effectiveAllergens,
+          customAllergens: effectiveCustomAllergens,
           preferences
         })
       });
@@ -812,8 +855,8 @@ function MobileView({ kioskId, onResetSession }) {
     } catch (_) {}
 
     try {
-      localStorage.setItem('synapse_allergens', JSON.stringify(allergens));
-      localStorage.setItem(`synapse_custom_allergens_${sessionScopeKey}`, JSON.stringify(customAllergens));
+      localStorage.setItem('synapse_allergens', JSON.stringify(effectiveAllergens));
+      localStorage.setItem(`synapse_custom_allergens_${sessionScopeKey}`, JSON.stringify(effectiveCustomAllergens));
       localStorage.setItem('synapse_preferences', JSON.stringify(preferences));
       localStorage.setItem('synapse_onboarded', 'true');
     } catch (_) {}
@@ -823,8 +866,8 @@ function MobileView({ kioskId, onResetSession }) {
     setIsOnboarded(true);
     setDietaryConfirmToast(
       hasDeclaredAllergies
-        ? `Saved ${totalAllergensSelected} allergen exclusion(s) & ${preferences.length} flavor preference(s).`
-        : 'Preferences saved! Enjoy browsing the menu.'
+        ? `Saved ${totalAllergensSelected} allergen exclusion(s) & ${preferences.length} flavor preference(s). Safe dining active!`
+        : `Preferences saved with ${preferences.length} flavor preference(s)! Welcome to Umami Craft Fusion.`
     );
     setTimeout(() => setDietaryConfirmToast(''), 4500);
   };
@@ -1569,7 +1612,10 @@ function MobileView({ kioskId, onResetSession }) {
   const handleClearAllData = () => {
     localStorage.clear();
     setAllergens([]);
+    setCustomAllergens([]);
     setPreferences([]);
+    setHasAllergiesChoice(null);
+    setDietaryStep('question');
     setHistory([]);
     setCart({});
     setIsCartOpen(false);
@@ -1788,6 +1834,19 @@ function MobileView({ kioskId, onResetSession }) {
     stopContinuousBuzzer();
     stopVibReminder();            // cancel repeating haptic reminder
     localStorage.removeItem('synapse_active_order');
+    localStorage.removeItem('synapse_allergens');
+    localStorage.removeItem('synapse_preferences');
+    try {
+      localStorage.removeItem(`synapse_custom_allergens_${sessionScopeKey}`);
+      localStorage.removeItem(`synapse_has_allergies_${sessionScopeKey}`);
+    } catch (_) {}
+    setAllergens([]);
+    setCustomAllergens([]);
+    setPreferences([]);
+    setHasAllergiesChoice(null);
+    setDietaryStep('question');
+    setIsOnboarded(false);
+    setShowWelcomeScreen(true);
     setActiveOrder(null);
     setShowReadyCelebration(false);
     if (typeof onResetSession === 'function') {
@@ -2669,6 +2728,29 @@ function MobileView({ kioskId, onResetSession }) {
               <div className="mv-menu-header-controls">
                 <button
                   type="button"
+                  onClick={() => setShowQRScannerModal(true)}
+                  style={{
+                    background: 'linear-gradient(135deg, #059669 0%, #047857 100%)',
+                    border: 'none',
+                    color: '#ffffff',
+                    padding: '6px 12px',
+                    borderRadius: '8px',
+                    fontSize: '11px',
+                    fontWeight: '800',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '5px',
+                    whiteSpace: 'nowrap',
+                    boxShadow: '0 2px 8px rgba(5, 150, 105, 0.25)'
+                  }}
+                  title="Scan Kiosk QR Ph code on desktop to pay"
+                >
+                  <QrCode size={13} />
+                  <span>Scan Kiosk QR</span>
+                </button>
+                <button
+                  type="button"
                   onClick={() => setDiningOption(prev => (prev === 'Dine-In' ? 'Takeout' : 'Dine-In'))}
                   style={{
                     background: 'rgba(5, 150, 105, 0.1)',
@@ -2715,6 +2797,11 @@ function MobileView({ kioskId, onResetSession }) {
                   onClick={() => {
                     setShowWelcomeScreen(false);
                     setIsOnboarded(false);
+                    if (hasAllergiesChoice === true || allergens.length > 0 || customAllergens.length > 0) {
+                      setDietaryStep('allergens');
+                    } else {
+                      setDietaryStep('flavors');
+                    }
                   }}
                   style={{
                     background: 'rgba(228, 87, 41, 0.1)',
@@ -3308,7 +3395,8 @@ function MobileView({ kioskId, onResetSession }) {
               className="mv-kw-start-btn"
               onClick={() => {
                 setShowWelcomeScreen(false);
-                setIsOnboarded(true);
+                setIsOnboarded(false);
+                setDietaryStep('question');
               }}
             >
               <span>Tap to Start Order ({diningOption})</span>
@@ -3321,6 +3409,7 @@ function MobileView({ kioskId, onResetSession }) {
               onClick={() => {
                 setShowWelcomeScreen(false);
                 setIsOnboarded(false);
+                setDietaryStep('question');
               }}
             >
               <ShieldCheck size={17} />
@@ -3331,18 +3420,92 @@ function MobileView({ kioskId, onResetSession }) {
             </button>
           </div>
         </div>
-      ) : (
-        /* --- View 1: Onboarding Screen --- */
-        <div className="mvault-root">
-
-          {/* ── Decorative corner: ensō brush + kanji ── */}
+      ) : dietaryStep === 'question' ? (
+        /* --- Step 1: Initial Food Allergy Selection Page (Image 2 Inspiration) --- */
+        <div className="mvault-root mvault-step-page mvault-step-page--question">
           <div className="mvault-deco-corner" aria-hidden="true">
             <div className="mvault-enso" />
             <div className="mvault-kanji">旨味</div>
             <div className="mvault-deco-tag">GOOD<br/>FOOD<br/>BETTER<br/>DAYS</div>
           </div>
 
-          {/* ── Hero Header ── */}
+          <div className="allergy-verify-page-card">
+            {/* Green Restaurant & Kiosk ID Badge */}
+            <div className="allergy-verify-session-pill">
+              <ShieldCheck size={14} />
+              <span>
+                {restaurantMeta?.name || 'Umami Craft Fusion'}
+                {effectiveKioskId ? ` • Kiosk #${effectiveKioskId}` : ' • Touchscreen Terminal'}
+              </span>
+            </div>
+
+            {/* Centered Orange Shield Icon */}
+            <div className="allergy-verify-icon-wrap">
+              <ShieldAlert size={38} color="#C24522" strokeWidth={2.3} />
+            </div>
+
+            {/* Clear Typography Heading */}
+            <h1 className="allergy-verify-title">
+              Do You Have Any Food Allergies?
+            </h1>
+            <p className="allergy-verify-desc">
+              Help us personalize your dining experience and identify ingredients that may not be suitable for you.
+            </p>
+
+            {allergyModalError && (
+              <div className="allergy-verify-error">
+                {allergyModalError}
+              </div>
+            )}
+
+            {/* Two Action Buttons */}
+            <div className="allergy-verify-actions">
+              <button
+                type="button"
+                onClick={handleChooseYesAllergies}
+                className="allergy-verify-btn allergy-verify-btn--yes"
+              >
+                <div className="allergy-verify-btn-content">
+                  <span className="allergy-verify-btn-title">YES, I HAVE ALLERGIES</span>
+                  <span className="allergy-verify-btn-sub">
+                    Select allergens to exclude &amp; customize your Local Dietary Vault
+                  </span>
+                </div>
+                <ArrowRight size={22} />
+              </button>
+
+              <button
+                type="button"
+                onClick={handleChooseNoAllergies}
+                className="allergy-verify-btn allergy-verify-btn--no"
+              >
+                <div className="allergy-verify-btn-content">
+                  <span className="allergy-verify-btn-title">NO, I DON&apos;T HAVE ALLERGIES</span>
+                  <span className="allergy-verify-btn-sub">
+                    Continue directly to customize your flavor preferences
+                  </span>
+                </div>
+                <CheckCircle2 size={22} color="#059669" />
+              </button>
+            </div>
+
+            <p className="allergy-verify-footer-note">
+              Please select an option to proceed. Your response is private to this dining session.
+            </p>
+          </div>
+
+          <div className="mvault-watermark" aria-hidden="true">Taste<br/>Meets<br/>Technology</div>
+        </div>
+      ) : dietaryStep === 'allergens' ? (
+        /* --- Step 2: Dedicated Exclude Allergens Page (Image 1 Left Card Inspiration) --- */
+        <div className="mvault-root mvault-step-page mvault-step-page--allergens">
+          <div className="mvault-deco-corner" aria-hidden="true">
+            <div className="mvault-enso" />
+            <div className="mvault-kanji">旨味</div>
+            <div className="mvault-deco-tag">GOOD<br/>FOOD<br/>BETTER<br/>DAYS</div>
+          </div>
+
+          {/* Hero Header */}
           <div className="mvault-hero">
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', flexWrap: 'wrap' }}>
               <div className="mvault-badge">
@@ -3361,9 +3524,9 @@ function MobileView({ kioskId, onResetSession }) {
             <p className="mvault-tagline">Your preferences. A better dining experience.</p>
           </div>
 
-          {/* ── Captive Portal Activation Banner (if present) ── */}
+          {/* Captive Portal Activation Banner (if present) */}
           {captiveParams && (
-            <div className="glass-card highlighted" style={{ padding: '14px', borderRadius: '14px', marginBottom: '4px' }}>
+            <div className="glass-card highlighted" style={{ maxWidth: '680px', width: '100%', margin: '0 auto 12px', padding: '14px', borderRadius: '14px', boxSizing: 'border-box' }}>
               <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '6px' }}>
                 <div style={{ background: 'rgba(16,185,129,0.1)', padding: '7px', borderRadius: '9px', color: 'var(--accent-green)' }}>
                   <Shield size={16} />
@@ -3389,15 +3552,12 @@ function MobileView({ kioskId, onResetSession }) {
             </div>
           )}
 
-          {/* ── Quick Repeat Last Order (Hidden per user request) ── */}
-
-          {/* 5-Second Auto-Cycling Promotional Banner Carousel */}
+          {/* 5-Second Promotional Banner Carousel */}
           {renderPromoBannerCarousel()}
 
-          {/* --- Responsive Sections Grid: Allergens & Preferences --- */}
-          <div className="mvault-sections-container">
-            {/* --- Section 1: Exclude Allergens --- */}
-            <div className="mvault-section">
+          {/* SEPARATE EXCLUDE ALLERGENS CARD CONTAINER */}
+          <div className="mvault-single-page-wrap">
+            <div className="mvault-section mvault-section--standalone">
               <div className="mvault-section-header" style={{ justifyContent: 'space-between', width: '100%' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                   <div className="mvault-section-num">1</div>
@@ -3413,13 +3573,19 @@ function MobileView({ kioskId, onResetSession }) {
                     color: '#DC2626',
                     background: 'rgba(239, 68, 68, 0.1)',
                     border: '1px solid rgba(239, 68, 68, 0.25)',
-                    padding: '3px 9px',
+                    padding: '3px 10px',
                     borderRadius: '999px'
                   }}>
                     {allergens.length + customAllergens.length} selected
                   </span>
                 )}
               </div>
+
+              <p style={{ fontSize: '12.5px', color: '#57534E', margin: '8px 0 16px', lineHeight: 1.45 }}>
+                Select any ingredients you need to avoid so we can filter dishes and display verified safety warnings.
+              </p>
+
+              {/* Checklist */}
               <div className="mvault-checklist">
                 {activeAllergenOptions.map(opt => {
                   const checked = allergens.includes(opt.id);
@@ -3440,9 +3606,9 @@ function MobileView({ kioskId, onResetSession }) {
                 })}
               </div>
 
-              {/* Optional Custom Allergy Input */}
+              {/* Custom Allergy Exclusion Input */}
               <div className="mvault-custom-allergy-box">
-                <label className="mvault-custom-allergy-label">Other Allergy / Ingredient to Exclude (Optional)</label>
+                <label className="mvault-custom-allergy-label">OTHER ALLERGY / INGREDIENT TO EXCLUDE (OPTIONAL)</label>
                 <div className="mvault-custom-allergy-row">
                   <input
                     type="text"
@@ -3484,15 +3650,111 @@ function MobileView({ kioskId, onResetSession }) {
               </div>
             </div>
 
-            {/* --- Section 2: Flavor Preferences --- */}
-            <div className="mvault-section">
-              <div className="mvault-section-header">
-                <div className="mvault-section-num mvault-section-num--amber">2</div>
+            {/* Navigation Buttons Area */}
+            <div className="mvault-cta-group">
+              <button
+                type="button"
+                onClick={handleContinueToFlavors}
+                className="mvault-save-btn"
+              >
+                <span>Continue to Flavor Preferences</span>
+                <ArrowRight size={18} />
+              </button>
+
+              <button
+                type="button"
+                onClick={handleBackFromAllergens}
+                className="mvault-back-btn"
+              >
+                <ArrowLeft size={16} />
+                <span>Back to Allergy Question</span>
+              </button>
+            </div>
+
+            {/* Privacy Trust Bar */}
+            <div className="mvault-privacy-bar">
+              <div className="mvault-privacy-left">
+                <Shield size={18} color="#059669" strokeWidth={2.5} />
                 <div>
-                  <div className="mvault-section-title">Flavor Preferences</div>
-                  <div className="mvault-section-sub">MAKE IT YOURS.</div>
+                  <div className="mvault-privacy-bold">Your data stays on this device.</div>
+                  <div className="mvault-privacy-sub">No account, no cloud, no app needed.</div>
                 </div>
               </div>
+              <div className="mvault-privacy-right">PRIVATE • SECURE • JUST FOR YOU</div>
+            </div>
+
+            {/* Reset Link */}
+            <div style={{ textAlign: 'center', paddingBottom: '8px' }}>
+              <button onClick={handleClearAllData} style={{ background: 'none', border: 'none', fontSize: '11px', color: 'var(--text-muted)', cursor: 'pointer', textDecoration: 'underline' }}>
+                Reset profile &amp; clear all data
+              </button>
+            </div>
+          </div>
+
+          <div className="mvault-watermark" aria-hidden="true">Taste<br/>Meets<br/>Technology</div>
+        </div>
+      ) : (
+        /* --- Step 3: Dedicated Flavor Preferences Page (Image 1 Right Card) --- */
+        <div className="mvault-root mvault-step-page mvault-step-page--flavors">
+          <div className="mvault-deco-corner" aria-hidden="true">
+            <div className="mvault-enso" />
+            <div className="mvault-kanji">旨味</div>
+            <div className="mvault-deco-tag">GOOD<br/>FOOD<br/>BETTER<br/>DAYS</div>
+          </div>
+
+          {/* Hero Header */}
+          <div className="mvault-hero">
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', flexWrap: 'wrap' }}>
+              <div className="mvault-badge">
+                <Shield size={15} strokeWidth={2.5} color="#059669" />
+                <span>UMAMI CRAFT FUSION ID</span>
+              </div>
+            </div>
+            <h1 className="mvault-title">
+              Customize Your <span className="mvault-title-accent">Flavor Preferences</span>
+            </h1>
+            <p className="mvault-subtitle" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+              <Lock size={12} />
+              <span>ALL DATA SAVED IN LOCAL STORAGE ONLY</span>
+            </p>
+            <div className="mvault-divider-herb" style={{ margin: '10px 0', borderBottom: '1px solid var(--border-subtle)' }} />
+            <p className="mvault-tagline">Tell us what flavors you enjoy so we can personalize your dining experience.</p>
+          </div>
+
+          {/* 5-Second Promotional Banner Carousel */}
+          {renderPromoBannerCarousel()}
+
+          {/* SEPARATE FLAVOR PREFERENCES CARD CONTAINER */}
+          <div className="mvault-single-page-wrap">
+            <div className="mvault-section mvault-section--standalone">
+              <div className="mvault-section-header" style={{ justifyContent: 'space-between', width: '100%' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <div className="mvault-section-num mvault-section-num--amber">2</div>
+                  <div>
+                    <div className="mvault-section-title">Flavor Preferences</div>
+                    <div className="mvault-section-sub">MAKE IT YOURS.</div>
+                  </div>
+                </div>
+                {preferences.length > 0 && (
+                  <span style={{
+                    fontSize: '11px',
+                    fontWeight: 800,
+                    color: '#B45309',
+                    background: 'rgba(245, 158, 11, 0.12)',
+                    border: '1px solid rgba(245, 158, 11, 0.3)',
+                    padding: '3px 10px',
+                    borderRadius: '999px'
+                  }}>
+                    {preferences.length} selected
+                  </span>
+                )}
+              </div>
+
+              <p style={{ fontSize: '12.5px', color: '#57534E', margin: '8px 0 16px', lineHeight: 1.45 }}>
+                Select your preferred flavors to personalize food recommendations and highlight matching dishes.
+              </p>
+
+              {/* Checklist */}
               <div className="mvault-checklist">
                 {activePreferenceOptions.map(opt => {
                   const checked = preferences.includes(opt.id);
@@ -3512,79 +3774,94 @@ function MobileView({ kioskId, onResetSession }) {
                   );
                 })}
               </div>
-            </div>
-          </div>
 
-          {/* ── Taste Profile History Insights (collapsed) ── */}
-          {history.length > 0 && (
-            <div className="glass-card" style={{ padding: '12px 14px', background: 'rgba(255,255,255,0.02)' }}>
-              <h5 style={{ fontSize: '10px', color: 'var(--accent-green)', textTransform: 'uppercase', marginBottom: '6px', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <CheckCircle size={12} /> Taste Profile Insights
-              </h5>
-              <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap' }}>
-                {Object.entries(tagCounts).map(([tag, count]) => {
-                  const isStrong = count >= 2;
-                  const isChecked = preferences.includes(tag);
-                  return (
-                    <div key={tag} style={{ fontSize: '10px', padding: '2px 7px', borderRadius: '5px', background: isStrong ? 'rgba(45,106,79,0.08)' : 'rgba(44,26,17,0.02)', border: `1px solid ${isStrong ? 'var(--accent-green)' : 'var(--border-glass)'}`, color: isStrong ? 'var(--text-primary)' : 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                      <span>{tag.toUpperCase()} ({count})</span>
-                      {isStrong && !isChecked && (
-                        <button onClick={() => handlePreferenceToggle(tag)} style={{ background: 'var(--accent-gradient)', color: '#fff', border: 'none', padding: '1px 5px', borderRadius: '3px', fontSize: '8px', fontWeight: '800', cursor: 'pointer' }}>+ PROFILE</button>
-                      )}
-                    </div>
-                  );
-                })}
+              {/* Taste Profile Insights if available */}
+              {history.length > 0 && (
+                <div style={{ marginTop: '14px', padding: '10px 12px', background: 'rgba(44, 26, 17, 0.02)', borderRadius: '10px', border: '1px solid #EAE2D7' }}>
+                  <div style={{ fontSize: '10px', color: '#059669', textTransform: 'uppercase', marginBottom: '6px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <CheckCircle size={12} /> Taste Profile Insights
+                  </div>
+                  <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap' }}>
+                    {Object.entries(tagCounts).map(([tag, count]) => {
+                      const isChecked = preferences.includes(tag);
+                      return (
+                        <div key={tag} style={{ fontSize: '10px', padding: '2px 7px', borderRadius: '5px', background: isChecked ? 'rgba(5, 150, 105, 0.08)' : 'rgba(44,26,17,0.02)', border: `1px solid ${isChecked ? '#059669' : '#EAE2D7'}`, color: isChecked ? '#065F46' : '#78716C', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <span>{tag.toUpperCase()} ({count})</span>
+                          {!isChecked && (
+                            <button onClick={() => handlePreferenceToggle(tag)} style={{ background: '#C24522', color: '#fff', border: 'none', padding: '1px 5px', borderRadius: '3px', fontSize: '8px', fontWeight: '800', cursor: 'pointer' }}>+ PROFILE</button>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Staff Warning / Cross-contact Note */}
+              <div style={{
+                marginTop: '16px',
+                padding: '12px 14px',
+                borderRadius: '12px',
+                background: '#FFFBEB',
+                border: '1px solid #FDE68A',
+                fontSize: '11.5px',
+                color: '#92400E',
+                lineHeight: 1.45,
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: '8px'
+              }}>
+                <ShieldAlert size={16} color="#B45309" style={{ flexShrink: 0, marginTop: '2px' }} />
+                <div>
+                  <strong>Staff Notice:</strong> Flavor preferences personalize recommendations. Always confirm ingredient and cross-contact concerns with restaurant staff because the self-service kiosk cannot independently guarantee allergen-free preparation.
+                </div>
               </div>
             </div>
-          )}
 
-          {/* ── Privacy Trust Bar ── */}
-          <div className="mvault-privacy-bar">
-            <div className="mvault-privacy-left">
-              <Shield size={18} color="#059669" strokeWidth={2.5} />
-              <div>
-                <div className="mvault-privacy-bold">Your data stays on this device.</div>
-                <div className="mvault-privacy-sub">No account, no cloud, no app needed.</div>
-              </div>
+            {/* Navigation Buttons Area */}
+            <div className="mvault-cta-group">
+              <button
+                type="button"
+                onClick={handleSaveLocalDietaryVault}
+                className="mvault-save-btn"
+              >
+                <span>Continue to Menu</span>
+                <ArrowRight size={18} />
+              </button>
+
+              <button
+                type="button"
+                onClick={handleBackFromFlavors}
+                className="mvault-back-btn"
+              >
+                <ArrowLeft size={16} />
+                <span>
+                  {hasAllergiesChoice === true ? 'Back to Exclude Allergens' : 'Back to Allergy Question'}
+                </span>
+              </button>
             </div>
-            <div className="mvault-privacy-right">PRIVATE • SECURE • JUST FOR YOU</div>
+
+            {/* Privacy Trust Bar */}
+            <div className="mvault-privacy-bar">
+              <div className="mvault-privacy-left">
+                <Shield size={18} color="#059669" strokeWidth={2.5} />
+                <div>
+                  <div className="mvault-privacy-bold">Your data stays on this device.</div>
+                  <div className="mvault-privacy-sub">No account, no cloud, no app needed.</div>
+                </div>
+              </div>
+              <div className="mvault-privacy-right">PRIVATE • SECURE • JUST FOR YOU</div>
+            </div>
+
+            {/* Reset Link */}
+            <div style={{ textAlign: 'center', paddingBottom: '8px' }}>
+              <button onClick={handleClearAllData} style={{ background: 'none', border: 'none', fontSize: '11px', color: 'var(--text-muted)', cursor: 'pointer', textDecoration: 'underline' }}>
+                Reset profile &amp; clear all data
+              </button>
+            </div>
           </div>
 
-          {/* ── Primary CTA ── */}
-          <div className="mvault-cta-group">
-            <button
-              type="button"
-              onClick={handleSaveLocalDietaryVault}
-              className="mvault-save-btn"
-            >
-              <Save size={16} />
-              <span>Save Preferences</span>
-              <span className="mvault-save-arrow">›</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                localStorage.setItem('synapse_onboarded', 'true');
-                setShowWelcomeScreen(false);
-                setIsOnboarded(true);
-                if (typeof onResetSession === 'function') onResetSession();
-              }}
-              className="mvault-later-btn"
-            >
-              Maybe Later
-            </button>
-          </div>
-
-          {/* ── Factory Reset (subtle) ── */}
-          <div style={{ textAlign: 'center', paddingBottom: '8px' }}>
-            <button onClick={handleClearAllData} style={{ background: 'none', border: 'none', fontSize: '11px', color: 'var(--text-muted)', cursor: 'pointer', textDecoration: 'underline' }}>
-              Reset profile &amp; clear all data
-            </button>
-          </div>
-
-          {/* ── "Taste Meets Technology" watermark ── */}
           <div className="mvault-watermark" aria-hidden="true">Taste<br/>Meets<br/>Technology</div>
-
         </div>
       )}
 
@@ -4365,6 +4642,21 @@ function MobileView({ kioskId, onResetSession }) {
         promoMsg={promoMsg}
         setPromoMsg={setPromoMsg}
         onConfirmOrder={handlePlaceOrder}
+        kioskId={kioskId || 'MOBILE_01'}
+        tableNumber={effectiveTableNum || 'Table 04'}
+        isMobile={true}
+      />
+
+      {/* Camera-based Mobile QR Ph Scanner Modal */}
+      <MobileQRScannerModal
+        isOpen={showQRScannerModal}
+        onClose={() => setShowQRScannerModal(false)}
+        onPaymentSuccess={(data) => {
+          setShowQRScannerModal(false);
+          if (data && data.order) {
+            setActiveOrder(data.order);
+          }
+        }}
       />
     </div>
   );

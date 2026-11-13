@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import {
-  X, Plus, Minus, ShieldCheck, AlertTriangle, Clock, Sparkles, Flame, Check, Utensils
+  X, Plus, Minus, AlertTriangle, Clock, Sparkles, Flame, Check, Utensils
 } from 'lucide-react';
 
 const SPICE_LEVELS = [
@@ -8,14 +8,6 @@ const SPICE_LEVELS = [
   { id: 'Mild', label: 'Mild', badge: 'Gentle Heat' },
   { id: 'Medium', label: 'Medium Spicy', badge: 'Balanced' },
   { id: 'Extra Spicy', label: 'Extra Spicy', badge: 'Fiery' }
-];
-
-const QUICK_NOTES = [
-  'No Onions',
-  'Sauce on Side',
-  'No Garnish',
-  'Less Oil',
-  'Cut into Bite Pieces'
 ];
 
 export default function KioskProductModal({
@@ -28,7 +20,6 @@ export default function KioskProductModal({
   const [selectedSizeIndex, setSelectedSizeIndex] = useState(0);
   const [selectedSpice, setSelectedSpice] = useState('Regular');
   const [selectedAddons, setSelectedAddons] = useState([]);
-  const [selectedNotes, setSelectedNotes] = useState([]);
   const [customNote, setCustomNote] = useState('');
   const [qty, setQty] = useState(1);
 
@@ -39,7 +30,6 @@ export default function KioskProductModal({
         (item.tags || []).some(t => String(t).toLowerCase() === 'spicy') ? 'Medium' : 'Regular'
       );
       setSelectedAddons([]);
-      setSelectedNotes([]);
       setCustomNote('');
       setQty(1);
     }
@@ -167,16 +157,9 @@ export default function KioskProductModal({
     });
   };
 
-  const toggleNote = (note) => {
-    setSelectedNotes(prev => (
-      prev.includes(note) ? prev.filter(n => n !== note) : [...prev, note]
-    ));
-  };
-
   const handleConfirmAdd = () => {
     const combinedNotes = [
       ...(isFood && selectedSpice !== 'Regular' ? [`Spice: ${selectedSpice}`] : []),
-      ...selectedNotes,
       ...(customNote.trim() ? [customNote.trim()] : [])
     ].join(' • ');
 
@@ -293,10 +276,6 @@ export default function KioskProductModal({
                 <Utensils size={15} color="#C24522" />
                 <h4>Verified Ingredients &amp; Allergen Profile</h4>
               </div>
-              <span className="kiosk-pm-verified-pill">
-                <ShieldCheck size={12} />
-                Admin Verified
-              </span>
             </div>
 
             {ingredientsRows.length > 0 ? (
@@ -439,21 +418,6 @@ export default function KioskProductModal({
             <div className="kiosk-pm-section-header">
               <h4>Special Preparation Requests</h4>
               <span style={{ fontSize: '11px', color: '#78716C', fontWeight: 600 }}>Optional</span>
-            </div>
-            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '10px' }}>
-              {QUICK_NOTES.map(note => {
-                const active = selectedNotes.includes(note);
-                return (
-                  <button
-                    key={note}
-                    type="button"
-                    onClick={() => toggleNote(note)}
-                    className={`kiosk-pm-note-pill ${active ? 'active' : ''}`}
-                  >
-                    {note}
-                  </button>
-                );
-              })}
             </div>
             <input
               type="text"

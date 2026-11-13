@@ -1,5 +1,29 @@
 [
   {
+    "id": "WH-LOG-1794551841474",
+    "eventId": "sim_evt_1794551841350",
+    "gateway": "GCash (PayMongo)",
+    "orderId": "ORD-1717",
+    "transactionReference": "TXN-GCASH-742337",
+    "amount": 434,
+    "currency": "PHP",
+    "status": "Successful",
+    "signatureVerified": true,
+    "signatureType": "HMAC-SHA256",
+    "amountMatched": true,
+    "currencyMatched": true,
+    "isDuplicate": false,
+    "serviceActivated": true,
+    "activatedPlan": "Umami VIP Gourmet Club (+43 pts)",
+    "customer": "Kiosk Guest",
+    "customerId": null,
+    "receivedAt": "2026-11-13T06:37:21.369Z",
+    "processedAt": "2026-11-13T06:37:21.474Z",
+    "executionTimeMs": 105,
+    "responseStatus": 200,
+    "details": "Automated webhook confirmed payment from GCash (PayMongo). HMAC signature verified. ₱434.00 settled. Kitchen order #ORD-1717 automatically dispatched. Service activated."
+  },
+  {
     "id": "WH-LOG-1001",
     "eventId": "evt_pm_992144810",
     "gateway": "PayMongo (GCash)",
@@ -48,4 +72,3 @@
     "details": "Automated webhook received from Maya Gateway. Signature verified. Order #ORD-4745 amount ₱1088.00 verified. Kitchen order dispatched."
   }
 ]
-

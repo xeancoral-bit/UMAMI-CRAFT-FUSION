@@ -87,20 +87,26 @@ flowchart TD
     ConnectCheck -->|No / Mobile Data On| ErrUnreachable["ERR_ADDRESS_UNREACHABLE<br/>(Turn off cellular data or switch to Cloud Tunnel)"]
     ConnectCheck -->|Yes| ValidateSession["POST /api/qr/validate (Scoped Session)"]
 
-    %% Mandatory Allergy Verification Modal
-    ValidateSession --> AllergyModal{"Allergy Verification Modal:<br/>'Do You Have Any Food Allergies?'"}
-    AllergyModal -->|NO, I DON'T HAVE ALLERGIES| NoAllergies["Record 'no_allergies_declared' in QR Session"]
-    AllergyModal -->|YES, I HAVE ALLERGIES| OpenVault["Open Local Dietary Vault"]
+    %% Step 1: Mandatory Allergy Verification Page
+    ValidateSession --> AllergyQuestion["Step 1: 'Do You Have Any Food Allergies?' Page<br/>(Clean Centered Card, Shield Icon & Session Pill)"]
+    AllergyQuestion -->|NO, I DON'T HAVE ALLERGIES| SkipToFlavors["Path A: Skip Exclude Allergens<br/>(Records 'no_allergies_declared' & routes directly to Flavors)"]
+    AllergyQuestion -->|YES, I HAVE ALLERGIES| OpenAllergensPage["Path B: Step 2: Dedicated Exclude Allergens Page<br/>(9 Major Allergens + Custom Allergen Input)"]
 
-    %% Dietary Vault
-    OpenVault --> SelectStandardAllergens["Check Standard Allergens<br/>(Peanuts, Gluten, Dairy, Soy, etc.)"]
-    SelectStandardAllergens --> AddCustomAllergens["Type Custom Exclusions<br/>(MSG, Mustard, Kiwi, etc.)"]
-    AddCustomAllergens --> SelectFlavors["Choose Flavor Preferences<br/>(Spicy, Vegan, Crispy, Smoky, etc.)"]
-    SelectFlavors --> SaveVault["POST /api/qr/allergy-verification<br/>(Encrypted to LocalStorage & Session)"]
+    %% Step 2: Dedicated Exclude Allergens Page
+    OpenAllergensPage --> SelectStandardAllergens["Check Allergens to Exclude<br/>(Peanuts, Gluten, Dairy, Soy, Shellfish, Eggs, Fish, Tree Nuts, Sesame)"]
+    SelectStandardAllergens --> AddCustomAllergens["Type Custom Exclusions (+ Add Tag Chips)"]
+    AddCustomAllergens --> ContinueToFlavors["Click 'Continue to Flavor Preferences ›'<br/>(or '← Back to Allergy Question')"]
+    ContinueToFlavors --> OpenFlavorsPage["Step 3: Dedicated Flavor Preferences Page"]
+    SkipToFlavors --> OpenFlavorsPage
 
-    %% Catalog Filtering
-    NoAllergies --> SafeCatalog["Browse Filtered Menu Catalog"]
-    SaveVault --> SafeCatalog
+    %% Step 3: Dedicated Flavor Preferences Page
+    OpenFlavorsPage --> SelectFlavors["Choose Flavor Preferences<br/>(Spicy, Vegan, Sweet, Savory, Healthy, Citrus, Crispy, Smoky)"]
+    SelectFlavors --> FlavorBackOption["Contextual Back Button<br/>(Returns to Allergens if Path B, or Question if Path A without losing data)"]
+    SelectFlavors --> StaffNotice["Review Staff Cross-Contact & Kitchen Safety Notice"]
+    StaffNotice --> SaveVault["Click 'Continue to Menu ›'<br/>(Encrypted to LocalStorage & Scoped QR Session)"]
+
+    %% Step 4: Filtered Safe Catalog
+    SaveVault --> SafeCatalog["Step 4: Browse Filtered Menu Catalog (Filtered Dishes & Badges)"]
     KioskCatalog --> SafeCatalog
 
     %% Product Details & Allergen Guard
@@ -489,16 +495,27 @@ erDiagram
 - **Universal Cloud Tunnel Backup:** Built-in toggle to switch to **"Any-Wi-Fi (Cloud Tunnel)"** if router AP Client Isolation is active.
 
 ### 3. Customer Allergy Verification & Local Dietary Vault
-- **Mandatory Pre-Ordering Verification:**
-  - Upon scanning the QR code, mobile diners are immediately prompted with a clear dialog: **"Do You Have Any Food Allergies?"**
-  - Choosing **"NO, I DON'T HAVE ALLERGIES"** immediately logs `"no_allergies_declared"` and transitions into the menu.
-  - Choosing **"YES, I HAVE ALLERGIES"** guides the diner into the **Local Dietary Vault**.
-- **Local Dietary Vault (`mvault-root`):**
-  - **Standard Allergen Exclusions:** Multi-select interactive toggles for Peanuts, Gluten/Wheat, Dairy, Soy, Shellfish, Eggs, Fish, Tree Nuts, and Sesame.
-  - **Custom Allergen Input:** Freeform text input for specific exclusions (e.g., MSG, Mustard, Kiwi, Celery) stored as tag chips.
-  - **Flavor Profile Preferences:** Independent tags for Spicy, Vegan, Sweet, Savory, Healthy, Citrus & Tangy, Crispy Crunch, and Smoky & Charred.
-  - **Privacy Guarantee:** All data persists strictly in client `localStorage` and binds temporarily to the scoped session token, preventing data leakage across different guests.
-  - Clean header featuring the `🛡️ UMAMI CRAFT FUSION ID` badge.
+- **Strictly Separated Multi-Step Flow (Allergen & Flavor Preferences Never Co-exist on the Same Page):**
+  - **Step 1 – Initial Food Allergy Selection Page:**
+    - High-conversion, centered white card matching the official Umami Craft Fusion design.
+    - Features the green restaurant/kiosk identifier pill (`🛡️ Umami Craft Fusion • Kiosk #...`), centered warm orange shield icon, and clear typography: **"Do You Have Any Food Allergies?"**
+    - **Option A (YES, I HAVE ALLERGIES):** Navigates directly to Step 2 (Dedicated Exclude Allergens page).
+    - **Option B (NO, I DON'T HAVE ALLERGIES):** Skips Step 2 completely, records `"no_allergies_declared"` in session/localStorage, and routes directly to Step 3 (Dedicated Flavor Preferences page).
+  - **Step 2 – Dedicated Exclude Allergens Page (Single Focused Card):**
+    - Exclusively dedicated to allergens; **Flavor Preferences are completely hidden** to eliminate cognitive overload.
+    - Full-width, touch-friendly rows for all 9 major FDA/FALCPA allergens (Peanuts, Gluten/Wheat, Dairy, Soy, Shellfish, Eggs, Fish, Tree Nuts, Sesame) with custom icons and clear checkboxes.
+    - **Custom Allergen Input:** Freeform entry for additional exclusions (e.g. MSG, Mustard, Kiwi, Celery) with `+ Add` button and removable tag chips.
+    - **Navigation:** Primary **"Continue to Flavor Preferences ›"** button, plus a neutral **"← Back to Allergy Question"** button that preserves all customer selections.
+  - **Step 3 – Dedicated Flavor Preferences Page (Single Focused Card):**
+    - Exclusively dedicated to taste profiles; **Exclude Allergens is completely hidden**.
+    - Full-width touch-friendly rows for desired culinary characteristics (Spicy, Vegan, Sweet, Savory, Healthy, Citrus & Tangy, Crispy Crunch, Smoky & Charred).
+    - **Taste Profile Insights:** Auto-detects ordering patterns from recent visits to suggest matching profiles.
+    - **Staff Safety Notice:** Explains that flavor preferences customize recommendations and reminds diners to confirm severe cross-contact risks with kitchen staff.
+    - **Navigation:** Primary **"Continue to Menu ›"** button, plus a contextual **"← Back"** button (intelligently returns to *Exclude Allergens* if the customer chose Path B, or returns to the *Allergy Question* if they chose Path A, without losing data).
+  - **Step 4 – Menu & Ordering Interface:**
+    - Displays only verified-safe menu options or marks offending dishes with prominent safety alerts.
+    - Includes an **"Edit Diet"** header button that allows diners to modify their allergies or flavors at any time during their dining session.
+  - **Privacy Guarantee:** All dietary data persists strictly in client `localStorage` and binds temporarily to the scoped session token, preventing data leakage across different guests.
 
 ### 4. Payment Gateway Engine & E-Wallet Sub-Selection
 - **Payment Method Hierarchy:**

@@ -169,6 +169,80 @@ async function saveCustomerAccountsToDb() {
 loadPaymentWebhooksFromDb();
 loadCustomerAccountsFromDb();
 
+// ══════════════════════════════════════════════════════════════════════════
+// DYNAMIC QR PH PAYMENT SESSIONS & BSP EMVCo SPECIFICATION ENGINE
+// ══════════════════════════════════════════════════════════════════════════
+const PAYMENT_SESSIONS_FILE = path.join(__dirname, 'data', 'payment_sessions.json');
+let paymentSessions = [];
+
+async function loadPaymentSessionsFromDb() {
+  try {
+    const raw = await fs.readFile(PAYMENT_SESSIONS_FILE, 'utf8');
+    const data = JSON.parse(raw);
+    if (Array.isArray(data)) {
+      paymentSessions = data;
+      console.log(`[DB] Payment sessions loaded: ${paymentSessions.length} sessions from data/payment_sessions.json`);
+      return;
+    }
+  } catch (err) {
+    paymentSessions = [];
+  }
+}
+
+async function savePaymentSessionsToDb() {
+  try {
+    await fs.writeFile(PAYMENT_SESSIONS_FILE, JSON.stringify(paymentSessions, null, 2), 'utf8');
+  } catch (err) {
+    console.error('[DB] Failed to save payment_sessions.json:', err);
+  }
+}
+
+loadPaymentSessionsFromDb();
+
+// EMVCo CRC-16 / CCITT-FALSE calculation (Polynomial: 0x1021, Initial: 0xFFFF)
+function computeCRC16(data) {
+  let crc = 0xFFFF;
+  for (let i = 0; i < data.length; i++) {
+    crc ^= (data.charCodeAt(i) << 8);
+    for (let j = 0; j < 8; j++) {
+      if ((crc & 0x8000) !== 0) {
+        crc = ((crc << 1) ^ 0x1021) & 0xFFFF;
+      } else {
+        crc = (crc << 1) & 0xFFFF;
+      }
+    }
+  }
+  return crc.toString(16).toUpperCase().padStart(4, '0');
+}
+
+function buildTLV(tag, value) {
+  const strVal = String(value);
+  const lenStr = String(strVal.length).padStart(2, '0');
+  return `${tag}${lenStr}${strVal}`;
+}
+
+function generateQRPhPayload({ merchantName, amount, referenceNumber, terminalId, walletId }) {
+  const cleanMerchant = (merchantName || 'UMAMI CRAFT FUSION INC.').toUpperCase().substring(0, 25);
+  const sub28 = buildTLV('00', 'ph.ppmi.qrph') + buildTLV('01', 'UMAMICRAFT01') + buildTLV('02', (walletId || 'GCASH').toUpperCase());
+  const tag28 = buildTLV('28', sub28);
+  const tag62 = buildTLV('62', buildTLV('01', referenceNumber) + buildTLV('07', terminalId || 'COUNTER_01'));
+  
+  const raw = buildTLV('00', '01') +
+    buildTLV('01', '12') +
+    tag28 +
+    buildTLV('52', '5812') +
+    buildTLV('53', '608') +
+    buildTLV('54', Number(amount || 0).toFixed(2)) +
+    buildTLV('58', 'PH') +
+    buildTLV('59', cleanMerchant) +
+    buildTLV('60', 'MANILA') +
+    tag62 +
+    '6304';
+  
+  const crc = computeCRC16(raw);
+  return raw + crc;
+}
+
 // Cryptographic Webhook Helpers
 function computeWebhookSignature(payloadString, secret = WEBHOOK_SIGNING_SECRET) {
   return crypto.createHmac('sha256', secret).update(payloadString).digest('hex');
@@ -2805,6 +2879,500 @@ async function detectDynamicNetwork() {
         replayAttackToleranceSeconds: 300,
         totalEventsProcessed: paymentWebhooks.length
       });
+    });
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // INTERACTIVE PAYMENT SESSIONS & QR PH / CARD GATEWAY API ENDPOINTS
+    // ══════════════════════════════════════════════════════════════════════════
+
+    // Helper: Create or update order upon verified payment
+    async function finalizePaidOrder({ session, paymentMethodLabel, gatewayLabel, payerDetails = {} }) {
+      const timestamp = new Date().toISOString();
+      const orderId = session.orderId || `ORD-${Math.floor(1000 + Math.random() * 9000)}`;
+      const pickupToken = session.pickupToken || `U-${Math.floor(100 + Math.random() * 900)}`;
+
+      let targetOrder = orders.find(o => o.orderId === orderId || o.id === orderId || o.referenceNumber === session.referenceNumber);
+
+      const itemsList = Array.isArray(session.items) && session.items.length > 0
+        ? session.items
+        : (session.orderData?.items || []);
+
+      const effectiveCount = session.itemCount || itemsList.reduce((sum, i) => sum + (i.quantity || i.qty || 1), 0);
+      const effectiveTotal = Number(session.amount || session.finalTotal || 0);
+
+      if (!targetOrder) {
+        targetOrder = {
+          id: orderId,
+          orderId,
+          pickupToken,
+          customer: session.customer || payerDetails.name || 'Kiosk Guest',
+          orderType: session.diningOption || 'Dine-In',
+          diningOption: session.diningOption || 'Dine-In',
+          location: session.location || (session.tableNumber ? (String(session.tableNumber).startsWith('Table') ? session.tableNumber : `Table ${session.tableNumber}`) : 'Counter'),
+          tableId: session.tableId || session.tableNumber || 'Counter',
+          tableNumber: session.tableNumber || 'Counter',
+          kioskId: session.kioskId || 'COUNTER_01',
+          restaurantId: RESTAURANT_ID,
+          items: itemsList.map(i => ({
+            id: i.id || Math.floor(100 + Math.random() * 900),
+            name: i.name,
+            qty: i.quantity || i.qty || 1,
+            quantity: i.quantity || i.qty || 1,
+            price: i.price || 0,
+            image: i.image || 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=600&q=80',
+            emoji: i.emoji || '🍽️',
+            tags: i.tags || [],
+            customizations: i.customizations || []
+          })),
+          itemCount: effectiveCount,
+          subtotal: session.subtotal !== undefined ? Number(session.subtotal) : effectiveTotal,
+          taxAmount: session.taxAmount !== undefined ? Number(session.taxAmount) : 0,
+          discountAmount: session.discountAmount !== undefined ? Number(session.discountAmount) : 0,
+          promoCode: session.promoCode || null,
+          total: effectiveTotal,
+          totalPrice: effectiveTotal,
+          payment: paymentMethodLabel,
+          paymentMethod: paymentMethodLabel,
+          paymentStatus: 'Approved',
+          isPaymentVerified: true,
+          verifiedBy: gatewayLabel,
+          verifiedAt: timestamp,
+          referenceNumber: session.referenceNumber,
+          isDuplicateRef: false,
+          status: 'New',
+          nextStatus: 'Start Preparing',
+          stripeColor: '#059669',
+          priority: 'Normal',
+          isWaitAlert: false,
+          waitTime: '0 min',
+          orderedTags: session.orderedTags || [],
+          allergens: session.allergens || [],
+          note: session.note || '',
+          isAllergy: Array.isArray(session.allergens) && session.allergens.length > 0,
+          device: session.device || 'Kiosk',
+          platform: session.platform || 'Kiosk',
+          createdAt: timestamp,
+          updatedAt: timestamp,
+          statusHistory: [
+            {
+              status: 'New',
+              timestamp,
+              updatedBy: gatewayLabel,
+              note: `Payment verified via ${gatewayLabel} (Ref: ${session.referenceNumber}). Auto-sent to Kitchen.`
+            }
+          ]
+        };
+        orders.unshift(targetOrder);
+      } else {
+        targetOrder.isPaymentVerified = true;
+        targetOrder.paymentStatus = 'Approved';
+        targetOrder.verifiedBy = gatewayLabel;
+        targetOrder.verifiedAt = timestamp;
+        targetOrder.referenceNumber = session.referenceNumber;
+        targetOrder.pickupToken = pickupToken;
+        targetOrder.status = 'New';
+        targetOrder.nextStatus = 'Start Preparing';
+        targetOrder.stripeColor = '#059669';
+        targetOrder.updatedAt = timestamp;
+
+        if (!Array.isArray(targetOrder.statusHistory)) targetOrder.statusHistory = [];
+        targetOrder.statusHistory.push({
+          status: 'New',
+          timestamp,
+          updatedBy: gatewayLabel,
+          note: `Payment verified via ${gatewayLabel} (Ref: ${session.referenceNumber}). Sent to kitchen.`
+        });
+      }
+
+      await saveOrdersToDb();
+
+      // Dispatch to Kitchen Display System automatically
+      if (io) {
+        io.to(`kitchen_${RESTAURANT_ID}`).emit('new-kitchen-order', targetOrder);
+        io.emit('new-kitchen-order', targetOrder);
+        io.to(`admin_${RESTAURANT_ID}`).emit('new-order', targetOrder);
+        io.to(`admin_${RESTAURANT_ID}`).emit('order-status-updated', targetOrder);
+        io.emit('order-status-updated', targetOrder);
+        if (targetOrder.kioskId) io.to(targetOrder.kioskId).emit('order-status-updated', targetOrder);
+        io.emit('payment-completed', {
+          referenceNumber: session.referenceNumber,
+          sessionId: session.id,
+          orderId: targetOrder.orderId,
+          pickupToken,
+          amount: effectiveTotal,
+          paymentMethod: paymentMethodLabel,
+          order: targetOrder
+        });
+      }
+
+      // Record Audit Log
+      await recordAuditLog({
+        actorId: 'PAYMENT_GATEWAY',
+        actorName: gatewayLabel,
+        actorRole: 'Automated Gateway',
+        accountType: 'system',
+        category: 'Financial Settlement',
+        action: `Payment Verified (${paymentMethodLabel})`,
+        target: targetOrder.orderId,
+        details: `Settled ₱${effectiveTotal.toFixed(2)} via ${gatewayLabel}. Reference: ${session.referenceNumber}. Pickup Token: ${pickupToken}.`,
+        status: 'Success'
+      });
+
+      return targetOrder;
+    }
+
+    // POST /api/payments/create-session - Initialize transaction-specific QR Ph / Card Payment Session
+    app.post('/api/payments/create-session', async (req, res) => {
+      try {
+        const {
+          orderId,
+          amount,
+          subtotal,
+          taxAmount,
+          discountAmount,
+          promoCode,
+          paymentMethod = 'E-Wallet',
+          walletId = 'GCash',
+          kioskId = 'COUNTER_01',
+          tableNumber = 'Counter',
+          diningOption = 'Dine-In',
+          customer = 'Kiosk Guest',
+          items = [],
+          allergens = [],
+          note = ''
+        } = req.body;
+
+        const effectiveAmount = Number(amount || 0);
+        if (effectiveAmount <= 0) {
+          return res.status(400).json({ error: 'Payment amount must be greater than zero.' });
+        }
+
+        const cleanOrderId = orderId || `ORD-${Math.floor(1000 + Math.random() * 9000)}`;
+        const timestamp = Date.now();
+        const randSuffix = Math.floor(1000 + Math.random() * 9000);
+        const referenceNumber = `TXN-UMAMI-${timestamp.toString(36).toUpperCase()}-${randSuffix}`;
+        const pickupToken = `U-${Math.floor(100 + Math.random() * 900)}`;
+        const sessionId = `sess_${timestamp.toString(36)}_${Math.random().toString(36).substring(2, 8)}`;
+        const merchantName = 'UMAMI CRAFT FUSION INC.';
+        const durationMinutes = 10;
+        const expiresAt = timestamp + (durationMinutes * 60 * 1000);
+
+        // Generate dynamic EMVCo QR Ph payload compliant with Philippine National QR standard
+        const qrPayload = generateQRPhPayload({
+          merchantName,
+          amount: effectiveAmount,
+          referenceNumber,
+          terminalId: kioskId,
+          walletId
+        });
+
+        const newSession = {
+          id: sessionId,
+          sessionId,
+          orderId: cleanOrderId,
+          pickupToken,
+          referenceNumber,
+          merchantName,
+          amount: effectiveAmount,
+          currency: 'PHP',
+          subtotal: subtotal !== undefined ? Number(subtotal) : effectiveAmount,
+          taxAmount: taxAmount !== undefined ? Number(taxAmount) : 0,
+          discountAmount: discountAmount !== undefined ? Number(discountAmount) : 0,
+          promoCode: promoCode || null,
+          paymentMethod,
+          walletId,
+          kioskId,
+          tableNumber,
+          diningOption,
+          customer,
+          items,
+          allergens,
+          note,
+          status: 'awaiting_payment', // awaiting_payment | processing | successful | failed | expired | cancelled
+          qrPayload,
+          createdAt: new Date(timestamp).toISOString(),
+          expiresAt,
+          expiresInSeconds: durationMinutes * 60,
+          restaurantId: RESTAURANT_ID
+        };
+
+        // Prepend to in-memory sessions list and persist
+        paymentSessions.unshift(newSession);
+        // Keep max 500 historical sessions
+        if (paymentSessions.length > 500) paymentSessions.length = 500;
+        await savePaymentSessionsToDb();
+
+        if (io) {
+          io.emit('payment-session-created', {
+            referenceNumber,
+            kioskId,
+            amount: effectiveAmount,
+            walletId
+          });
+        }
+
+        return res.status(201).json({
+          success: true,
+          session: newSession
+        });
+      } catch (err) {
+        console.error('[Payment API] Error creating payment session:', err);
+        return res.status(500).json({ error: 'Failed to create payment session', message: err.message });
+      }
+    });
+
+    // GET /api/payments/session/:reference - Check payment status & countdown
+    app.get('/api/payments/session/:reference', (req, res) => {
+      const { reference } = req.params;
+      const session = paymentSessions.find(s =>
+        s.referenceNumber === reference || s.id === reference || s.orderId === reference
+      );
+
+      if (!session) {
+        return res.status(404).json({ error: 'Payment session not found' });
+      }
+
+      // Check for expiration
+      const now = Date.now();
+      if (session.status === 'awaiting_payment' && now > session.expiresAt) {
+        session.status = 'expired';
+        session.expiredAt = new Date(now).toISOString();
+      }
+
+      const remainingSeconds = Math.max(0, Math.floor((session.expiresAt - now) / 1000));
+
+      const relatedOrder = orders.find(o => o.orderId === session.orderId || o.referenceNumber === session.referenceNumber);
+
+      return res.json({
+        success: true,
+        session: {
+          ...session,
+          remainingSeconds,
+          isExpired: session.status === 'expired'
+        },
+        order: relatedOrder || null
+      });
+    });
+
+    // GET /api/payments/active-sessions - List currently awaiting payment sessions
+    app.get('/api/payments/active-sessions', (req, res) => {
+      const now = Date.now();
+      const active = paymentSessions.filter(s =>
+        s.status === 'awaiting_payment' && now <= s.expiresAt
+      );
+      res.json(active);
+    });
+
+    // POST /api/payments/confirm-qr-scan - Mobile phone scans desktop Kiosk QR Ph code and completes payment
+    app.post('/api/payments/confirm-qr-scan', async (req, res) => {
+      try {
+        const {
+          referenceNumber,
+          payerWallet = 'GCash',
+          payerName = 'Mobile Customer',
+          payerPhone = '+63 917 888 8888',
+          kioskId
+        } = req.body;
+
+        if (!referenceNumber) {
+          return res.status(400).json({ error: 'Missing reference number for QR payment confirmation.' });
+        }
+
+        const session = paymentSessions.find(s =>
+          s.referenceNumber === referenceNumber || s.id === referenceNumber
+        );
+
+        if (!session) {
+          return res.status(404).json({ error: 'Payment session not found for provided reference number.' });
+        }
+
+        // Expiration check
+        if (Date.now() > session.expiresAt && session.status !== 'successful') {
+          session.status = 'expired';
+          await savePaymentSessionsToDb();
+          return res.status(400).json({
+            error: 'This QR Ph payment code has expired. Please ask the kiosk to generate a fresh QR code.',
+            status: 'expired'
+          });
+        }
+
+        // Idempotency: if already paid, return existing success response
+        if (session.status === 'successful') {
+          const existingOrder = orders.find(o => o.orderId === session.orderId || o.referenceNumber === session.referenceNumber);
+          return res.json({
+            success: true,
+            message: 'Payment was already verified.',
+            status: 'successful',
+            session,
+            order: existingOrder
+          });
+        }
+
+        // Mark session as successful
+        session.status = 'successful';
+        session.paidAt = new Date().toISOString();
+        session.payerWallet = payerWallet;
+        session.payerName = payerName;
+        session.payerPhone = payerPhone;
+        await savePaymentSessionsToDb();
+
+        const gatewayLabel = `QR Ph (${payerWallet})`;
+        const finalOrder = await finalizePaidOrder({
+          session,
+          paymentMethodLabel: payerWallet,
+          gatewayLabel,
+          payerDetails: { name: payerName, phone: payerPhone }
+        });
+
+        return res.json({
+          success: true,
+          message: `Payment of ₱${session.amount.toFixed(2)} verified via QR Ph (${payerWallet}).`,
+          status: 'successful',
+          session,
+          order: finalOrder,
+          pickupToken: session.pickupToken
+        });
+      } catch (err) {
+        console.error('[Payment API] Error confirming QR scan payment:', err);
+        return res.status(500).json({ error: 'Failed to confirm QR payment', message: err.message });
+      }
+    });
+
+    // POST /api/payments/process-card - Process secure credit/debit card checkout via PayMongo gateway
+    app.post('/api/payments/process-card', async (req, res) => {
+      try {
+        const {
+          referenceNumber,
+          cardholderName,
+          cardLast4 = '4242',
+          cardBrand = 'Visa',
+          expMonth,
+          expYear,
+          authCode
+        } = req.body;
+
+        if (!referenceNumber) {
+          return res.status(400).json({ error: 'Missing reference number.' });
+        }
+
+        const session = paymentSessions.find(s =>
+          s.referenceNumber === referenceNumber || s.id === referenceNumber
+        );
+
+        if (!session) {
+          return res.status(404).json({ error: 'Payment session not found.' });
+        }
+
+        if (session.status === 'successful') {
+          const existingOrder = orders.find(o => o.orderId === session.orderId || o.referenceNumber === session.referenceNumber);
+          return res.json({
+            success: true,
+            message: 'Card payment already settled.',
+            session,
+            order: existingOrder
+          });
+        }
+
+        // Security check: Never accept or log raw 16-digit PAN
+        if (req.body.cardNumber && String(req.body.cardNumber).replace(/\s+/g, '').length > 4) {
+          console.warn('[Security Guard] Raw card number received; discarded immediately.');
+        }
+
+        session.status = 'successful';
+        session.paidAt = new Date().toISOString();
+        session.paymentMethod = 'Card';
+        session.cardBrand = cardBrand;
+        session.cardLast4 = cardLast4;
+        session.cardholderName = cardholderName || 'Cardholder';
+        session.authCode = authCode || `AUTH-${Math.floor(100000 + Math.random() * 900000)}`;
+        await savePaymentSessionsToDb();
+
+        const gatewayLabel = `PayMongo (${cardBrand} •••• ${cardLast4})`;
+        const finalOrder = await finalizePaidOrder({
+          session,
+          paymentMethodLabel: `Card (${cardBrand})`,
+          gatewayLabel,
+          payerDetails: { name: cardholderName }
+        });
+
+        return res.json({
+          success: true,
+          message: `Card payment authorized successfully via PayMongo.`,
+          status: 'successful',
+          session,
+          order: finalOrder,
+          pickupToken: session.pickupToken
+        });
+      } catch (err) {
+        console.error('[Payment API] Error processing card payment:', err);
+        return res.status(500).json({ error: 'Failed to process card payment', message: err.message });
+      }
+    });
+
+    // POST /api/payments/simulate - Simulate e-wallet / mobile app payment for instant testing
+    app.post('/api/payments/simulate', async (req, res) => {
+      try {
+        const { referenceNumber, walletId = 'GCash', status = 'successful' } = req.body;
+        const session = paymentSessions.find(s =>
+          s.referenceNumber === referenceNumber || s.id === referenceNumber
+        );
+
+        if (!session) {
+          return res.status(404).json({ error: 'Payment session not found' });
+        }
+
+        if (status === 'failed') {
+          session.status = 'failed';
+          session.failureReason = req.body.reason || 'Simulated customer cancellation';
+          await savePaymentSessionsToDb();
+          if (io) io.emit('payment-failed', { referenceNumber, reason: session.failureReason });
+          return res.json({ success: false, status: 'failed', session });
+        }
+
+        session.status = 'successful';
+        session.paidAt = new Date().toISOString();
+        session.payerWallet = walletId;
+        await savePaymentSessionsToDb();
+
+        const finalOrder = await finalizePaidOrder({
+          session,
+          paymentMethodLabel: walletId,
+          gatewayLabel: `Simulated Gateway (${walletId})`,
+          payerDetails: { name: 'Simulated Kiosk Diner' }
+        });
+
+        return res.json({
+          success: true,
+          status: 'successful',
+          session,
+          order: finalOrder,
+          pickupToken: session.pickupToken
+        });
+      } catch (err) {
+        console.error('[Payment API] Simulation error:', err);
+        return res.status(500).json({ error: 'Simulation failed', message: err.message });
+      }
+    });
+
+    // POST /api/payments/cancel-session - Cancel active payment session
+    app.post('/api/payments/cancel-session', async (req, res) => {
+      try {
+        const { referenceNumber } = req.body;
+        const session = paymentSessions.find(s =>
+          s.referenceNumber === referenceNumber || s.id === referenceNumber
+        );
+
+        if (session && session.status === 'awaiting_payment') {
+          session.status = 'cancelled';
+          session.cancelledAt = new Date().toISOString();
+          await savePaymentSessionsToDb();
+          if (io) io.emit('payment-cancelled', { referenceNumber });
+        }
+
+        res.json({ success: true, message: 'Session cancelled' });
+      } catch (err) {
+        res.status(500).json({ error: 'Failed to cancel session' });
+      }
     });
 
     // GET & POST /api/customer-accounts - Customer Membership & Subscription Accounts

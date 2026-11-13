@@ -1,0 +1,89 @@
+[
+  {
+    "id": "sess_mweovppg_pwzijt",
+    "sessionId": "sess_mweovppg_pwzijt",
+    "orderId": "ORD-2127",
+    "pickupToken": "U-310",
+    "referenceNumber": "TXN-UMAMI-MWEOVPPG-4380",
+    "merchantName": "UMAMI CRAFT FUSION INC.",
+    "amount": 434,
+    "currency": "PHP",
+    "subtotal": 434,
+    "taxAmount": 0,
+    "discountAmount": 0,
+    "promoCode": null,
+    "paymentMethod": "Card",
+    "walletId": "GCash",
+    "kioskId": "1FGHX3",
+    "tableNumber": "Counter",
+    "diningOption": "Dine-In",
+    "customer": "Kiosk Guest",
+    "items": [
+      {
+        "id": 1,
+        "name": "Szechuan Dumpling Duo",
+        "price": 349,
+        "quantity": 1
+      }
+    ],
+    "allergens": [],
+    "note": "",
+    "status": "successful",
+    "qrPayload": "00020101021228410012ph.ppmi.qrph0112UMAMICRAFT010205GCASH5204581253036085406434.005802PH5923UMAMI CRAFT FUSION INC.6006MANILA62370123TXN-UMAMI-MWEOVPPG-438007061FGHX36304B727",
+    "createdAt": "2026-11-13T08:02:41.764Z",
+    "expiresAt": 1794557561764,
+    "expiresInSeconds": 600,
+    "restaurantId": "umami",
+    "paidAt": "2026-11-13T08:02:41.783Z",
+    "cardBrand": "Visa",
+    "cardLast4": "4242",
+    "cardholderName": "JUAN DELA CRUZ",
+    "authCode": "AUTH-313477"
+  },
+  {
+    "id": "sess_mweovamy_scpubt",
+    "sessionId": "sess_mweovamy_scpubt",
+    "orderId": "ORD-8809",
+    "pickupToken": "U-249",
+    "referenceNumber": "TXN-UMAMI-MWEOVAMY-5201",
+    "merchantName": "UMAMI CRAFT FUSION INC.",
+    "amount": 434,
+    "currency": "PHP",
+    "subtotal": 434,
+    "taxAmount": 0,
+    "discountAmount": 0,
+    "promoCode": null,
+    "paymentMethod": "E-Wallet",
+    "walletId": "GCash",
+    "kioskId": "1FGHX3",
+    "tableNumber": "Counter",
+    "diningOption": "Dine-In",
+    "customer": "Kiosk Guest",
+    "items": [
+      {
+        "id": 1,
+        "name": "Szechuan Dumpling Duo",
+        "price": 349,
+        "quantity": 1
+      },
+      {
+        "id": 2,
+        "name": "Fresh Iced Tea",
+        "price": 85,
+        "quantity": 1
+      }
+    ],
+    "allergens": [],
+    "note": "",
+    "status": "successful",
+    "qrPayload": "00020101021228410012ph.ppmi.qrph0112UMAMICRAFT010205GCASH5204581253036085406434.005802PH5923UMAMI CRAFT FUSION INC.6006MANILA62370123TXN-UMAMI-MWEOVAMY-520107061FGHX36304A0A5",
+    "createdAt": "2026-11-13T08:02:22.234Z",
+    "expiresAt": 1794557542234,
+    "expiresInSeconds": 600,
+    "restaurantId": "umami",
+    "paidAt": "2026-11-13T08:02:22.257Z",
+    "payerWallet": "GCash",
+    "payerName": "Diner Test",
+    "payerPhone": "+63 917 888 8888"
+  }
+]

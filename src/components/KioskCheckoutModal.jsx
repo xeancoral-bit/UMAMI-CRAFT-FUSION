@@ -1,9 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import io from 'socket.io-client';
 import {
   X, Plus, Minus, Trash2, Tag, CheckCircle2, CreditCard, Smartphone, Banknote,
-  Utensils, ShoppingBag, ArrowRight, ArrowLeft, ShieldCheck, Lock, Loader2, Sparkles
+  Utensils, ShoppingBag, ArrowRight, ArrowLeft, ShieldCheck, Lock, Loader2, Sparkles,
+  QrCode, RefreshCw, AlertCircle, ExternalLink
 } from 'lucide-react';
 import { SUPPORTED_EWALLETS, EWalletLogo } from '../utils/paymentWallets';
+import QRPhPaymentCard from './QRPhPaymentCard';
+import CardPaymentForm from './CardPaymentForm';
+import DigitalReceiptModal from './DigitalReceiptModal';
 
 const PAYMENT_OPTIONS = [
   {
@@ -18,7 +23,7 @@ const PAYMENT_OPTIONS = [
     id: 'E-Wallet',
     label: 'E-Wallet',
     subtitle: 'GCash, Maya, PayPal, MariBank, GrabPay, ShopeePay, GoTyme',
-    badge: 'Instant QR',
+    badge: 'Instant QR Ph',
     color: '#059669',
     icon: Smartphone
   },
@@ -36,27 +41,58 @@ export default function KioskCheckoutModal({
   isOpen,
   onClose,
   cartItems = [],
-  diningOption,
+  diningOption = 'Dine-In',
   onChangeDiningOption,
   onUpdateQuantity,
   onRemoveItem,
   promos = [],
-  promoCode,
+  promoCode = '',
   setPromoCode,
-  promoApplied,
+  promoApplied = null,
   setPromoApplied,
-  promoMsg,
+  promoMsg = null,
   setPromoMsg,
-  onConfirmOrder
+  onConfirmOrder,
+  kioskId = 'COUNTER_01',
+  tableNumber = 'Counter',
+  isMobile = false
 }) {
-  const [step, setStep] = useState('review'); // 'review' | 'payment'
+  // Steps: 'review' | 'payment' | 'qr_screen' | 'card_screen'
+  const [step, setStep] = useState('review');
   const [selectedPayment, setSelectedPayment] = useState('E-Wallet');
   const [selectedEWallet, setSelectedEWallet] = useState('GCash');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSimulatingPayment, setIsSimulatingPayment] = useState(false);
+  const [currentSession, setCurrentSession] = useState(null);
+  const [paidOrder, setPaidOrder] = useState(null);
+  const [showReceipt, setShowReceipt] = useState(false);
+  const [mobilePaymentMode, setMobilePaymentMode] = useState('app'); // 'app' | 'second_device'
+  const socketRef = useRef(null);
+
+  // Initialize Socket.IO connection for real-time payment notifications
+  useEffect(() => {
+    if (!isOpen) return;
+    try {
+      const socket = io();
+      socketRef.current = socket;
+
+      socket.on('payment-completed', (data) => {
+        if (currentSession && data.referenceNumber === currentSession.referenceNumber) {
+          handlePaymentSuccess(data.order || data, currentSession);
+        }
+      });
+
+      return () => {
+        socket.disconnect();
+      };
+    } catch (err) {
+      console.warn('[Checkout Socket] Connection fallback:', err);
+    }
+  }, [isOpen, currentSession]);
 
   if (!isOpen) return null;
 
-  const subtotal = cartItems.reduce((sum, ci) => sum + ((Number(ci.price) || 0) * (ci.quantity || 1)), 0);
+  const subtotal = cartItems.reduce((sum, ci) => sum + ((Number(ci.price) || 0) * (ci.quantity || ci.qty || 1)), 0);
 
   // Calculate discount from applied promo
   let discountAmount = 0;
@@ -74,7 +110,7 @@ export default function KioskCheckoutModal({
           const aName = (appItem || '').toLowerCase();
           return cName.includes(aName) || aName.includes(cName);
         });
-        return isEligible ? sum + ((Number(ci.price) || 0) * (ci.quantity || 1)) : sum;
+        return isEligible ? sum + ((Number(ci.price) || 0) * (ci.quantity || ci.qty || 1)) : sum;
       }, 0);
       if (promoApplied.discountType === 'percent') {
         discountAmount = eligibleSubtotal * (Number(promoApplied.discountValue) / 100);
@@ -91,419 +127,808 @@ export default function KioskCheckoutModal({
   const handleApplyPromo = () => {
     const code = (promoCode || '').trim().toUpperCase();
     if (!code) {
-      setPromoMsg({ text: 'Please enter a promo code.', ok: false });
+      if (setPromoMsg) setPromoMsg({ text: 'Please enter a promo code.', ok: false });
       return;
     }
     const match = (promos || []).find(p => (p.code || '').toUpperCase() === code);
     if (!match) {
-      setPromoMsg({ text: 'Invalid promo code.', ok: false });
-      setPromoApplied(null);
+      if (setPromoMsg) setPromoMsg({ text: 'Invalid promo code.', ok: false });
+      if (setPromoApplied) setPromoApplied(null);
       return;
     }
     if (match.status !== 'active') {
-      setPromoMsg({ text: 'This promo is no longer active.', ok: false });
-      setPromoApplied(null);
+      if (setPromoMsg) setPromoMsg({ text: 'This promo is no longer active.', ok: false });
+      if (setPromoApplied) setPromoApplied(null);
       return;
     }
     if (match.dateRange) {
       const now = Date.now();
       if (match.dateRange.start && new Date(match.dateRange.start).getTime() > now) {
-        setPromoMsg({ text: 'This promo has not started yet.', ok: false });
-        setPromoApplied(null);
+        if (setPromoMsg) setPromoMsg({ text: 'This promo has not started yet.', ok: false });
+        if (setPromoApplied) setPromoApplied(null);
         return;
       }
       if (match.dateRange.end && new Date(match.dateRange.end).getTime() < now) {
-        setPromoMsg({ text: 'This promo has expired.', ok: false });
-        setPromoApplied(null);
+        if (setPromoMsg) setPromoMsg({ text: 'This promo has expired.', ok: false });
+        if (setPromoApplied) setPromoApplied(null);
         return;
       }
     }
-    setPromoApplied(match);
-    setPromoMsg({ text: `Promo "${match.code}" applied!`, ok: true });
+    if (setPromoApplied) setPromoApplied(match);
+    if (setPromoMsg) setPromoMsg({ text: `Promo "${match.code}" applied!`, ok: true });
   };
 
-  const handlePlaceFinalOrder = async () => {
+  // Create payment session and proceed to appropriate gateway
+  const handleProceedToPayment = async () => {
     if (cartItems.length === 0 || isSubmitting) return;
+
+    if (selectedPayment === 'Cash') {
+      // Counter Cash order
+      setIsSubmitting(true);
+      try {
+        const orderData = {
+          diningOption,
+          paymentMethod: 'Cash',
+          paymentCategory: 'Cash',
+          selectedEWallet: null,
+          subtotal,
+          discountAmount,
+          taxAmount: vatAmount,
+          finalTotal,
+          items: cartItems,
+          kioskId,
+          tableNumber
+        };
+        const res = await onConfirmOrder(orderData);
+        setPaidOrder(res || {
+          orderId: `ORD-${Math.floor(1000 + Math.random() * 9000)}`,
+          pickupToken: `U-${Math.floor(100 + Math.random() * 900)}`,
+          paymentMethod: 'Cash (Pay at Counter)',
+          total: finalTotal,
+          subtotal,
+          taxAmount: vatAmount,
+          discountAmount,
+          items: cartItems,
+          diningOption,
+          tableNumber,
+          kioskId,
+          status: 'New'
+        });
+        setShowReceipt(true);
+      } finally {
+        setIsSubmitting(false);
+      }
+      return;
+    }
+
+    if (selectedPayment === 'Card') {
+      // Open dedicated PayMongo-secured Card screen
+      setStep('card_screen');
+      return;
+    }
+
+    // E-Wallet (GCash, Maya, etc.) -> Generate transaction-specific QR Ph session
     setIsSubmitting(true);
     try {
-      const effectivePayment = selectedPayment === 'E-Wallet' ? selectedEWallet : selectedPayment;
-      await onConfirmOrder({
-        diningOption,
-        paymentMethod: effectivePayment,
-        paymentCategory: selectedPayment,
-        selectedEWallet: selectedPayment === 'E-Wallet' ? selectedEWallet : null,
-        subtotal,
-        discountAmount,
-        taxAmount: vatAmount,
-        finalTotal
+      const res = await fetch('/api/payments/create-session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          amount: finalTotal,
+          subtotal,
+          taxAmount: vatAmount,
+          discountAmount,
+          promoCode: promoApplied?.code || null,
+          paymentMethod: 'E-Wallet',
+          walletId: selectedEWallet,
+          kioskId,
+          tableNumber,
+          diningOption,
+          customer: `Kiosk Guest (${kioskId})`,
+          items: cartItems
+        })
       });
-      setStep('review');
+
+      const data = await res.json();
+      if (res.ok && data.session) {
+        setCurrentSession(data.session);
+        setStep('qr_screen');
+      } else {
+        alert(data.error || 'Failed to create payment session. Please try again.');
+      }
+    } catch (err) {
+      console.error('[Payment API Error]:', err);
+      alert('Unable to connect to payment server. Please check your network.');
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  // Called when payment succeeds (via QR scan, simulated click, or card)
+  const handlePaymentSuccess = (finalOrder, session) => {
+    setPaidOrder(finalOrder);
+    setShowReceipt(true);
+    if (onConfirmOrder) {
+      // Notify parent to clear tray if needed
+      onConfirmOrder({
+        ...finalOrder,
+        _alreadySettled: true
+      }).catch?.(() => {});
+    }
+  };
+
+  // Simulation handler for instant testing
+  const handleSimulatePayment = async () => {
+    if (!currentSession || isSimulatingPayment) return;
+    setIsSimulatingPayment(true);
+    try {
+      const res = await fetch('/api/payments/simulate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          referenceNumber: currentSession.referenceNumber,
+          walletId: currentSession.walletId || selectedEWallet,
+          status: 'successful'
+        })
+      });
+
+      const data = await res.json();
+      if (res.ok && data.success) {
+        handlePaymentSuccess(data.order, data.session);
+      } else {
+        alert(data.error || 'Simulation failed.');
+      }
+    } catch (err) {
+      alert('Network error during simulation.');
+    } finally {
+      setIsSimulatingPayment(false);
+    }
+  };
+
+  // Regenerate expired QR Code session
+  const handleRegenerateQR = async () => {
+    handleProceedToPayment();
+  };
+
+  // Card submission handler
+  const handleCardSubmit = async (cardTokenData) => {
+    if (!currentSession) {
+      // Create session first if not yet created
+      const sessionRes = await fetch('/api/payments/create-session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          amount: finalTotal,
+          subtotal,
+          taxAmount: vatAmount,
+          discountAmount,
+          paymentMethod: 'Card',
+          kioskId,
+          tableNumber,
+          diningOption,
+          items: cartItems
+        })
+      });
+      const sessionData = await sessionRes.json();
+      if (!sessionData.session) throw new Error('Session creation failed');
+      return processCardDirect(sessionData.session, cardTokenData);
+    }
+    return processCardDirect(currentSession, cardTokenData);
+  };
+
+  const processCardDirect = async (session, cardTokenData) => {
+    const res = await fetch('/api/payments/process-card', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        referenceNumber: session.referenceNumber,
+        ...cardTokenData
+      })
+    });
+    const data = await res.json();
+    if (res.ok && data.success) {
+      handlePaymentSuccess(data.order, data.session);
+    } else {
+      alert(data.error || 'Card payment declined. Please try another card.');
+    }
+  };
+
+  const handleCloseAll = () => {
+    setShowReceipt(false);
+    setStep('review');
+    setCurrentSession(null);
+    setPaidOrder(null);
+    onClose();
+  };
+
   return (
-    <div className="kiosk-modal-backdrop" onClick={onClose} role="dialog" aria-modal="true" aria-label="Kiosk Checkout">
-      <div className="kiosk-checkout-modal" onClick={(e) => e.stopPropagation()}>
-        {/* Header */}
-        <div className="kiosk-co-header">
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span className="kiosk-co-step-pill">
-                Step {step === 'review' ? '1 of 2' : '2 of 2'}
-              </span>
-              <span style={{ fontSize: '12px', fontWeight: 700, color: '#78716C' }}>
-                {diningOption === 'Takeout' ? 'Takeout Order' : 'Dine-In Order'}
-              </span>
-            </div>
-            <h2 style={{ margin: '4px 0 0', fontSize: '20px', fontWeight: 900, color: '#1C1917' }}>
-              {step === 'review' ? 'Review Your Order' : 'Select Payment Method'}
-            </h2>
-          </div>
+    <>
+      {/* 1. Digital Receipt Modal on Payment Success */}
+      {showReceipt && (
+        <DigitalReceiptModal
+          isOpen={showReceipt}
+          onClose={handleCloseAll}
+          order={paidOrder}
+          session={currentSession}
+        />
+      )}
 
-          <button type="button" className="kiosk-modal-close-btn" onClick={onClose} aria-label="Close checkout">
-            <X size={20} />
-          </button>
-        </div>
-
-        {/* Body */}
-        <div className="kiosk-co-body">
-          {step === 'review' ? (
-            <>
-              {/* Dining Option Switcher */}
-              <div className="kiosk-co-dining-bar">
-                <button
-                  type="button"
-                  onClick={() => onChangeDiningOption('Dine-In')}
-                  className={`kiosk-co-dining-btn ${diningOption === 'Dine-In' ? 'active' : ''}`}
-                >
-                  <Utensils size={16} />
-                  <span>Dine-In (Eat Here)</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => onChangeDiningOption('Takeout')}
-                  className={`kiosk-co-dining-btn ${diningOption === 'Takeout' ? 'active' : ''}`}
-                >
-                  <ShoppingBag size={16} />
-                  <span>Takeout (To Go)</span>
-                </button>
+      {/* 2. Main Kiosk Checkout & Payment Modal */}
+      {!showReceipt && (
+        <div className="kiosk-modal-backdrop" onClick={onClose} role="dialog" aria-modal="true" aria-label="Kiosk Checkout">
+          <div
+            className="kiosk-checkout-modal"
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              maxWidth: step === 'qr_screen' ? '460px' : '560px',
+              transition: 'max-width 0.2s ease'
+            }}
+          >
+            {/* Header */}
+            <div className="kiosk-co-header">
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span className="kiosk-co-step-pill">
+                    {step === 'review'
+                      ? 'Step 1 of 2'
+                      : step === 'payment'
+                        ? 'Step 2 of 2'
+                        : step === 'qr_screen'
+                          ? 'QR Ph Payment'
+                          : 'Card Checkout'}
+                  </span>
+                  <span style={{ fontSize: '12px', fontWeight: 700, color: '#78716C' }}>
+                    {diningOption === 'Takeout' ? 'Takeout Order' : 'Dine-In Order'}
+                  </span>
+                </div>
+                <h2 style={{ margin: '4px 0 0', fontSize: '20px', fontWeight: 900, color: '#1C1917' }}>
+                  {step === 'review'
+                    ? 'Review Your Order'
+                    : step === 'payment'
+                      ? 'Select Payment Method'
+                      : step === 'qr_screen'
+                        ? 'Scan QR Ph to Pay'
+                        : 'Secure Card Payment'}
+                </h2>
               </div>
 
-              {/* Cart Items List */}
-              {cartItems.length === 0 ? (
-                <div style={{ padding: '40px 20px', textAlign: 'center', color: '#78716C' }}>
-                  Your order tray is currently empty. Add items from the menu to continue.
-                </div>
-              ) : (
-                <div className="kiosk-co-items-list">
-                  {cartItems.map(item => (
-                    <div key={item.id} className="kiosk-co-item-row">
-                      <div className="kiosk-co-item-thumb">
-                        {item.image ? (
-                          <img src={item.image} alt={item.name} />
-                        ) : (
-                          <span>{item.emoji || '🍽️'}</span>
-                        )}
-                      </div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontWeight: 800, fontSize: '14px', color: '#1C1917' }}>{item.name}</div>
-                        {(item.spiceLevel || (Array.isArray(item.addons) && item.addons.length > 0) || item.specialNote) && (
-                          <div style={{ fontSize: '12px', color: '#78716C', marginTop: '2px' }}>
-                            {[
-                              item.spiceLevel && item.spiceLevel !== 'Regular' ? `Spice: ${item.spiceLevel}` : null,
-                              Array.isArray(item.addons) && item.addons.length > 0
-                                ? `Add-ons: ${item.addons.map(a => a.name || a).join(', ')}`
-                                : null,
-                              item.specialNote || null
-                            ].filter(Boolean).join(' • ')}
-                          </div>
-                        )}
-                        <div style={{ fontWeight: 800, fontSize: '13px', color: '#C24522', marginTop: '4px' }}>
-                          ₱{((Number(item.price) || 0) * (item.quantity || 1)).toFixed(2)}
-                        </div>
-                      </div>
+              <button type="button" className="kiosk-modal-close-btn" onClick={onClose} aria-label="Close checkout">
+                <X size={20} />
+              </button>
+            </div>
 
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <div className="kiosk-co-qty-stepper">
-                          <button type="button" onClick={() => onUpdateQuantity(item.id, -1)} aria-label="Decrease">
-                            <Minus size={14} />
-                          </button>
-                          <span>{item.quantity || 1}</span>
-                          <button type="button" onClick={() => onUpdateQuantity(item.id, 1)} aria-label="Increase">
-                            <Plus size={14} />
-                          </button>
+            {/* Body Content */}
+            <div className="kiosk-co-body">
+              {/* STEP 1: REVIEW ORDER */}
+              {step === 'review' && (
+                <>
+                  {/* Dining Option Switcher */}
+                  <div className="kiosk-co-dining-bar">
+                    <button
+                      type="button"
+                      onClick={() => onChangeDiningOption && onChangeDiningOption('Dine-In')}
+                      className={`kiosk-co-dining-btn ${diningOption === 'Dine-In' ? 'active' : ''}`}
+                    >
+                      <Utensils size={16} />
+                      <span>Dine-In (Eat Here)</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onChangeDiningOption && onChangeDiningOption('Takeout')}
+                      className={`kiosk-co-dining-btn ${diningOption === 'Takeout' ? 'active' : ''}`}
+                    >
+                      <ShoppingBag size={16} />
+                      <span>Takeout (To Go)</span>
+                    </button>
+                  </div>
+
+                  {/* Cart Items List */}
+                  {cartItems.length === 0 ? (
+                    <div style={{ padding: '40px 20px', textAlign: 'center', color: '#78716C' }}>
+                      Your order tray is currently empty. Add items from the menu to continue.
+                    </div>
+                  ) : (
+                    <div className="kiosk-co-items-list">
+                      {cartItems.map(item => (
+                        <div key={item.id || item.cartKey} className="kiosk-co-item-row">
+                          <div className="kiosk-co-item-thumb">
+                            {item.image ? (
+                              <img src={item.image} alt={item.name} />
+                            ) : (
+                              <span>{item.emoji || '🍽️'}</span>
+                            )}
+                          </div>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontWeight: 800, fontSize: '14px', color: '#1C1917' }}>{item.name}</div>
+                            {(item.spiceLevel || (Array.isArray(item.addons) && item.addons.length > 0) || item.specialNote) && (
+                              <div style={{ fontSize: '12px', color: '#78716C', marginTop: '2px' }}>
+                                {[
+                                  item.spiceLevel && item.spiceLevel !== 'Regular' ? `Spice: ${item.spiceLevel}` : null,
+                                  Array.isArray(item.addons) && item.addons.length > 0
+                                    ? `Add-ons: ${item.addons.map(a => a.name || a).join(', ')}`
+                                    : null,
+                                  item.specialNote || null
+                                ].filter(Boolean).join(' • ')}
+                              </div>
+                            )}
+                            <div style={{ fontWeight: 800, fontSize: '13px', color: '#C24522', marginTop: '4px' }}>
+                              ₱{((Number(item.price) || 0) * (item.quantity || item.qty || 1)).toFixed(2)}
+                            </div>
+                          </div>
+
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            {onUpdateQuantity && (
+                              <div className="kiosk-co-qty-stepper">
+                                <button type="button" onClick={() => onUpdateQuantity(item.id, -1)} aria-label="Decrease">
+                                  <Minus size={14} />
+                                </button>
+                                <span>{item.quantity || item.qty || 1}</span>
+                                <button type="button" onClick={() => onUpdateQuantity(item.id, 1)} aria-label="Increase">
+                                  <Plus size={14} />
+                                </button>
+                              </div>
+                            )}
+                            {onRemoveItem && (
+                              <button
+                                type="button"
+                                onClick={() => onRemoveItem(item.id)}
+                                className="kiosk-co-remove-btn"
+                                title="Remove item"
+                              >
+                                <Trash2 size={15} />
+                              </button>
+                            )}
+                          </div>
                         </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Promo Code Box */}
+                  <div className="kiosk-co-promo-box">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: 800, color: '#57534E' }}>
+                      <Tag size={14} color="#C24522" />
+                      <span>PROMO CODE / VOUCHER</span>
+                    </div>
+                    <div className="kiosk-co-promo-row">
+                      <input
+                        type="text"
+                        placeholder="Enter promo code (e.g. UMAMI20)"
+                        value={promoCode}
+                        onChange={(e) => setPromoCode && setPromoCode(e.target.value)}
+                        className="kiosk-co-promo-input"
+                      />
+                      <button type="button" onClick={handleApplyPromo} className="kiosk-co-promo-btn">
+                        Apply
+                      </button>
+                      {promoApplied && (
                         <button
                           type="button"
-                          onClick={() => onRemoveItem(item.id)}
-                          className="kiosk-co-remove-btn"
-                          title="Remove item"
+                          onClick={() => {
+                            if (setPromoApplied) setPromoApplied(null);
+                            if (setPromoCode) setPromoCode('');
+                            if (setPromoMsg) setPromoMsg({ text: '', ok: false });
+                          }}
+                          className="kiosk-co-promo-clear"
                         >
-                          <Trash2 size={15} />
+                          Clear
                         </button>
-                      </div>
+                      )}
                     </div>
-                  ))}
-                </div>
+                    {promoMsg?.text && (
+                      <div style={{ marginTop: '2px', fontSize: '12px', fontWeight: 700, color: promoMsg.ok ? '#059669' : '#DC2626' }}>
+                        {promoMsg.text}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Financial Breakdown */}
+                  <div className="kiosk-co-summary-box">
+                    <div className="kiosk-co-summary-row">
+                      <span>Subtotal</span>
+                      <span>₱{subtotal.toFixed(2)}</span>
+                    </div>
+                    {discountAmount > 0 && (
+                      <div className="kiosk-co-summary-row" style={{ color: '#059669', fontWeight: 800 }}>
+                        <span>Promo Discount ({promoApplied?.code})</span>
+                        <span>-₱{discountAmount.toFixed(2)}</span>
+                      </div>
+                    )}
+                    <div className="kiosk-co-summary-row" style={{ fontSize: '12px', color: '#78716C' }}>
+                      <span>VAT (12% Inclusive)</span>
+                      <span>₱{vatAmount.toFixed(2)}</span>
+                    </div>
+                    <div className="kiosk-co-summary-total">
+                      <span>Total Amount Due</span>
+                      <span>₱{finalTotal.toFixed(2)}</span>
+                    </div>
+                  </div>
+                </>
               )}
 
-              {/* Promo Code Box */}
-              <div className="kiosk-co-promo-box">
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px', fontSize: '12px', fontWeight: 800, color: '#57534E' }}>
-                  <Tag size={14} color="#C24522" />
-                  <span>PROMO CODE / VOUCHER</span>
-                </div>
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  <input
-                    type="text"
-                    placeholder="Enter promo code (e.g. UMAMI20)"
-                    value={promoCode}
-                    onChange={(e) => setPromoCode(e.target.value)}
-                    className="kiosk-co-promo-input"
-                  />
-                  <button type="button" onClick={handleApplyPromo} className="kiosk-co-promo-btn">
-                    Apply
-                  </button>
-                  {promoApplied && (
-                    <button
-                      type="button"
-                      onClick={() => { setPromoApplied(null); setPromoCode(''); setPromoMsg({ text: '', ok: false }); }}
-                      className="kiosk-co-promo-clear"
-                    >
-                      Clear
-                    </button>
-                  )}
-                </div>
-                {promoMsg?.text && (
-                  <div style={{ marginTop: '6px', fontSize: '12px', fontWeight: 700, color: promoMsg.ok ? '#059669' : '#DC2626' }}>
-                    {promoMsg.text}
-                  </div>
-                )}
-              </div>
-
-              {/* Financial Breakdown */}
-              <div className="kiosk-co-summary-box">
-                <div className="kiosk-co-summary-row">
-                  <span>Subtotal</span>
-                  <span>₱{subtotal.toFixed(2)}</span>
-                </div>
-                {discountAmount > 0 && (
-                  <div className="kiosk-co-summary-row" style={{ color: '#059669', fontWeight: 800 }}>
-                    <span>Promo Discount ({promoApplied?.code})</span>
-                    <span>-₱{discountAmount.toFixed(2)}</span>
-                  </div>
-                )}
-                <div className="kiosk-co-summary-row" style={{ fontSize: '12px', color: '#78716C' }}>
-                  <span>VAT (12% Inclusive)</span>
-                  <span>₱{vatAmount.toFixed(2)}</span>
-                </div>
-                <div className="kiosk-co-summary-total">
-                  <span>Total Amount Due</span>
-                  <span>₱{finalTotal.toFixed(2)}</span>
-                </div>
-              </div>
-            </>
-          ) : (
-            /* Step 2: Payment Method Selection */
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <div className="kiosk-co-payment-amount-banner">
-                <span>Amount to Pay</span>
-                <strong>₱{finalTotal.toFixed(2)}</strong>
-              </div>
-
-              <div className="kiosk-co-payment-grid">
-                {PAYMENT_OPTIONS.map(opt => {
-                  const Icon = opt.icon;
-                  const active = selectedPayment === opt.id;
-                  return (
-                    <button
-                      key={opt.id}
-                      type="button"
-                      onClick={() => setSelectedPayment(opt.id)}
-                      className={`kiosk-co-payment-card ${active ? 'active' : ''}`}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                          <div style={{
-                            width: '42px', height: '42px', borderRadius: '12px',
-                            background: `${opt.color}18`, color: opt.color,
-                            display: 'flex', alignItems: 'center', justifyContent: 'center'
-                          }}>
-                            <Icon size={22} />
-                          </div>
-                          <div style={{ textAlign: 'left' }}>
-                            <div style={{ fontWeight: 800, fontSize: '15px', color: '#1C1917' }}>{opt.label}</div>
-                            <div style={{ fontSize: '12px', color: '#78716C', marginTop: '2px' }}>{opt.subtitle}</div>
-                          </div>
-                        </div>
-                        <span style={{
-                          fontSize: '11px', fontWeight: 800, padding: '4px 9px', borderRadius: '8px',
-                          background: active ? '#059669' : '#F5F5F4',
-                          color: active ? '#FFFFFF' : '#57534E'
-                        }}>
-                          {active ? 'Selected' : opt.badge}
-                        </span>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* Sub-Selection for E-Wallet (Visible only when E-Wallet is chosen) */}
-              {selectedPayment === 'E-Wallet' && (
-                <div style={{
-                  background: '#F0FDF4',
-                  border: '1.5px solid #86EFAC',
-                  borderRadius: '14px',
-                  padding: '14px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '10px'
-                }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontSize: '13px', fontWeight: 800, color: '#166534', textTransform: 'uppercase', letterSpacing: '0.03em' }}>
-                      Choose Your E-Wallet Provider
-                    </span>
-                    <span style={{ fontSize: '12px', fontWeight: 700, color: '#047857', background: '#DCFCE7', border: '1px solid #86EFAC', padding: '2px 8px', borderRadius: '6px' }}>
-                      {selectedEWallet} Active
-                    </span>
+              {/* STEP 2: SELECT PAYMENT METHOD (Reference Image 1) */}
+              {step === 'payment' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  <div className="kiosk-co-payment-amount-banner">
+                    <span>Amount to Pay</span>
+                    <strong>₱{finalTotal.toFixed(2)}</strong>
                   </div>
 
-                  {/* Multiple Supported E-Wallets Grid */}
-                  <div style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))',
-                    gap: '8px'
-                  }}>
-                    {SUPPORTED_EWALLETS.map(w => {
-                      const isSelected = selectedEWallet === w.id;
+                  {/* Method Selection Cards */}
+                  <div className="kiosk-co-payment-grid">
+                    {PAYMENT_OPTIONS.map(opt => {
+                      const Icon = opt.icon;
+                      const active = selectedPayment === opt.id;
                       return (
                         <button
-                          key={w.id}
+                          key={opt.id}
                           type="button"
-                          onClick={() => setSelectedEWallet(w.id)}
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '8px',
-                            padding: '10px',
-                            borderRadius: '10px',
-                            cursor: 'pointer',
-                            border: isSelected ? '2px solid #059669' : '1px solid #E2E8F0',
-                            background: isSelected ? '#ECFDF5' : '#FFFFFF',
-                            color: isSelected ? '#047857' : '#334155',
-                            fontWeight: isSelected ? 800 : 600,
-                            fontSize: '13px',
-                            transition: 'all 0.15s ease',
-                            textAlign: 'left',
-                            boxShadow: isSelected ? '0 2px 8px rgba(5, 150, 105, 0.15)' : 'none'
-                          }}
+                          onClick={() => setSelectedPayment(opt.id)}
+                          className={`kiosk-co-payment-card ${active ? 'active' : ''}`}
                         >
-                          <EWalletLogo id={w.id} size={22} />
-                          <div style={{ display: 'flex', flexDirection: 'column' }}>
-                            <span style={{ fontWeight: 800, color: isSelected ? '#047857' : '#1E293B', lineHeight: 1.2 }}>{w.name}</span>
-                            <span style={{ fontSize: '10px', color: '#64748B' }}>{w.badge}</span>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                              <div style={{
+                                width: '42px', height: '42px', borderRadius: '12px',
+                                background: `${opt.color}18`, color: opt.color,
+                                display: 'flex', alignItems: 'center', justifyContent: 'center'
+                              }}>
+                                <Icon size={22} />
+                              </div>
+                              <div style={{ textAlign: 'left' }}>
+                                <div style={{ fontWeight: 800, fontSize: '15px', color: '#1C1917' }}>{opt.label}</div>
+                                <div style={{ fontSize: '12px', color: '#78716C', marginTop: '2px' }}>{opt.subtitle}</div>
+                              </div>
+                            </div>
+                            <span style={{
+                              fontSize: '11px', fontWeight: 800, padding: '4px 9px', borderRadius: '8px',
+                              background: active ? '#059669' : '#F5F5F4',
+                              color: active ? '#FFFFFF' : '#57534E'
+                            }}>
+                              {active ? 'Selected' : opt.badge}
+                            </span>
                           </div>
                         </button>
                       );
                     })}
                   </div>
 
-                  {/* Active Wallet Details Banner */}
-                  {(() => {
-                    const activeWallet = SUPPORTED_EWALLETS.find(w => w.id === selectedEWallet) || SUPPORTED_EWALLETS[0];
-                    return (
-                      <div style={{
-                        background: '#FFFFFF',
-                        borderRadius: '10px',
-                        padding: '10px 12px',
-                        border: '1px solid #BBF7D0',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: '4px'
-                      }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <EWalletLogo id={activeWallet.id} size={20} />
-                            <strong style={{ fontSize: '13px', color: '#166534' }}>{activeWallet.name} Direct Gateway</strong>
-                          </div>
-                          <span style={{ fontSize: '11px', fontWeight: 700, color: '#047857', background: '#ECFDF5', border: '1px solid #A7F3D0', padding: '2px 8px', borderRadius: '4px' }}>
-                            {activeWallet.badge}
-                          </span>
-                        </div>
-                        <div style={{ fontSize: '12px', color: '#4B5563', display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '4px' }}>
-                          <span>Merchant: <strong>{activeWallet.accountName}</strong></span>
-                          <span>Account: <strong style={{ color: '#047857', fontFamily: 'monospace' }}>{activeWallet.accountNumber}</strong></span>
-                        </div>
-                        <div style={{ fontSize: '11.5px', color: '#65A30D', fontStyle: 'italic' }}>
-                          {activeWallet.description}
-                        </div>
+                  {/* Sub-Selection for E-Wallet (Reference Image 1 match) */}
+                  {selectedPayment === 'E-Wallet' && (
+                    <div style={{
+                      background: '#F0FDF4',
+                      border: '1.5px solid #86EFAC',
+                      borderRadius: '14px',
+                      padding: '14px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '10px'
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontSize: '13px', fontWeight: 800, color: '#166534', textTransform: 'uppercase', letterSpacing: '0.03em' }}>
+                          CHOOSE YOUR E-WALLET PROVIDER
+                        </span>
+                        <span style={{ fontSize: '12px', fontWeight: 700, color: '#047857', background: '#DCFCE7', border: '1px solid #86EFAC', padding: '2px 8px', borderRadius: '6px' }}>
+                          {selectedEWallet} Active
+                        </span>
                       </div>
-                    );
-                  })()}
+
+                      {/* 7 Supported Providers Grid */}
+                      <div style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))',
+                        gap: '8px'
+                      }}>
+                        {SUPPORTED_EWALLETS.map(w => {
+                          const isSelected = selectedEWallet === w.id;
+                          return (
+                            <button
+                              key={w.id}
+                              type="button"
+                              onClick={() => setSelectedEWallet(w.id)}
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '8px',
+                                padding: '10px',
+                                borderRadius: '10px',
+                                cursor: 'pointer',
+                                border: isSelected ? '2px solid #059669' : '1px solid #E2E8F0',
+                                background: isSelected ? '#ECFDF5' : '#FFFFFF',
+                                color: isSelected ? '#047857' : '#334155',
+                                fontWeight: isSelected ? 800 : 600,
+                                fontSize: '13px',
+                                transition: 'all 0.15s ease',
+                                textAlign: 'left',
+                                boxShadow: isSelected ? '0 2px 8px rgba(5, 150, 105, 0.15)' : 'none'
+                              }}
+                            >
+                              <EWalletLogo id={w.id} size={22} />
+                              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                <span style={{ fontWeight: 800, color: isSelected ? '#047857' : '#1E293B', lineHeight: 1.2 }}>{w.name}</span>
+                                <span style={{ fontSize: '10px', color: '#64748B' }}>{w.badge}</span>
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      {/* Active Provider Details Banner */}
+                      {(() => {
+                        const activeWallet = SUPPORTED_EWALLETS.find(w => w.id === selectedEWallet) || SUPPORTED_EWALLETS[0];
+                        return (
+                          <div style={{
+                            background: '#FFFFFF',
+                            borderRadius: '10px',
+                            padding: '10px 12px',
+                            border: '1px solid #BBF7D0',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '4px'
+                          }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <EWalletLogo id={activeWallet.id} size={20} />
+                                <strong style={{ fontSize: '13px', color: '#166534' }}>{activeWallet.name} Direct Gateway</strong>
+                              </div>
+                              <span style={{ fontSize: '11px', fontWeight: 700, color: '#047857', background: '#ECFDF5', border: '1px solid #A7F3D0', padding: '2px 8px', borderRadius: '4px' }}>
+                                {activeWallet.badge}
+                              </span>
+                            </div>
+                            <div style={{ fontSize: '12px', color: '#4B5563', display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '4px' }}>
+                              <span>Merchant: <strong>{activeWallet.accountName}</strong></span>
+                              <span>Account: <strong style={{ color: '#047857', fontFamily: 'monospace' }}>{activeWallet.accountNumber}</strong></span>
+                            </div>
+                            <div style={{ fontSize: '11.5px', color: '#65A30D', fontStyle: 'italic' }}>
+                              {activeWallet.description}
+                            </div>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  )}
+
+                  {/* Professional Payment Gateway Status Section (Replaces old static note) */}
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    gap: '10px',
+                    padding: '12px 14px',
+                    borderRadius: '12px',
+                    background: '#FAF8F5',
+                    border: '1.5px solid #EAE2D7',
+                    color: '#44403C',
+                    fontSize: '12px',
+                    lineHeight: 1.45
+                  }}>
+                    <ShieldCheck size={18} color="#059669" style={{ flexShrink: 0, marginTop: '2px' }} />
+                    <div>
+                      <strong style={{ color: '#1C1917' }}>Secure Transaction Processing:</strong>{' '}
+                      {selectedPayment === 'Cash'
+                        ? 'Your order will be queued for counter cash payment. Present your pickup number to the cashier to pay.'
+                        : selectedPayment === 'Card'
+                          ? 'Protected by PayMongo 256-bit TLS encryption and bank 3D Secure 2.0 multi-factor identity authorization.'
+                          : 'Generates an official EMVCo Philippine QR Ph code scannable by GCash, Maya, and 30+ supported Philippine banking apps.'}
+                    </div>
+                  </div>
                 </div>
               )}
 
-              <div className="kiosk-co-webhook-note">
-                <ShieldCheck size={18} color="#059669" />
+              {/* STEP 3A: DESKTOP QR PH STAND-IN PAYMENT SCREEN (Reference Image 2 Match) */}
+              {step === 'qr_screen' && currentSession && (
                 <div>
-                  <strong>Automated Payment Verification:</strong>{' '}
-                  {selectedPayment === 'Cash'
-                    ? 'Your order will be queued for counter payment. Present your Order Number to the cashier.'
-                    : 'Digital payments are verified automatically in real time via HMAC-SHA256 gateway webhooks — no manual approval wait.'}
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
+                  {/* If user is ordering directly on a mobile phone, offer in-app or second device options */}
+                  {isMobile && (
+                    <div style={{
+                      display: 'flex',
+                      background: '#F5F5F4',
+                      borderRadius: '10px',
+                      padding: '4px',
+                      marginBottom: '14px',
+                      gap: '4px'
+                    }}>
+                      <button
+                        type="button"
+                        onClick={() => setMobilePaymentMode('app')}
+                        style={{
+                          flex: 1,
+                          padding: '8px',
+                          borderRadius: '8px',
+                          border: 'none',
+                          background: mobilePaymentMode === 'app' ? '#FFFFFF' : 'transparent',
+                          color: mobilePaymentMode === 'app' ? '#1C1917' : '#78716C',
+                          fontWeight: 800,
+                          fontSize: '12px',
+                          cursor: 'pointer',
+                          boxShadow: mobilePaymentMode === 'app' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
+                        }}
+                      >
+                        Pay via {selectedEWallet} App
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setMobilePaymentMode('second_device')}
+                        style={{
+                          flex: 1,
+                          padding: '8px',
+                          borderRadius: '8px',
+                          border: 'none',
+                          background: mobilePaymentMode === 'second_device' ? '#FFFFFF' : 'transparent',
+                          color: mobilePaymentMode === 'second_device' ? '#1C1917' : '#78716C',
+                          fontWeight: 800,
+                          fontSize: '12px',
+                          cursor: 'pointer',
+                          boxShadow: mobilePaymentMode === 'second_device' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
+                        }}
+                      >
+                        Show QR for Companion
+                      </button>
+                    </div>
+                  )}
 
-        {/* Footer */}
-        <div className="kiosk-co-footer">
-          {step === 'review' ? (
-            <>
-              <button type="button" className="kiosk-co-back-btn" onClick={onClose}>
-                Add More Items
-              </button>
-              <button
-                type="button"
-                className="kiosk-co-next-btn"
-                disabled={cartItems.length === 0}
-                onClick={() => setStep('payment')}
-              >
-                <span>Proceed to Payment • ₱{finalTotal.toFixed(2)}</span>
-                <ArrowRight size={18} />
-              </button>
-            </>
-          ) : (
-            <>
-              <button type="button" className="kiosk-co-back-btn" onClick={() => setStep('review')} disabled={isSubmitting}>
-                <ArrowLeft size={16} />
-                <span>Back to Review</span>
-              </button>
-              <button
-                type="button"
-                className="kiosk-co-confirm-btn"
-                disabled={isSubmitting}
-                onClick={handlePlaceFinalOrder}
-              >
-                {isSubmitting ? (
+                  {isMobile && mobilePaymentMode === 'app' ? (
+                    /* Mobile Same-Device Direct Checkout */
+                    <div style={{
+                      background: '#FFFFFF',
+                      borderRadius: '16px',
+                      border: '1.5px solid #E2E8F0',
+                      padding: '20px',
+                      textAlign: 'center',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '14px'
+                    }}>
+                      <div style={{
+                        width: '56px',
+                        height: '56px',
+                        borderRadius: '16px',
+                        background: '#ECFDF5',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        margin: '0 auto'
+                      }}>
+                        <EWalletLogo id={selectedEWallet} size={32} />
+                      </div>
+                      <h3 style={{ margin: 0, fontSize: '17px', fontWeight: 900, color: '#1C1917' }}>
+                        Pay ₱{finalTotal.toFixed(2)} with {selectedEWallet}
+                      </h3>
+                      <p style={{ margin: 0, fontSize: '13px', color: '#64748B', lineHeight: 1.4 }}>
+                        Since you are ordering on this mobile phone, tap below to authorize your payment directly through your {selectedEWallet} app.
+                      </p>
+
+                      <button
+                        type="button"
+                        onClick={handleSimulatePayment}
+                        disabled={isSimulatingPayment}
+                        style={{
+                          padding: '14px',
+                          borderRadius: '12px',
+                          border: 'none',
+                          background: 'linear-gradient(135deg, #059669 0%, #047857 100%)',
+                          color: '#FFFFFF',
+                          fontWeight: 900,
+                          fontSize: '14px',
+                          cursor: isSimulatingPayment ? 'not-allowed' : 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '8px',
+                          boxShadow: '0 4px 14px rgba(5, 150, 105, 0.3)'
+                        }}
+                      >
+                        {isSimulatingPayment ? (
+                          <>
+                            <Loader2 size={18} className="spin" />
+                            <span>Connecting to {selectedEWallet}...</span>
+                          </>
+                        ) : (
+                          <>
+                            <ExternalLink size={18} />
+                            <span>Open {selectedEWallet} App &amp; Pay</span>
+                          </>
+                        )}
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setStep('payment')}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: '#78716C',
+                          fontSize: '12.5px',
+                          fontWeight: 700,
+                          cursor: 'pointer'
+                        }}
+                      >
+                        Choose Another Payment Method
+                      </button>
+                    </div>
+                  ) : (
+                    /* Exact Reproduction of Reference Image 2 (QR Ph National Standard) */
+                    <QRPhPaymentCard
+                      session={currentSession}
+                      onCancel={() => setStep('payment')}
+                      onRegenerate={handleRegenerateQR}
+                      onSimulatePayment={handleSimulatePayment}
+                      isSimulating={isSimulatingPayment}
+                    />
+                  )}
+                </div>
+              )}
+
+              {/* STEP 3B: CARD PAYMENT INTERFACE */}
+              {step === 'card_screen' && (
+                <CardPaymentForm
+                  amount={finalTotal}
+                  referenceNumber={currentSession?.referenceNumber}
+                  onCancel={() => setStep('payment')}
+                  onSubmitPayment={handleCardSubmit}
+                />
+              )}
+            </div>
+
+            {/* Footer Buttons */}
+            {step !== 'qr_screen' && step !== 'card_screen' && (
+              <div className="kiosk-co-footer">
+                {step === 'review' ? (
                   <>
-                    <Loader2 size={18} className="spin" />
-                    <span>Processing Order...</span>
+                    <button type="button" className="kiosk-co-back-btn" onClick={onClose}>
+                      Add More Items
+                    </button>
+                    <button
+                      type="button"
+                      className="kiosk-co-next-btn"
+                      disabled={cartItems.length === 0}
+                      onClick={() => setStep('payment')}
+                    >
+                      <span>Proceed to Payment • ₱{finalTotal.toFixed(2)}</span>
+                      <ArrowRight size={18} />
+                    </button>
                   </>
                 ) : (
                   <>
-                    <Lock size={16} />
-                    <span>Confirm &amp; Place Order • ₱{finalTotal.toFixed(2)}</span>
+                    <button
+                      type="button"
+                      className="kiosk-co-back-btn"
+                      onClick={() => setStep('review')}
+                      disabled={isSubmitting}
+                    >
+                      <ArrowLeft size={16} />
+                      <span>Back to Review</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="kiosk-co-confirm-btn"
+                      disabled={isSubmitting}
+                      onClick={handleProceedToPayment}
+                    >
+                      {isSubmitting ? (
+                        <>
+                          <Loader2 size={18} className="spin" />
+                          <span>Generating Payment Session...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Lock size={16} />
+                          <span>
+                            {selectedPayment === 'Cash'
+                              ? `Confirm & Place Order • ₱${finalTotal.toFixed(2)}`
+                              : selectedPayment === 'Card'
+                                ? `Proceed to Card Payment • ₱${finalTotal.toFixed(2)}`
+                                : `Generate QR Ph Code • ₱${finalTotal.toFixed(2)}`}
+                          </span>
+                        </>
+                      )}
+                    </button>
                   </>
                 )}
-              </button>
-            </>
-          )}
+              </div>
+            )}
+          </div>
         </div>
-      </div>
-    </div>
+      )}
+    </>
   );
 }

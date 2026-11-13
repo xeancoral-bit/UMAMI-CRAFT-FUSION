@@ -3,6 +3,7 @@ import { io } from 'socket.io-client';
 import { QRCodeSVG } from 'qrcode.react';
 import PesoReceipt from './PesoReceipt';
 import TableServiceModal from './TableServiceModal';
+import KioskCheckoutModal from './KioskCheckoutModal';
 import { Bell } from 'lucide-react';
 import {
   Monitor,
@@ -1134,44 +1135,51 @@ function KioskView({ onOpenKitchen, initialKioskId }) {
     }
   };
 
-  const handleSubmitKioskOrder = () => {
-    if (kioskCart.length === 0 || isSubmittingOrder) return;
+  const handleSubmitKioskOrder = async (modalOrderData = null) => {
+    const effectiveCart = (modalOrderData?.items && modalOrderData.items.length > 0) ? modalOrderData.items : kioskCart;
+    if (effectiveCart.length === 0 || isSubmittingOrder) return;
     setIsSubmittingOrder(true);
-    const orderId = `ORD-${Math.floor(1000 + Math.random() * 9000)}`;
-    const allOrderedTags = Array.from(new Set(kioskCart.flatMap(i => i.tags || [])));
-    const effectivePayment = paymentMethod === 'E-Wallet' ? selectedEWallet : paymentMethod;
-    const isCashImmediate = paymentMethod === 'Cash';
+    const orderId = modalOrderData?.orderId || `ORD-${Math.floor(1000 + Math.random() * 9000)}`;
+    const allOrderedTags = Array.from(new Set(effectiveCart.flatMap(i => i.tags || [])));
+    const chosenPayment = modalOrderData?.paymentMethod || (paymentMethod === 'E-Wallet' ? selectedEWallet : paymentMethod);
+    const isCashImmediate = chosenPayment === 'Cash';
+    const isAlreadySettled = Boolean(modalOrderData?._alreadySettled);
+    const effectiveTotal = modalOrderData?.finalTotal !== undefined ? modalOrderData.finalTotal : kioskCartTotal;
 
     const payload = {
       orderId,
       kioskId,
-      customer: guestName.trim() || `Kiosk Guest (${kioskId})`,
-      diningOption,
-      orderType: diningOption,
+      customer: modalOrderData?.customer || guestName.trim() || `Kiosk Guest (${kioskId})`,
+      diningOption: modalOrderData?.diningOption || diningOption,
+      orderType: modalOrderData?.diningOption || diningOption,
       tableNumber: `Kiosk ${kioskId}`,
       location: `Kiosk ${kioskId}`,
-      payment: effectivePayment,
-      paymentMethod: effectivePayment,
-      paymentCategory: paymentMethod,
-      selectedEWallet: paymentMethod === 'E-Wallet' ? selectedEWallet : null,
-      paymentStatus: isCashImmediate ? 'Approved' : 'Pending',
-      isPaymentVerified: isCashImmediate,
-      status: isCashImmediate ? 'New' : 'Pending Payment Verification',
+      payment: chosenPayment,
+      paymentMethod: chosenPayment,
+      paymentCategory: modalOrderData?.paymentCategory || paymentMethod,
+      selectedEWallet: modalOrderData?.selectedEWallet || (paymentMethod === 'E-Wallet' ? selectedEWallet : null),
+      paymentStatus: (isCashImmediate || isAlreadySettled) ? 'Approved' : 'Pending',
+      isPaymentVerified: isCashImmediate || isAlreadySettled,
+      status: (isCashImmediate || isAlreadySettled) ? 'New' : 'Pending Payment Verification',
       device: 'Kiosk Touchscreen',
       platform: 'Kiosk Touchscreen',
-      items: kioskCart.map(c => ({
+      items: effectiveCart.map(c => ({
         id: c.id,
         name: c.size ? `${c.name} (${c.size})` : c.name,
-        quantity: c.quantity,
-        qty: c.quantity,
+        quantity: c.quantity || c.qty || 1,
+        qty: c.quantity || c.qty || 1,
         price: c.price,
         image: c.image,
         emoji: c.emoji,
         tags: c.tags,
         customizations: c.customizations
       })),
-      itemCount: kioskCartCount,
-      totalPrice: kioskCartTotal,
+      itemCount: effectiveCart.reduce((sum, c) => sum + (c.quantity || c.qty || 1), 0),
+      totalPrice: effectiveTotal,
+      total: effectiveTotal,
+      subtotal: modalOrderData?.subtotal !== undefined ? modalOrderData.subtotal : kioskCartSubtotal,
+      discountAmount: modalOrderData?.discountAmount !== undefined ? modalOrderData.discountAmount : kioskDiscountAmount,
+      taxAmount: modalOrderData?.taxAmount !== undefined ? modalOrderData.taxAmount : (effectiveTotal - (effectiveTotal / 1.12)),
       orderedTags: allOrderedTags,
       allergens
     };
@@ -1183,10 +1191,11 @@ function KioskView({ onOpenKitchen, initialKioskId }) {
     setOrderedItem(payload.items[0]);
     setOrderReceipt({
       orderId,
+      pickupToken: modalOrderData?.pickupToken || `U-${Math.floor(100 + Math.random() * 900)}`,
       items: payload.items,
-      itemCount: kioskCartCount,
-      totalPrice: kioskCartTotal,
-      payment: paymentMethod,
+      itemCount: payload.itemCount,
+      totalPrice: effectiveTotal,
+      payment: chosenPayment,
       paymentStatus: payload.paymentStatus,
       status: payload.status,
       orderedTags: allOrderedTags
@@ -1197,6 +1206,7 @@ function KioskView({ onOpenKitchen, initialKioskId }) {
     setShowCheckoutModal(false);
     setIsSubmittingOrder(false);
     setState('success');
+    return payload;
   };
 
   // Extract combined unique tags from receipt items
@@ -2968,227 +2978,31 @@ function KioskView({ onOpenKitchen, initialKioskId }) {
               </div>
             )}
 
-            {/* Kiosk Cart & Checkout Modal */}
-            {showCheckoutModal && (
-              <div
-                onClick={() => setShowCheckoutModal(false)}
-                style={{
-                  position: 'fixed', inset: 0, background: 'rgba(28, 25, 23, 0.6)',
-                  backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  padding: '20px', zIndex: 1150
-                }}
-              >
-                <div
-                  onClick={(e) => e.stopPropagation()}
-                  style={{
-                    width: '100%', maxWidth: '580px', maxHeight: '90vh', overflowY: 'auto',
-                    background: '#FFFFFF', borderRadius: '24px', padding: '24px',
-                    boxShadow: '0 24px 60px rgba(0,0,0,0.28)', display: 'flex', flexDirection: 'column', gap: '16px'
-                  }}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <h2 style={{ margin: 0, fontSize: '1.3rem', fontWeight: 900 }}>Your Kiosk Order ({kioskCartCount})</h2>
-                    <button type="button" onClick={() => setShowCheckoutModal(false)} style={{ background: '#FAF6F0', border: 'none', width: '34px', height: '34px', borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <X size={18} />
-                    </button>
-                  </div>
-
-                  {/* Cart Items */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '240px', overflowY: 'auto' }}>
-                    {kioskCart.map(item => (
-                      <div key={item.cartKey} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', padding: '10px 12px', borderRadius: '12px', background: '#FAF8F5', border: '1px solid #EAE2D7' }}>
-                        <div style={{ flex: 1 }}>
-                          <div style={{ fontWeight: 800, fontSize: '0.9rem', color: '#1C1917' }}>{item.name}</div>
-                          {item.customizations?.length > 0 && (
-                            <div style={{ fontSize: '0.73rem', color: '#78716C', marginTop: '2px' }}>{item.customizations.join(' • ')}</div>
-                          )}
-                          <div style={{ fontSize: '0.82rem', fontWeight: 800, color: '#C24522', marginTop: '3px' }}>
-                            ₱{(item.price * item.quantity).toFixed(2)}
-                          </div>
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <button type="button" onClick={() => setKioskCart(prev => prev.map(c => c.cartKey === item.cartKey ? { ...c, quantity: Math.max(1, c.quantity - 1) } : c))} style={{ width: '28px', height: '28px', borderRadius: '8px', border: '1px solid #E7E5E4', background: '#fff', cursor: 'pointer' }}>-</button>
-                          <span style={{ fontWeight: 800, minWidth: '18px', textAlign: 'center' }}>{item.quantity}</span>
-                          <button type="button" onClick={() => setKioskCart(prev => prev.map(c => c.cartKey === item.cartKey ? { ...c, quantity: c.quantity + 1 } : c))} style={{ width: '28px', height: '28px', borderRadius: '8px', border: '1px solid #E7E5E4', background: '#fff', cursor: 'pointer' }}>+</button>
-                          <button type="button" onClick={() => setKioskCart(prev => prev.filter(c => c.cartKey !== item.cartKey))} style={{ width: '28px', height: '28px', borderRadius: '8px', border: 'none', background: '#FEE2E2', color: '#DC2626', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            <Trash2 size={14} />
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Promo Code */}
-                  <div style={{ display: 'flex', gap: '8px' }}>
-                    <input
-                      type="text"
-                      value={checkoutPromoCode}
-                      onChange={(e) => setCheckoutPromoCode(e.target.value)}
-                      placeholder="Promo code (e.g., UMAMI20)"
-                      style={{ flex: 1, padding: '10px 12px', borderRadius: '10px', border: '1px solid #EAE2D7', background: '#FAF8F5', fontSize: '0.85rem' }}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => handleApplyCheckoutPromo()}
-                      style={{ padding: '10px 16px', borderRadius: '10px', border: 'none', background: '#1C1917', color: '#FFFFFF', fontWeight: 800, fontSize: '0.82rem', cursor: 'pointer' }}
-                    >
-                      Apply
-                    </button>
-                  </div>
-                  {promoStatusMsg.text && (
-                    <div style={{ fontSize: '0.78rem', fontWeight: 700, color: promoStatusMsg.ok ? '#059669' : '#DC2626' }}>
-                      {promoStatusMsg.text}
-                    </div>
-                  )}
-
-                  {/* Dining Option & Guest Name */}
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                    <div>
-                      <div style={{ fontSize: '0.75rem', fontWeight: 800, color: '#57534E', marginBottom: '5px' }}>Dining Option</div>
-                      <div style={{ display: 'flex', gap: '6px' }}>
-                        {['Dine-In', 'Takeout'].map(opt => (
-                          <button
-                            key={opt}
-                            type="button"
-                            onClick={() => setDiningOption(opt)}
-                            style={{
-                              flex: 1, padding: '8px', borderRadius: '10px', fontSize: '0.8rem', fontWeight: 800, cursor: 'pointer',
-                              border: diningOption === opt ? '1.5px solid #C24522' : '1px solid #E7E5E4',
-                              background: diningOption === opt ? '#FFF5F2' : '#FFFFFF',
-                              color: diningOption === opt ? '#C24522' : '#44403C'
-                            }}
-                          >
-                            {opt}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                    <div>
-                      <div style={{ fontSize: '0.75rem', fontWeight: 800, color: '#57534E', marginBottom: '5px' }}>Guest Name (Optional)</div>
-                      <input
-                        type="text"
-                        value={guestName}
-                        onChange={(e) => setGuestName(e.target.value)}
-                        placeholder={`Kiosk Guest (${kioskId})`}
-                        style={{ width: '100%', padding: '8px 10px', borderRadius: '10px', border: '1px solid #E7E5E4', fontSize: '0.82rem', boxSizing: 'border-box' }}
-                      />
-                    </div>
-                  </div>
-
-                  {/* Payment Method */}
-                  <div>
-                    <div style={{ fontSize: '0.75rem', fontWeight: 800, color: '#57534E', marginBottom: '6px', textTransform: 'uppercase' }}>Select Payment Method</div>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
-                      {[
-                        { id: 'Cash', label: 'Cash' },
-                        { id: 'E-Wallet', label: 'E-Wallet' },
-                        { id: 'Card', label: 'Card' }
-                      ].map(pm => (
-                        <button
-                          key={pm.id}
-                          type="button"
-                          onClick={() => setPaymentMethod(pm.id)}
-                          style={{
-                            padding: '0.5rem', borderRadius: '10px', fontSize: '0.8rem', fontWeight: 800, cursor: 'pointer',
-                            border: paymentMethod === pm.id ? '2px solid #059669' : '1px solid #D6D3D1',
-                            background: paymentMethod === pm.id ? '#ECFDF5' : '#FFFFFF',
-                            color: paymentMethod === pm.id ? '#047857' : '#44403C',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px'
-                          }}
-                        >
-                          <span>{pm.label}</span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Sub-Selection for E-Wallet */}
-                  {paymentMethod === 'E-Wallet' && (
-                    <div style={{
-                      background: '#F0FDF4',
-                      border: '1.5px solid #86EFAC',
-                      borderRadius: '12px',
-                      padding: '10px',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: '8px'
-                    }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span style={{ fontSize: '0.72rem', fontWeight: 800, color: '#166534', textTransform: 'uppercase' }}>
-                          Select E-Wallet / Online Bank
-                        </span>
-                        <span style={{ fontSize: '0.66rem', fontWeight: 700, color: '#047857', background: '#DCFCE7', padding: '1px 6px', borderRadius: '4px' }}>
-                          {selectedEWallet} Active
-                        </span>
-                      </div>
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(88px, 1fr))', gap: '5px' }}>
-                        {SUPPORTED_EWALLETS.map(w => {
-                          const isSel = selectedEWallet === w.id;
-                          return (
-                            <button
-                              key={w.id}
-                              type="button"
-                              onClick={() => setSelectedEWallet(w.id)}
-                              style={{
-                                display: 'flex', alignItems: 'center', gap: '5px',
-                                padding: '6px 7px', borderRadius: '8px', cursor: 'pointer',
-                                border: isSel ? '2px solid #059669' : '1px solid #E2E8F0',
-                                background: isSel ? '#ECFDF5' : '#FFFFFF',
-                                color: isSel ? '#047857' : '#44403C',
-                                fontWeight: isSel ? 800 : 600,
-                                fontSize: '0.72rem', textAlign: 'left'
-                              }}
-                            >
-                              <EWalletLogo id={w.id} size={16} />
-                              <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{w.name}</span>
-                            </button>
-                          );
-                        })}
-                      </div>
-                      {(() => {
-                        const actW = SUPPORTED_EWALLETS.find(w => w.id === selectedEWallet) || SUPPORTED_EWALLETS[0];
-                        return (
-                          <div style={{ fontSize: '0.7rem', color: '#166534', background: '#FFFFFF', padding: '6px 8px', borderRadius: '6px', border: '1px solid #BBF7D0' }}>
-                            <div>Account: <strong>{actW.accountName}</strong> ({actW.accountNumber})</div>
-                            <div style={{ color: '#059669', fontSize: '0.67rem', fontStyle: 'italic', marginTop: '1px' }}>{actW.description}</div>
-                          </div>
-                        );
-                      })()}
-                    </div>
-                  )}
-
-                  {/* Summary & Submit */}
-                  <div style={{ borderTop: '1px solid #EAE2D7', paddingTop: '12px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: '#57534E' }}>
-                      <span>Subtotal</span>
-                      <span>₱{kioskCartSubtotal.toFixed(2)}</span>
-                    </div>
-                    {kioskDiscountAmount > 0 && (
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: '#059669', fontWeight: 700 }}>
-                        <span>Promo Discount</span>
-                        <span>-₱{kioskDiscountAmount.toFixed(2)}</span>
-                      </div>
-                    )}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1.15rem', fontWeight: 900, color: '#1C1917', marginTop: '4px' }}>
-                      <span>Total</span>
-                      <span>₱{kioskCartTotal.toFixed(2)}</span>
-                    </div>
-                    <button
-                      type="button"
-                      disabled={isSubmittingOrder}
-                      onClick={handleSubmitKioskOrder}
-                      style={{
-                        marginTop: '8px', width: '100%', padding: '14px', borderRadius: '14px', border: 'none',
-                        background: 'linear-gradient(135deg, #D94B2B 0%, #C24522 100%)',
-                        color: '#FFFFFF', fontWeight: 900, fontSize: '0.95rem', cursor: 'pointer'
-                      }}
-                    >
-                      {isSubmittingOrder ? 'Sending Order...' : `Place Order — ₱${kioskCartTotal.toFixed(2)}`}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
+            {/* Kiosk Cart & Checkout Modal with Official QR Ph Standee & Card Gateway */}
+            <KioskCheckoutModal
+              isOpen={showCheckoutModal}
+              onClose={() => setShowCheckoutModal(false)}
+              cartItems={kioskCart}
+              diningOption={diningOption}
+              onChangeDiningOption={setDiningOption}
+              onUpdateQuantity={(id, delta) => {
+                setKioskCart(prev => prev.map(c => (c.cartKey === id || c.id === id) ? { ...c, quantity: Math.max(1, c.quantity + delta) } : c));
+              }}
+              onRemoveItem={(id) => {
+                setKioskCart(prev => prev.filter(c => (c.cartKey !== id && c.id !== id)));
+              }}
+              promos={promos || []}
+              promoCode={checkoutPromoCode}
+              setPromoCode={setCheckoutPromoCode}
+              promoApplied={appliedPromo}
+              setPromoApplied={setAppliedPromo}
+              promoMsg={promoStatusMsg}
+              setPromoMsg={setPromoStatusMsg}
+              onConfirmOrder={handleSubmitKioskOrder}
+              kioskId={kioskId}
+              tableNumber={`Kiosk ${kioskId}`}
+              isMobile={false}
+            />
           </div>
         )}
 
