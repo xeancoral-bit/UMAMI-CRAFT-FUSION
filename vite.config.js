@@ -69,7 +69,23 @@ export default defineConfig(() => {
     customLogger,
     plugins: [react()],
     build: {
-      chunkSizeWarningLimit: 1500
+      chunkSizeWarningLimit: 1200,
+      rollupOptions: {
+        output: {
+          manualChunks(id) {
+            if (id.includes('node_modules')) {
+              if (id.includes('react') || id.includes('react-dom')) return 'vendor-react';
+              if (id.includes('lucide-react')) return 'vendor-icons';
+              if (id.includes('socket.io-client') || id.includes('qrcode.react')) return 'vendor-network';
+              return 'vendor';
+            }
+            if (id.includes('AdminView')) return 'view-admin';
+            if (id.includes('CashierDashboard')) return 'view-cashier';
+            if (id.includes('KitchenView')) return 'view-kitchen';
+            if (id.includes('KioskView')) return 'view-kiosk';
+          }
+        }
+      }
     },
     cacheDir: `node_modules/.vite-cache-${port}`,
     server: {

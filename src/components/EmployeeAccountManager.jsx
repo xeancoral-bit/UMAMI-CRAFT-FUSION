@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
   Users, UserPlus, Shield, CreditCard, ChefHat, Search, Edit2, Key, Power,
   CheckCircle2, XCircle, Clock, Mail, Phone, Activity, Lock, AlertCircle,
@@ -95,8 +95,12 @@ export default function EmployeeAccountManager({
     setTimeout(() => setToast(null), 3500);
   };
 
-  const fetchAllData = useCallback(async () => {
-    setLoading(true);
+  const isFetchingRef = useRef(false);
+
+  const fetchAllData = useCallback(async (showSpinner = false) => {
+    if (isFetchingRef.current) return;
+    isFetchingRef.current = true;
+    if (showSpinner) setLoading(true);
     try {
       const [empData, logData] = await Promise.all([
         fetchEmployeesList(),
@@ -107,15 +111,28 @@ export default function EmployeeAccountManager({
     } catch (err) {
       console.error('[EmployeeAccountManager] Failed to load data:', err);
     } finally {
-      setLoading(false);
+      if (showSpinner) setLoading(false);
+      isFetchingRef.current = false;
     }
   }, []);
 
   useEffect(() => {
-    fetchAllData();
-    const onSystemSync = () => fetchAllData();
+    fetchAllData(true);
+    let timer = null;
+    const onSystemSync = (e) => {
+      const key = e?.detail?.key;
+      if (!key || key === 'umami_employees_store_v1' || key === 'umami_audit_logs_store_v1') {
+        clearTimeout(timer);
+        timer = setTimeout(() => {
+          fetchAllData(false);
+        }, 300);
+      }
+    };
     window.addEventListener('umami-system-sync', onSystemSync);
-    return () => window.removeEventListener('umami-system-sync', onSystemSync);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('umami-system-sync', onSystemSync);
+    };
   }, [fetchAllData]);
 
   useEffect(() => {
@@ -135,12 +152,13 @@ export default function EmployeeAccountManager({
   }, [socket]);
 
   const counts = useMemo(() => {
-    const admin = employees.filter(e => e.accountType === 'admin').length;
-    const cashier = employees.filter(e => e.accountType === 'cashier').length;
-    const staff = employees.filter(e => e.accountType === 'staff').length;
-    const active = employees.filter(e => e.status === 'Active').length;
-    const inactive = employees.filter(e => e.status !== 'Active').length;
-    return { all: employees.length, admin, cashier, staff, active, inactive };
+    const list = Array.isArray(employees) ? employees.filter(Boolean) : [];
+    const admin = list.filter(e => e.accountType === 'admin').length;
+    const cashier = list.filter(e => e.accountType === 'cashier').length;
+    const staff = list.filter(e => e.accountType === 'staff').length;
+    const active = list.filter(e => e.status === 'Active').length;
+    const inactive = list.filter(e => e.status !== 'Active').length;
+    return { all: list.length, admin, cashier, staff, active, inactive };
   }, [employees]);
 
   const filteredEmployees = useMemo(() => {
@@ -748,11 +766,11 @@ export default function EmployeeAccountManager({
                     </td>
                   </tr>
                 ) : (
-                  filteredEmployees.map(emp => {
+                  filteredEmployees.map((emp, idx) => {
                     const badge = getBadgeStyle(emp.accountType);
                     const isActive = (emp.status || 'Active') === 'Active';
                     return (
-                      <tr key={emp.id} style={{ borderBottom: '1px solid #F5F5F4', background: isActive ? '#FFFFFF' : '#FAFAFA' }}>
+                      <tr key={emp.id || emp.username || idx} style={{ borderBottom: '1px solid #F5F5F4', background: isActive ? '#FFFFFF' : '#FAFAFA' }}>
                         <td style={{ padding: '0.95rem 1.25rem', width: '240px', minWidth: '230px' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                             <div style={{
@@ -760,7 +778,7 @@ export default function EmployeeAccountManager({
                               background: badge.bg, color: badge.color, border: `1px solid ${badge.border}`,
                               display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900, fontSize: '0.88rem'
                             }}>
-                              {(emp.name || 'U').split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
+                              {(emp.name || 'U').trim().split(/\s+/).map(n => n[0]).join('').slice(0, 2).toUpperCase()}
                             </div>
                             <div style={{ minWidth: 0 }}>
                               <div style={{ fontWeight: 800, color: '#1C1917', fontSize: '0.9rem', whiteSpace: 'nowrap' }}>{emp.name}</div>

@@ -26,10 +26,12 @@ function readLocal(key, fallback) {
   }
 }
 
-function writeLocal(key, data) {
+function writeLocal(key, data, skipEvent = false) {
   try {
     localStorage.setItem(key, JSON.stringify(data));
-    window.dispatchEvent(new CustomEvent('umami-system-sync', { detail: { key } }));
+    if (!skipEvent) {
+      window.dispatchEvent(new CustomEvent('umami-system-sync', { detail: { key } }));
+    }
   } catch {}
 }
 
@@ -53,8 +55,8 @@ export function getLocalEmployees() {
   return Array.from(byId.values());
 }
 
-export function saveLocalEmployees(list) {
-  writeLocal(EMP_STORAGE_KEY, list);
+export function saveLocalEmployees(list, skipEvent = false) {
+  writeLocal(EMP_STORAGE_KEY, list, skipEvent);
   return list;
 }
 
@@ -78,7 +80,7 @@ export async function fetchEmployeesList() {
             merged.push(loc);
           }
         }
-        saveLocalEmployees(merged);
+        saveLocalEmployees(merged, true);
         return merged;
       }
     }
@@ -127,7 +129,7 @@ export async function fetchAuditLogsList() {
         const combined = [...apiLogs, ...localLogs.filter(l => !seen.has(l.id))]
           .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
           .slice(0, 500);
-        writeLocal(LOGS_STORAGE_KEY, combined);
+        writeLocal(LOGS_STORAGE_KEY, combined, true);
         return combined;
       }
     }
@@ -139,8 +141,8 @@ export function getLocalStaffTasks() {
   return readLocal(TASKS_STORAGE_KEY, seedStaffTasks);
 }
 
-export function saveLocalStaffTasks(tasks) {
-  writeLocal(TASKS_STORAGE_KEY, tasks);
+export function saveLocalStaffTasks(tasks, skipEvent = false) {
+  writeLocal(TASKS_STORAGE_KEY, tasks, skipEvent);
   return tasks;
 }
 
@@ -153,7 +155,7 @@ export async function fetchStaffTasksList() {
       if (Array.isArray(apiTasks) && apiTasks.length > 0) {
         const seen = new Set(apiTasks.map(t => t.id));
         const merged = [...apiTasks, ...localTasks.filter(t => !seen.has(t.id))];
-        saveLocalStaffTasks(merged);
+        saveLocalStaffTasks(merged, true);
         return merged;
       }
     }
@@ -165,8 +167,8 @@ export function getLocalDailyReports() {
   return readLocal(REPORTS_STORAGE_KEY, seedDailyReports);
 }
 
-export function saveLocalDailyReports(reports) {
-  writeLocal(REPORTS_STORAGE_KEY, reports);
+export function saveLocalDailyReports(reports, skipEvent = false) {
+  writeLocal(REPORTS_STORAGE_KEY, reports, skipEvent);
   return reports;
 }
 
@@ -183,7 +185,7 @@ export async function fetchDailyReportsList() {
         const merged = Array.from(byId.values()).sort(
           (a, b) => new Date(b.submittedAt || b.reportDate) - new Date(a.submittedAt || a.reportDate)
         );
-        saveLocalDailyReports(merged);
+        saveLocalDailyReports(merged, true);
         return merged;
       }
     }

@@ -1,6 +1,19 @@
 import React from 'react';
 
 /**
+ * Centralized & Verified Umami Craft Fusion Merchant Account Configuration
+ * Reference: Image 4 - Verified Account: 0917-888-UMAMI (86264)
+ */
+export const VERIFIED_MERCHANT = {
+  name: 'UMAMI CRAFT FUSION INC.',
+  accountNumber: '0917-888-UMAMI (86264)',
+  accountPhone: '0917-888-8626',
+  merchantId: 'UMAMI-MNL-86264',
+  taxId: 'TIN-482-910-384-000',
+  isVerified: true
+};
+
+/**
  * Official E-Wallet & Digital Banking Providers for Umami Craft Fusion
  */
 export const SUPPORTED_EWALLETS = [
@@ -10,8 +23,9 @@ export const SUPPORTED_EWALLETS = [
     shortName: 'GCash',
     brandColor: '#007DFE',
     badge: 'Popular',
-    accountName: 'UMAMI CRAFT FUSION INC.',
-    accountNumber: '0917-888-UMAMI (86264)',
+    accountName: VERIFIED_MERCHANT.name,
+    accountNumber: VERIFIED_MERCHANT.accountNumber,
+    deepLink: 'gcash://',
     qrCodeMock: 'gcash_qr_ph_umami.png',
     placeholder: 'Enter 13-digit GCash Ref # (e.g. 1002938475812)',
     description: 'Instant payment via GCash App / QR Ph scan'
@@ -22,8 +36,9 @@ export const SUPPORTED_EWALLETS = [
     shortName: 'Maya',
     brandColor: '#00D665',
     badge: 'QR Ph',
-    accountName: 'UMAMI CRAFT FUSION INC.',
-    accountNumber: '0918-999-UMAMI (86264)',
+    accountName: VERIFIED_MERCHANT.name,
+    accountNumber: VERIFIED_MERCHANT.accountNumber,
+    deepLink: 'maya://',
     qrCodeMock: 'maya_qr_ph_umami.png',
     placeholder: 'Enter 12-digit Maya Reference #',
     description: 'Pay via Maya Wallet or QR Ph mobile app'
@@ -34,8 +49,9 @@ export const SUPPORTED_EWALLETS = [
     shortName: 'PayPal',
     brandColor: '#003087',
     badge: 'Global',
-    accountName: 'Umami Craft Fusion PH',
-    accountNumber: 'payments@umamicraft.com',
+    accountName: VERIFIED_MERCHANT.name,
+    accountNumber: VERIFIED_MERCHANT.accountNumber,
+    deepLink: 'https://www.paypal.com/checkoutnow',
     qrCodeMock: 'paypal_qr_umami.png',
     placeholder: 'Enter PayPal Transaction ID (e.g. 9AB82710)',
     description: 'International wallet & linked credit/debit cards'
@@ -46,8 +62,9 @@ export const SUPPORTED_EWALLETS = [
     shortName: 'MariBank',
     brandColor: '#FF5722',
     badge: 'Digital Bank',
-    accountName: 'UMAMI CRAFT FUSION INC.',
-    accountNumber: '1088-2938-4821',
+    accountName: VERIFIED_MERCHANT.name,
+    accountNumber: VERIFIED_MERCHANT.accountNumber,
+    deepLink: 'maribank://',
     qrCodeMock: 'maribank_qr_umami.png',
     placeholder: 'Enter 12-digit MariBank Reference #',
     description: 'Instant digital bank transfer via Sea / MariBank'
@@ -58,8 +75,9 @@ export const SUPPORTED_EWALLETS = [
     shortName: 'GrabPay',
     brandColor: '#00B14F',
     badge: 'Grab Rewards',
-    accountName: 'UMAMI CRAFT FUSION',
-    accountNumber: '0917-888-8626',
+    accountName: VERIFIED_MERCHANT.name,
+    accountNumber: VERIFIED_MERCHANT.accountNumber,
+    deepLink: 'grab://open',
     qrCodeMock: 'grabpay_qr_umami.png',
     placeholder: 'Enter 10-digit GrabPay Transaction ID',
     description: 'Fast e-wallet checkout & earn GrabRewards points'
@@ -70,8 +88,9 @@ export const SUPPORTED_EWALLETS = [
     shortName: 'ShopeePay',
     brandColor: '#EE4D2D',
     badge: 'Shopee App',
-    accountName: 'UMAMI CRAFT FUSION',
-    accountNumber: '0919-777-8626',
+    accountName: VERIFIED_MERCHANT.name,
+    accountNumber: VERIFIED_MERCHANT.accountNumber,
+    deepLink: 'shopeepay://',
     qrCodeMock: 'shopeepay_qr_umami.png',
     placeholder: 'Enter 12-digit ShopeePay Reference #',
     description: 'Direct checkout via ShopeePay wallet'
@@ -82,8 +101,9 @@ export const SUPPORTED_EWALLETS = [
     shortName: 'GoTyme',
     brandColor: '#00C2A0',
     badge: 'Go Rewards',
-    accountName: 'UMAMI CRAFT FUSION INC.',
-    accountNumber: '0192-3849-1029',
+    accountName: VERIFIED_MERCHANT.name,
+    accountNumber: VERIFIED_MERCHANT.accountNumber,
+    deepLink: 'gotyme://',
     qrCodeMock: 'gotyme_qr_umami.png',
     placeholder: 'Enter GoTyme Bank Reference # (e.g. GT-8291)',
     description: 'Free instant transfer & Go Rewards earning'

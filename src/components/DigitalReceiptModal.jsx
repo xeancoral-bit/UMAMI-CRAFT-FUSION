@@ -1,8 +1,7 @@
 import React from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import {
-  CheckCircle2, Printer, ArrowRight, Utensils, ShieldCheck,
-  Receipt, Clock, Smartphone, Sparkles
+  CheckCircle2, Printer, ArrowRight, Utensils, ShieldCheck
 } from 'lucide-react';
 
 export default function DigitalReceiptModal({
@@ -182,7 +181,10 @@ export default function DigitalReceiptModal({
                 {paymentMethod}
               </div>
               <div style={{ fontSize: '11px', fontFamily: 'monospace', color: '#64748B' }}>
-                {refNum}
+                Ref: {refNum}
+              </div>
+              <div style={{ fontSize: '10.5px', fontFamily: 'monospace', color: '#047857', fontWeight: 700, marginTop: '1px' }}>
+                Acct: 0917-888-UMAMI (86264)
               </div>
             </div>
 

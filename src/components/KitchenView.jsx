@@ -1167,8 +1167,8 @@ function KitchenView({ onReturnToKiosk }) {
                     </div>
                   </div>
 
-                  {/* Interactive Action Buttons - Restored in active queue, received, preparing, and ready for pickup */}
-                  {(filter === 'active' || filter === 'received' || filter === 'preparing' || filter === 'ready') && (
+                  {/* Interactive Action Buttons - Restored ONLY in received, preparing, and ready tabs (Active Queue is view/monitoring only) */}
+                  {(filter === 'received' || filter === 'preparing' || filter === 'ready') && (
                     <div className="ticket-actions" style={{ marginTop: '4px', width: '100%' }}>
                       {(normStatus === 'New' || filter === 'received') && (
                         <button

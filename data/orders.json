@@ -1,5 +1,1135 @@
 [
   {
+    "id": "ORD-3742",
+    "orderId": "ORD-3742",
+    "customer": "Kiosk Guest",
+    "orderType": "Dine-In",
+    "diningOption": "Dine-In",
+    "location": "Table 1",
+    "tableId": "Table 1",
+    "tableNumber": "Table 1",
+    "kioskId": "21399F",
+    "restaurantId": "umami",
+    "item": {
+      "id": "DRK-006-Medium-reg--",
+      "sku": "DRK-006",
+      "name": "Bottled Water (Medium)",
+      "description": "Purified drinking water.",
+      "price": 35,
+      "promoPrice": null,
+      "available": true,
+      "isExplicitlyUnavailable": false,
+      "isOutOfStock": false,
+      "stock": 115,
+      "sizes": [
+        {
+          "name": "Small",
+          "volume": "350 ml",
+          "price": 30,
+          "stock": 50
+        },
+        {
+          "name": "Medium",
+          "volume": "500 ml",
+          "price": 35,
+          "stock": 40
+        },
+        {
+          "name": "Large",
+          "volume": "1000 ml",
+          "price": 55,
+          "stock": 25
+        }
+      ],
+      "addons": [],
+      "allergens": [],
+      "tags": [
+        "healthy",
+        "drinks"
+      ],
+      "category": "Drinks & Boba",
+      "drinkCategory": "Bottled Drinks",
+      "catalogType": "drink",
+      "emoji": "💧",
+      "image": "https://th.bing.com/th/id/OIP.50DXuEV930QBh27MRvuo5AHaHa?w=192&h=192&c=7&r=0&o=7&dpr=1.3&pid=1.7&rm=3",
+      "originalId": "DRK-006",
+      "size": "Medium",
+      "volume": "500 ml",
+      "spiceLevel": null,
+      "specialNote": "",
+      "quantity": 1
+    },
+    "items": [
+      {
+        "id": "DRK-006-Medium-reg--",
+        "name": "Bottled Water (Medium)",
+        "qty": 1,
+        "quantity": 1,
+        "price": 35,
+        "image": "https://th.bing.com/th/id/OIP.50DXuEV930QBh27MRvuo5AHaHa?w=192&h=192&c=7&r=0&o=7&dpr=1.3&pid=1.7&rm=3",
+        "emoji": "💧",
+        "tags": [
+          "healthy",
+          "drinks"
+        ],
+        "customizations": []
+      },
+      {
+        "id": "MIX-01-Standard Serving-reg--",
+        "name": "Craft Bowl + Side + Drink Deal",
+        "qty": 1,
+        "quantity": 1,
+        "price": 429,
+        "image": "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=600&q=80",
+        "emoji": "🥢",
+        "tags": [
+          "popular",
+          "savory"
+        ],
+        "customizations": []
+      }
+    ],
+    "itemCount": 2,
+    "total": 464,
+    "totalPrice": 464,
+    "payment": "GCash",
+    "paymentStatus": "Successful",
+    "isPaymentVerified": true,
+    "receiptImage": null,
+    "referenceNumber": "TXN-GCASH-505292",
+    "isDuplicateRef": false,
+    "duplicateFoundInOrderId": null,
+    "receiptUploadedAt": null,
+    "status": "Completed",
+    "nextStatus": "Completed",
+    "stripeColor": "#059669",
+    "priority": "Normal",
+    "isWaitAlert": false,
+    "waitTime": "0 min",
+    "orderedTags": [
+      "healthy",
+      "drinks",
+      "popular",
+      "savory"
+    ],
+    "allergens": [
+      "peanuts",
+      "fish"
+    ],
+    "note": "Exclude: PEANUTS, FISH",
+    "isAllergy": true,
+    "busserName": null,
+    "device": "Desktop",
+    "platform": "Desktop",
+    "createdAt": "2026-11-13T08:52:59.269Z",
+    "updatedAt": "2026-11-13T09:02:23.815Z",
+    "statusHistory": [
+      {
+        "status": "Pending Payment Verification",
+        "timestamp": "2026-11-13T08:52:59.269Z",
+        "updatedBy": "Customer App",
+        "note": "Order placed. Awaiting payment verification."
+      },
+      {
+        "status": "New",
+        "timestamp": "2026-11-13T08:53:03.202Z",
+        "updatedBy": "Automated Webhook (GCash (PayMongo))",
+        "note": "Payment verified automatically via GCash (PayMongo) webhook (Ref: TXN-GCASH-505292). Sent to Kitchen."
+      },
+      {
+        "status": "Preparing",
+        "timestamp": "2026-11-13T09:02:18.876Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Order advanced to Preparing"
+      },
+      {
+        "status": "Preparing",
+        "timestamp": "2026-11-13T09:02:18.894Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Status updated to Preparing"
+      },
+      {
+        "status": "Ready for Pickup",
+        "timestamp": "2026-11-13T09:02:21.215Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Plated & Ready for pickup"
+      },
+      {
+        "status": "Ready for Pickup",
+        "timestamp": "2026-11-13T09:02:21.224Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Order ready for customer pickup"
+      },
+      {
+        "status": "Completed",
+        "timestamp": "2026-11-13T09:02:23.803Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Order advanced to Completed"
+      },
+      {
+        "status": "Completed",
+        "timestamp": "2026-11-13T09:02:23.815Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Status updated to Completed"
+      }
+    ],
+    "verifiedBy": "Automated Webhook (GCash (PayMongo))",
+    "verifiedAt": "2026-11-13T08:53:03.202Z",
+    "membershipActivated": true,
+    "membershipId": "MEM-VIP-387",
+    "completedAt": "2026-11-13T09:02:23.803Z"
+  },
+  {
+    "id": "ORD-4589",
+    "orderId": "ORD-4589",
+    "customer": "Kiosk Guest",
+    "orderType": "Dine-In",
+    "diningOption": "Dine-In",
+    "location": "Table 1",
+    "tableId": "Table 1",
+    "tableNumber": "Table 1",
+    "kioskId": "21399F",
+    "restaurantId": "umami",
+    "item": {
+      "id": "DRK-006-Medium-reg--",
+      "sku": "DRK-006",
+      "name": "Bottled Water (Medium)",
+      "description": "Purified drinking water.",
+      "price": 35,
+      "promoPrice": null,
+      "available": true,
+      "isExplicitlyUnavailable": false,
+      "isOutOfStock": false,
+      "stock": 115,
+      "sizes": [
+        {
+          "name": "Small",
+          "volume": "350 ml",
+          "price": 30,
+          "stock": 50
+        },
+        {
+          "name": "Medium",
+          "volume": "500 ml",
+          "price": 35,
+          "stock": 40
+        },
+        {
+          "name": "Large",
+          "volume": "1000 ml",
+          "price": 55,
+          "stock": 25
+        }
+      ],
+      "addons": [],
+      "allergens": [],
+      "tags": [
+        "healthy",
+        "drinks"
+      ],
+      "category": "Drinks & Boba",
+      "drinkCategory": "Bottled Drinks",
+      "catalogType": "drink",
+      "emoji": "💧",
+      "image": "https://th.bing.com/th/id/OIP.50DXuEV930QBh27MRvuo5AHaHa?w=192&h=192&c=7&r=0&o=7&dpr=1.3&pid=1.7&rm=3",
+      "originalId": "DRK-006",
+      "size": "Medium",
+      "volume": "500 ml",
+      "spiceLevel": null,
+      "specialNote": "",
+      "quantity": 1
+    },
+    "items": [
+      {
+        "id": "DRK-006-Medium-reg--",
+        "name": "Bottled Water (Medium)",
+        "qty": 1,
+        "quantity": 1,
+        "price": 35,
+        "image": "https://th.bing.com/th/id/OIP.50DXuEV930QBh27MRvuo5AHaHa?w=192&h=192&c=7&r=0&o=7&dpr=1.3&pid=1.7&rm=3",
+        "emoji": "💧",
+        "tags": [
+          "healthy",
+          "drinks"
+        ],
+        "customizations": []
+      },
+      {
+        "id": "MIX-01-Standard Serving-reg--",
+        "name": "Craft Bowl + Side + Drink Deal",
+        "qty": 1,
+        "quantity": 1,
+        "price": 429,
+        "image": "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=600&q=80",
+        "emoji": "🥢",
+        "tags": [
+          "popular",
+          "savory"
+        ],
+        "customizations": []
+      }
+    ],
+    "itemCount": 2,
+    "total": 464,
+    "totalPrice": 464,
+    "payment": "GCash",
+    "paymentStatus": "Successful",
+    "isPaymentVerified": true,
+    "receiptImage": null,
+    "referenceNumber": "TXN-GCASH-343602",
+    "isDuplicateRef": false,
+    "duplicateFoundInOrderId": null,
+    "receiptUploadedAt": null,
+    "status": "Completed",
+    "nextStatus": "Completed",
+    "stripeColor": "#059669",
+    "priority": "Normal",
+    "isWaitAlert": false,
+    "waitTime": "0 min",
+    "orderedTags": [
+      "healthy",
+      "drinks",
+      "popular",
+      "savory"
+    ],
+    "allergens": [
+      "peanuts",
+      "fish"
+    ],
+    "note": "Exclude: PEANUTS, FISH",
+    "isAllergy": true,
+    "busserName": null,
+    "device": "Desktop",
+    "platform": "Desktop",
+    "createdAt": "2026-11-13T08:52:59.152Z",
+    "updatedAt": "2026-11-13T09:02:24.538Z",
+    "statusHistory": [
+      {
+        "status": "Pending Payment Verification",
+        "timestamp": "2026-11-13T08:52:59.152Z",
+        "updatedBy": "Customer App",
+        "note": "Order placed. Awaiting payment verification."
+      },
+      {
+        "status": "New",
+        "timestamp": "2026-11-13T08:53:03.191Z",
+        "updatedBy": "Automated Webhook (GCash (PayMongo))",
+        "note": "Payment verified automatically via GCash (PayMongo) webhook (Ref: TXN-GCASH-343602). Sent to Kitchen."
+      },
+      {
+        "status": "Preparing",
+        "timestamp": "2026-11-13T09:02:17.734Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Order advanced to Preparing"
+      },
+      {
+        "status": "Preparing",
+        "timestamp": "2026-11-13T09:02:17.743Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Status updated to Preparing"
+      },
+      {
+        "status": "Ready for Pickup",
+        "timestamp": "2026-11-13T09:02:21.874Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Plated & Ready for pickup"
+      },
+      {
+        "status": "Ready for Pickup",
+        "timestamp": "2026-11-13T09:02:21.882Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Order ready for customer pickup"
+      },
+      {
+        "status": "Completed",
+        "timestamp": "2026-11-13T09:02:24.529Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Order advanced to Completed"
+      },
+      {
+        "status": "Completed",
+        "timestamp": "2026-11-13T09:02:24.538Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Status updated to Completed"
+      }
+    ],
+    "verifiedBy": "Automated Webhook (GCash (PayMongo))",
+    "verifiedAt": "2026-11-13T08:53:03.191Z",
+    "membershipActivated": true,
+    "membershipId": "MEM-VIP-387",
+    "completedAt": "2026-11-13T09:02:24.529Z"
+  },
+  {
+    "id": "ORD-1378",
+    "orderId": "ORD-1378",
+    "pickupToken": "U-355",
+    "customer": "Kiosk Guest (21399F)",
+    "orderType": "Dine-In",
+    "diningOption": "Dine-In",
+    "location": "Table 1",
+    "tableId": "Table 1",
+    "tableNumber": "Table 1",
+    "kioskId": "21399F",
+    "restaurantId": "umami",
+    "items": [
+      {
+        "id": "DRK-006-Medium-reg--",
+        "name": "Bottled Water (Medium)",
+        "qty": 1,
+        "quantity": 1,
+        "price": 35,
+        "image": "https://th.bing.com/th/id/OIP.50DXuEV930QBh27MRvuo5AHaHa?w=192&h=192&c=7&r=0&o=7&dpr=1.3&pid=1.7&rm=3",
+        "emoji": "💧",
+        "tags": [
+          "healthy",
+          "drinks"
+        ],
+        "customizations": []
+      },
+      {
+        "id": "MIX-01-Standard Serving-reg--",
+        "name": "Craft Bowl + Side + Drink Deal",
+        "qty": 1,
+        "quantity": 1,
+        "price": 429,
+        "image": "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=600&q=80",
+        "emoji": "🥢",
+        "tags": [
+          "popular",
+          "savory"
+        ],
+        "customizations": []
+      }
+    ],
+    "itemCount": 2,
+    "subtotal": 464,
+    "taxAmount": 49.71428571428578,
+    "discountAmount": 0,
+    "promoCode": null,
+    "total": 464,
+    "totalPrice": 464,
+    "payment": "GCash",
+    "paymentMethod": "GCash",
+    "paymentStatus": "Approved",
+    "isPaymentVerified": true,
+    "verifiedBy": "Simulated Gateway (GCash)",
+    "verifiedAt": "2026-11-13T08:52:58.999Z",
+    "referenceNumber": "TXN-UMAMI-MWEQOCGF-1512",
+    "isDuplicateRef": false,
+    "status": "Completed",
+    "nextStatus": "Completed",
+    "stripeColor": "#059669",
+    "priority": "Normal",
+    "isWaitAlert": false,
+    "waitTime": "0 min",
+    "orderedTags": [],
+    "allergens": [],
+    "note": "",
+    "isAllergy": false,
+    "device": "Kiosk",
+    "platform": "Kiosk",
+    "createdAt": "2026-11-13T08:52:58.999Z",
+    "updatedAt": "2026-11-13T08:53:47.626Z",
+    "statusHistory": [
+      {
+        "status": "New",
+        "timestamp": "2026-11-13T08:52:58.999Z",
+        "updatedBy": "Simulated Gateway (GCash)",
+        "note": "Payment verified via Simulated Gateway (GCash) (Ref: TXN-UMAMI-MWEQOCGF-1512). Auto-sent to Kitchen."
+      },
+      {
+        "status": "Preparing",
+        "timestamp": "2026-11-13T08:53:30.500Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Order advanced to Preparing"
+      },
+      {
+        "status": "Preparing",
+        "timestamp": "2026-11-13T08:53:30.520Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Status updated to Preparing"
+      },
+      {
+        "status": "Ready for Pickup",
+        "timestamp": "2026-11-13T08:53:34.453Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Plated & Ready for pickup"
+      },
+      {
+        "status": "Ready for Pickup",
+        "timestamp": "2026-11-13T08:53:34.465Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Order ready for customer pickup"
+      },
+      {
+        "status": "Completed",
+        "timestamp": "2026-11-13T08:53:47.615Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Order advanced to Completed"
+      },
+      {
+        "status": "Completed",
+        "timestamp": "2026-11-13T08:53:47.626Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Status updated to Completed"
+      }
+    ],
+    "completedAt": "2026-11-13T08:53:47.615Z"
+  },
+  {
+    "id": "ORD-6863",
+    "orderId": "ORD-6863",
+    "customer": "Kiosk Guest",
+    "orderType": "Dine-In",
+    "diningOption": "Dine-In",
+    "location": "Table 1",
+    "tableId": "Table 1",
+    "tableNumber": "Table 1",
+    "kioskId": "MOBILE_01",
+    "restaurantId": "umami",
+    "item": {
+      "id": "MIX-02-Standard Serving-reg--",
+      "name": "Artisan Ramen & Gyoza Pair Set",
+      "description": "Hand-pulled noodle specialty paired with crispy dumplings and dipping sauce.",
+      "price": 389,
+      "originalPrice": 490,
+      "badge": "Save ₱101",
+      "allergens": [
+        "gluten"
+      ],
+      "tags": [
+        "spicy"
+      ],
+      "emoji": "🍜",
+      "image": "https://images.unsplash.com/photo-1569718212165-3a8278d5f624?auto=format&fit=crop&w=600&q=80",
+      "available": true,
+      "category": "Mix & Match Deals",
+      "catalogType": "mixmatch",
+      "originalId": "MIX-02",
+      "size": "Standard Serving",
+      "volume": "",
+      "spiceLevel": null,
+      "addons": [],
+      "specialNote": "",
+      "quantity": 1
+    },
+    "items": [
+      {
+        "id": "MIX-02-Standard Serving-reg--",
+        "name": "Artisan Ramen & Gyoza Pair Set",
+        "qty": 1,
+        "quantity": 1,
+        "price": 389,
+        "image": "https://images.unsplash.com/photo-1569718212165-3a8278d5f624?auto=format&fit=crop&w=600&q=80",
+        "emoji": "🍜",
+        "tags": [
+          "spicy"
+        ],
+        "customizations": []
+      }
+    ],
+    "itemCount": 1,
+    "total": 389,
+    "totalPrice": 389,
+    "payment": "MariBank",
+    "paymentStatus": "Successful",
+    "isPaymentVerified": true,
+    "receiptImage": null,
+    "referenceNumber": "TXN-MARIBANK-165036",
+    "isDuplicateRef": false,
+    "duplicateFoundInOrderId": null,
+    "receiptUploadedAt": null,
+    "status": "Completed",
+    "nextStatus": "Completed",
+    "stripeColor": "#059669",
+    "priority": "Normal",
+    "isWaitAlert": false,
+    "waitTime": "0 min",
+    "orderedTags": [
+      "spicy"
+    ],
+    "allergens": [],
+    "note": "",
+    "isAllergy": false,
+    "busserName": null,
+    "device": "Desktop",
+    "platform": "Desktop",
+    "createdAt": "2026-11-13T08:41:51.371Z",
+    "updatedAt": "2026-11-13T08:52:08.255Z",
+    "statusHistory": [
+      {
+        "status": "Pending Payment Verification",
+        "timestamp": "2026-11-13T08:41:51.371Z",
+        "updatedBy": "Customer App",
+        "note": "Order placed. Awaiting payment verification."
+      },
+      {
+        "status": "New",
+        "timestamp": "2026-11-13T08:42:22.821Z",
+        "updatedBy": "Automated Webhook (MariBank Digital)",
+        "note": "Payment verified automatically via MariBank Digital webhook (Ref: TXN-MARIBANK-165036). Sent to Kitchen."
+      },
+      {
+        "status": "Preparing",
+        "timestamp": "2026-11-13T08:52:04.325Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Order advanced to Preparing"
+      },
+      {
+        "status": "Preparing",
+        "timestamp": "2026-11-13T08:52:04.336Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Status updated to Preparing"
+      },
+      {
+        "status": "Ready for Pickup",
+        "timestamp": "2026-11-13T08:52:05.918Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Plated & Ready for pickup"
+      },
+      {
+        "status": "Ready for Pickup",
+        "timestamp": "2026-11-13T08:52:05.929Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Order ready for customer pickup"
+      },
+      {
+        "status": "Completed",
+        "timestamp": "2026-11-13T08:52:08.227Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Order advanced to Completed"
+      },
+      {
+        "status": "Completed",
+        "timestamp": "2026-11-13T08:52:08.255Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Status updated to Completed"
+      }
+    ],
+    "verifiedBy": "Automated Webhook (MariBank Digital)",
+    "verifiedAt": "2026-11-13T08:42:22.821Z",
+    "membershipActivated": true,
+    "membershipId": "MEM-VIP-387",
+    "completedAt": "2026-11-13T08:52:08.227Z"
+  },
+  {
+    "id": "ORD-2130",
+    "orderId": "ORD-2130",
+    "pickupToken": "U-400",
+    "customer": "Kiosk Guest (MOBILE_01)",
+    "orderType": "Dine-In",
+    "diningOption": "Dine-In",
+    "location": "Table 1",
+    "tableId": "Table 1",
+    "tableNumber": "Table 1",
+    "kioskId": "MOBILE_01",
+    "restaurantId": "umami",
+    "items": [
+      {
+        "id": "MIX-02-Standard Serving-reg--",
+        "name": "Artisan Ramen & Gyoza Pair Set",
+        "qty": 1,
+        "quantity": 1,
+        "price": 389,
+        "image": "https://images.unsplash.com/photo-1569718212165-3a8278d5f624?auto=format&fit=crop&w=600&q=80",
+        "emoji": "🍜",
+        "tags": [
+          "spicy"
+        ],
+        "customizations": []
+      }
+    ],
+    "itemCount": 1,
+    "subtotal": 389,
+    "taxAmount": 41.678571428571445,
+    "discountAmount": 0,
+    "promoCode": null,
+    "total": 389,
+    "totalPrice": 389,
+    "payment": "MariBank",
+    "paymentMethod": "MariBank",
+    "paymentStatus": "Approved",
+    "isPaymentVerified": true,
+    "verifiedBy": "Simulated Gateway (MariBank)",
+    "verifiedAt": "2026-11-13T08:41:51.286Z",
+    "referenceNumber": "TXN-UMAMI-MWEQ9Z25-5639",
+    "isDuplicateRef": false,
+    "status": "Completed",
+    "nextStatus": "Completed",
+    "stripeColor": "#059669",
+    "priority": "Normal",
+    "isWaitAlert": false,
+    "waitTime": "0 min",
+    "orderedTags": [],
+    "allergens": [],
+    "note": "",
+    "isAllergy": false,
+    "device": "Kiosk",
+    "platform": "Kiosk",
+    "createdAt": "2026-11-13T08:41:51.286Z",
+    "updatedAt": "2026-11-13T08:52:01.073Z",
+    "statusHistory": [
+      {
+        "status": "New",
+        "timestamp": "2026-11-13T08:41:51.286Z",
+        "updatedBy": "Simulated Gateway (MariBank)",
+        "note": "Payment verified via Simulated Gateway (MariBank) (Ref: TXN-UMAMI-MWEQ9Z25-5639). Auto-sent to Kitchen."
+      },
+      {
+        "status": "Preparing",
+        "timestamp": "2026-11-13T08:42:38.927Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Order advanced to Preparing"
+      },
+      {
+        "status": "Preparing",
+        "timestamp": "2026-11-13T08:42:38.931Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Status updated to Preparing"
+      },
+      {
+        "status": "Ready for Pickup",
+        "timestamp": "2026-11-13T08:42:45.681Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Plated & Ready for pickup"
+      },
+      {
+        "status": "Ready for Pickup",
+        "timestamp": "2026-11-13T08:42:45.686Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Order ready for customer pickup"
+      },
+      {
+        "status": "Completed",
+        "timestamp": "2026-11-13T08:52:00.887Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Order advanced to Completed"
+      },
+      {
+        "status": "Completed",
+        "timestamp": "2026-11-13T08:52:01.073Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Status updated to Completed"
+      }
+    ],
+    "completedAt": "2026-11-13T08:52:00.887Z"
+  },
+  {
+    "id": "ORD-7221",
+    "orderId": "ORD-7221",
+    "customer": "Kiosk Guest",
+    "orderType": "Dine-In",
+    "diningOption": "Dine-In",
+    "location": "Table 1",
+    "tableId": "Table 1",
+    "tableNumber": "Table 1",
+    "kioskId": "6EQBNC",
+    "restaurantId": "umami",
+    "item": {
+      "id": "MIX-02-Standard Serving-reg--",
+      "name": "Artisan Ramen & Gyoza Pair Set",
+      "description": "Hand-pulled noodle specialty paired with crispy dumplings and dipping sauce.",
+      "price": 389,
+      "originalPrice": 490,
+      "badge": "Save ₱101",
+      "allergens": [
+        "gluten"
+      ],
+      "tags": [
+        "spicy"
+      ],
+      "emoji": "🍜",
+      "image": "https://images.unsplash.com/photo-1569718212165-3a8278d5f624?auto=format&fit=crop&w=600&q=80",
+      "available": true,
+      "category": "Mix & Match Deals",
+      "catalogType": "mixmatch",
+      "originalId": "MIX-02",
+      "size": "Standard Serving",
+      "volume": "",
+      "spiceLevel": null,
+      "addons": [],
+      "specialNote": "",
+      "quantity": 1
+    },
+    "items": [
+      {
+        "id": "MIX-02-Standard Serving-reg--",
+        "name": "Artisan Ramen & Gyoza Pair Set",
+        "qty": 1,
+        "quantity": 1,
+        "price": 389,
+        "image": "https://images.unsplash.com/photo-1569718212165-3a8278d5f624?auto=format&fit=crop&w=600&q=80",
+        "emoji": "🍜",
+        "tags": [
+          "spicy"
+        ],
+        "customizations": []
+      },
+      {
+        "id": "MIX-03-Standard Serving-reg--",
+        "name": "Twin Boba & Dessert Feast",
+        "qty": 1,
+        "quantity": 1,
+        "price": 319,
+        "image": "https://images.unsplash.com/photo-1562440499-64c9a111f713?auto=format&fit=crop&w=600&q=80",
+        "emoji": "🍧",
+        "tags": [
+          "sweet"
+        ],
+        "customizations": []
+      }
+    ],
+    "itemCount": 2,
+    "total": 708,
+    "totalPrice": 708,
+    "payment": "GrabPay",
+    "paymentStatus": "Successful",
+    "isPaymentVerified": true,
+    "receiptImage": null,
+    "referenceNumber": "TXN-GRABPAY-108872",
+    "isDuplicateRef": false,
+    "duplicateFoundInOrderId": null,
+    "receiptUploadedAt": null,
+    "status": "Completed",
+    "nextStatus": "Completed",
+    "stripeColor": "#059669",
+    "priority": "Normal",
+    "isWaitAlert": false,
+    "waitTime": "0 min",
+    "orderedTags": [
+      "spicy",
+      "sweet"
+    ],
+    "allergens": [],
+    "note": "",
+    "isAllergy": false,
+    "busserName": null,
+    "device": "Desktop",
+    "platform": "Desktop",
+    "createdAt": "2026-11-13T08:25:37.061Z",
+    "updatedAt": "2026-11-13T08:52:10.450Z",
+    "statusHistory": [
+      {
+        "status": "Pending Payment Verification",
+        "timestamp": "2026-11-13T08:25:37.061Z",
+        "updatedBy": "Customer App",
+        "note": "Order placed. Awaiting payment verification."
+      },
+      {
+        "status": "New",
+        "timestamp": "2026-11-13T08:26:09.965Z",
+        "updatedBy": "Automated Webhook (GrabPay Wallet)",
+        "note": "Payment verified automatically via GrabPay Wallet webhook (Ref: TXN-GRABPAY-108872). Sent to Kitchen."
+      },
+      {
+        "status": "Preparing",
+        "timestamp": "2026-11-13T08:52:06.725Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Order advanced to Preparing"
+      },
+      {
+        "status": "Preparing",
+        "timestamp": "2026-11-13T08:52:06.834Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Status updated to Preparing"
+      },
+      {
+        "status": "Ready for Pickup",
+        "timestamp": "2026-11-13T08:52:09.868Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Plated & Ready for pickup"
+      },
+      {
+        "status": "Ready for Pickup",
+        "timestamp": "2026-11-13T08:52:09.892Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Order ready for customer pickup"
+      },
+      {
+        "status": "Completed",
+        "timestamp": "2026-11-13T08:52:10.428Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Order advanced to Completed"
+      },
+      {
+        "status": "Completed",
+        "timestamp": "2026-11-13T08:52:10.450Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Status updated to Completed"
+      }
+    ],
+    "verifiedBy": "Automated Webhook (GrabPay Wallet)",
+    "verifiedAt": "2026-11-13T08:26:09.965Z",
+    "membershipActivated": true,
+    "membershipId": "MEM-VIP-387",
+    "completedAt": "2026-11-13T08:52:10.428Z"
+  },
+  {
+    "id": "ORD-6160",
+    "orderId": "ORD-6160",
+    "customer": "Kiosk Guest",
+    "orderType": "Dine-In",
+    "diningOption": "Dine-In",
+    "location": "Table 1",
+    "tableId": "Table 1",
+    "tableNumber": "Table 1",
+    "kioskId": "6EQBNC",
+    "restaurantId": "umami",
+    "item": {
+      "id": "MIX-02-Standard Serving-reg--",
+      "name": "Artisan Ramen & Gyoza Pair Set",
+      "description": "Hand-pulled noodle specialty paired with crispy dumplings and dipping sauce.",
+      "price": 389,
+      "originalPrice": 490,
+      "badge": "Save ₱101",
+      "allergens": [
+        "gluten"
+      ],
+      "tags": [
+        "spicy"
+      ],
+      "emoji": "🍜",
+      "image": "https://images.unsplash.com/photo-1569718212165-3a8278d5f624?auto=format&fit=crop&w=600&q=80",
+      "available": true,
+      "category": "Mix & Match Deals",
+      "catalogType": "mixmatch",
+      "originalId": "MIX-02",
+      "size": "Standard Serving",
+      "volume": "",
+      "spiceLevel": null,
+      "addons": [],
+      "specialNote": "",
+      "quantity": 1
+    },
+    "items": [
+      {
+        "id": "MIX-02-Standard Serving-reg--",
+        "name": "Artisan Ramen & Gyoza Pair Set",
+        "qty": 1,
+        "quantity": 1,
+        "price": 389,
+        "image": "https://images.unsplash.com/photo-1569718212165-3a8278d5f624?auto=format&fit=crop&w=600&q=80",
+        "emoji": "🍜",
+        "tags": [
+          "spicy"
+        ],
+        "customizations": []
+      },
+      {
+        "id": "MIX-03-Standard Serving-reg--",
+        "name": "Twin Boba & Dessert Feast",
+        "qty": 1,
+        "quantity": 1,
+        "price": 319,
+        "image": "https://images.unsplash.com/photo-1562440499-64c9a111f713?auto=format&fit=crop&w=600&q=80",
+        "emoji": "🍧",
+        "tags": [
+          "sweet"
+        ],
+        "customizations": []
+      }
+    ],
+    "itemCount": 2,
+    "total": 708,
+    "totalPrice": 708,
+    "payment": "GrabPay",
+    "paymentStatus": "Successful",
+    "isPaymentVerified": true,
+    "receiptImage": null,
+    "referenceNumber": "TXN-GRABPAY-821575",
+    "isDuplicateRef": false,
+    "duplicateFoundInOrderId": null,
+    "receiptUploadedAt": null,
+    "status": "Completed",
+    "nextStatus": "Completed",
+    "stripeColor": "#059669",
+    "priority": "Normal",
+    "isWaitAlert": false,
+    "waitTime": "0 min",
+    "orderedTags": [
+      "spicy",
+      "sweet"
+    ],
+    "allergens": [],
+    "note": "",
+    "isAllergy": false,
+    "busserName": null,
+    "device": "Desktop",
+    "platform": "Desktop",
+    "createdAt": "2026-11-13T08:25:37.026Z",
+    "updatedAt": "2026-11-13T08:52:12.168Z",
+    "statusHistory": [
+      {
+        "status": "Pending Payment Verification",
+        "timestamp": "2026-11-13T08:25:37.026Z",
+        "updatedBy": "Customer App",
+        "note": "Order placed. Awaiting payment verification."
+      },
+      {
+        "status": "New",
+        "timestamp": "2026-11-13T08:26:09.952Z",
+        "updatedBy": "Automated Webhook (GrabPay Wallet)",
+        "note": "Payment verified automatically via GrabPay Wallet webhook (Ref: TXN-GRABPAY-821575). Sent to Kitchen."
+      },
+      {
+        "status": "Preparing",
+        "timestamp": "2026-11-13T08:40:40.539Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Order advanced to Preparing"
+      },
+      {
+        "status": "Preparing",
+        "timestamp": "2026-11-13T08:40:40.546Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Status updated to Preparing"
+      },
+      {
+        "status": "Ready for Pickup",
+        "timestamp": "2026-11-13T08:52:11.187Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Plated & Ready for pickup"
+      },
+      {
+        "status": "Ready for Pickup",
+        "timestamp": "2026-11-13T08:52:11.200Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Order ready for customer pickup"
+      },
+      {
+        "status": "Completed",
+        "timestamp": "2026-11-13T08:52:12.106Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Order advanced to Completed"
+      },
+      {
+        "status": "Completed",
+        "timestamp": "2026-11-13T08:52:12.168Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Status updated to Completed"
+      }
+    ],
+    "verifiedBy": "Automated Webhook (GrabPay Wallet)",
+    "verifiedAt": "2026-11-13T08:26:09.952Z",
+    "membershipActivated": true,
+    "membershipId": "MEM-VIP-387",
+    "completedAt": "2026-11-13T08:52:12.106Z"
+  },
+  {
+    "id": "ORD-2533",
+    "orderId": "ORD-2533",
+    "pickupToken": "U-205",
+    "customer": "Kiosk Guest (6EQBNC)",
+    "orderType": "Dine-In",
+    "diningOption": "Dine-In",
+    "location": "Table 1",
+    "tableId": "Table 1",
+    "tableNumber": "Table 1",
+    "kioskId": "6EQBNC",
+    "restaurantId": "umami",
+    "items": [
+      {
+        "id": "MIX-02-Standard Serving-reg--",
+        "name": "Artisan Ramen & Gyoza Pair Set",
+        "qty": 1,
+        "quantity": 1,
+        "price": 389,
+        "image": "https://images.unsplash.com/photo-1569718212165-3a8278d5f624?auto=format&fit=crop&w=600&q=80",
+        "emoji": "🍜",
+        "tags": [
+          "spicy"
+        ],
+        "customizations": []
+      },
+      {
+        "id": "MIX-03-Standard Serving-reg--",
+        "name": "Twin Boba & Dessert Feast",
+        "qty": 1,
+        "quantity": 1,
+        "price": 319,
+        "image": "https://images.unsplash.com/photo-1562440499-64c9a111f713?auto=format&fit=crop&w=600&q=80",
+        "emoji": "🍧",
+        "tags": [
+          "sweet"
+        ],
+        "customizations": []
+      }
+    ],
+    "itemCount": 2,
+    "subtotal": 708,
+    "taxAmount": 75.85714285714289,
+    "discountAmount": 0,
+    "promoCode": null,
+    "total": 708,
+    "totalPrice": 708,
+    "payment": "GrabPay",
+    "paymentMethod": "GrabPay",
+    "paymentStatus": "Approved",
+    "isPaymentVerified": true,
+    "verifiedBy": "Simulated Gateway (GrabPay)",
+    "verifiedAt": "2026-11-13T08:25:36.916Z",
+    "referenceNumber": "TXN-UMAMI-MWEPP4AO-8849",
+    "isDuplicateRef": false,
+    "status": "Completed",
+    "nextStatus": "Completed",
+    "stripeColor": "#059669",
+    "priority": "Normal",
+    "isWaitAlert": false,
+    "waitTime": "0 min",
+    "orderedTags": [],
+    "allergens": [],
+    "note": "",
+    "isAllergy": false,
+    "device": "Kiosk",
+    "platform": "Kiosk",
+    "createdAt": "2026-11-13T08:25:36.916Z",
+    "updatedAt": "2026-11-13T08:42:37.809Z",
+    "statusHistory": [
+      {
+        "status": "New",
+        "timestamp": "2026-11-13T08:25:36.916Z",
+        "updatedBy": "Simulated Gateway (GrabPay)",
+        "note": "Payment verified via Simulated Gateway (GrabPay) (Ref: TXN-UMAMI-MWEPP4AO-8849). Auto-sent to Kitchen."
+      },
+      {
+        "status": "Preparing",
+        "timestamp": "2026-11-13T08:40:42.733Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Order advanced to Preparing"
+      },
+      {
+        "status": "Preparing",
+        "timestamp": "2026-11-13T08:40:42.742Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Status updated to Preparing"
+      },
+      {
+        "status": "Ready for Pickup",
+        "timestamp": "2026-11-13T08:40:48.542Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Plated & Ready for pickup"
+      },
+      {
+        "status": "Ready for Pickup",
+        "timestamp": "2026-11-13T08:40:48.546Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Order ready for customer pickup"
+      },
+      {
+        "status": "Completed",
+        "timestamp": "2026-11-13T08:42:37.802Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Order advanced to Completed"
+      },
+      {
+        "status": "Completed",
+        "timestamp": "2026-11-13T08:42:37.809Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Status updated to Completed"
+      }
+    ],
+    "completedAt": "2026-11-13T08:42:37.802Z"
+  },
+  {
     "id": "ORD-2127",
     "orderId": "ORD-2127",
     "pickupToken": "U-310",
@@ -39,8 +1169,8 @@
     "verifiedAt": "2026-11-13T08:02:41.786Z",
     "referenceNumber": "TXN-UMAMI-MWEOVPPG-4380",
     "isDuplicateRef": false,
-    "status": "New",
-    "nextStatus": "Start Preparing",
+    "status": "Completed",
+    "nextStatus": "Completed",
     "stripeColor": "#059669",
     "priority": "Normal",
     "isWaitAlert": false,
@@ -52,15 +1182,52 @@
     "device": "Kiosk",
     "platform": "Kiosk",
     "createdAt": "2026-11-13T08:02:41.786Z",
-    "updatedAt": "2026-11-13T08:02:41.786Z",
+    "updatedAt": "2026-11-13T08:40:44.659Z",
     "statusHistory": [
       {
         "status": "New",
         "timestamp": "2026-11-13T08:02:41.786Z",
         "updatedBy": "PayMongo (Visa •••• 4242)",
         "note": "Payment verified via PayMongo (Visa •••• 4242) (Ref: TXN-UMAMI-MWEOVPPG-4380). Auto-sent to Kitchen."
+      },
+      {
+        "status": "Preparing",
+        "timestamp": "2026-11-13T08:40:41.711Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Order advanced to Preparing"
+      },
+      {
+        "status": "Preparing",
+        "timestamp": "2026-11-13T08:40:41.720Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Status updated to Preparing"
+      },
+      {
+        "status": "Ready for Pickup",
+        "timestamp": "2026-11-13T08:40:44.342Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Plated & Ready for pickup"
+      },
+      {
+        "status": "Ready for Pickup",
+        "timestamp": "2026-11-13T08:40:44.347Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Order ready for customer pickup"
+      },
+      {
+        "status": "Completed",
+        "timestamp": "2026-11-13T08:40:44.623Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Order advanced to Completed"
+      },
+      {
+        "status": "Completed",
+        "timestamp": "2026-11-13T08:40:44.659Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Status updated to Completed"
       }
-    ]
+    ],
+    "completedAt": "2026-11-13T08:40:44.623Z"
   },
   {
     "id": "ORD-8809",
@@ -113,8 +1280,8 @@
     "verifiedAt": "2026-11-13T08:02:22.260Z",
     "referenceNumber": "TXN-UMAMI-MWEOVAMY-5201",
     "isDuplicateRef": false,
-    "status": "New",
-    "nextStatus": "Start Preparing",
+    "status": "Completed",
+    "nextStatus": "Completed",
     "stripeColor": "#059669",
     "priority": "Normal",
     "isWaitAlert": false,
@@ -126,15 +1293,52 @@
     "device": "Kiosk",
     "platform": "Kiosk",
     "createdAt": "2026-11-13T08:02:22.260Z",
-    "updatedAt": "2026-11-13T08:02:22.260Z",
+    "updatedAt": "2026-11-13T08:40:46.935Z",
     "statusHistory": [
       {
         "status": "New",
         "timestamp": "2026-11-13T08:02:22.260Z",
         "updatedBy": "QR Ph (GCash)",
         "note": "Payment verified via QR Ph (GCash) (Ref: TXN-UMAMI-MWEOVAMY-5201). Auto-sent to Kitchen."
+      },
+      {
+        "status": "Preparing",
+        "timestamp": "2026-11-13T08:40:45.295Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Order advanced to Preparing"
+      },
+      {
+        "status": "Preparing",
+        "timestamp": "2026-11-13T08:40:45.303Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Status updated to Preparing"
+      },
+      {
+        "status": "Ready for Pickup",
+        "timestamp": "2026-11-13T08:40:45.880Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Plated & Ready for pickup"
+      },
+      {
+        "status": "Ready for Pickup",
+        "timestamp": "2026-11-13T08:40:45.886Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Order ready for customer pickup"
+      },
+      {
+        "status": "Completed",
+        "timestamp": "2026-11-13T08:40:46.925Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Order advanced to Completed"
+      },
+      {
+        "status": "Completed",
+        "timestamp": "2026-11-13T08:40:46.935Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Status updated to Completed"
       }
-    ]
+    ],
+    "completedAt": "2026-11-13T08:40:46.925Z"
   },
   {
     "id": "ORD-1717",
@@ -241,8 +1445,8 @@
     "isDuplicateRef": false,
     "duplicateFoundInOrderId": null,
     "receiptUploadedAt": null,
-    "status": "New",
-    "nextStatus": "Start Preparing",
+    "status": "Completed",
+    "nextStatus": "Completed",
     "stripeColor": "#059669",
     "priority": "Normal",
     "isWaitAlert": false,
@@ -262,7 +1466,7 @@
     "device": "Desktop",
     "platform": "Desktop",
     "createdAt": "2026-11-13T06:37:20.144Z",
-    "updatedAt": "2026-11-13T06:37:21.375Z",
+    "updatedAt": "2026-11-13T08:53:45.811Z",
     "statusHistory": [
       {
         "status": "Pending Payment Verification",
@@ -275,12 +1479,85 @@
         "timestamp": "2026-11-13T06:37:21.369Z",
         "updatedBy": "Automated Webhook (GCash (PayMongo))",
         "note": "Payment verified automatically via GCash (PayMongo) webhook (Ref: TXN-GCASH-742337). Sent to Kitchen."
+      },
+      {
+        "status": "Preparing",
+        "timestamp": "2026-11-13T08:40:53.430Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Order advanced to Preparing"
+      },
+      {
+        "status": "Preparing",
+        "timestamp": "2026-11-13T08:40:53.437Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Status updated to Preparing"
+      },
+      {
+        "status": "Ready for Pickup",
+        "timestamp": "2026-11-13T08:42:44.614Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Plated & Ready for pickup"
+      },
+      {
+        "status": "Ready for Pickup",
+        "timestamp": "2026-11-13T08:42:44.617Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Order ready for customer pickup"
+      },
+      {
+        "status": "Completed",
+        "timestamp": "2026-11-13T08:42:48.249Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Order advanced to Completed"
+      },
+      {
+        "status": "Completed",
+        "timestamp": "2026-11-13T08:42:48.253Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Status updated to Completed"
+      },
+      {
+        "status": "Preparing",
+        "timestamp": "2026-11-13T08:53:28.589Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Order advanced to Preparing"
+      },
+      {
+        "status": "Preparing",
+        "timestamp": "2026-11-13T08:53:28.596Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Status updated to Preparing"
+      },
+      {
+        "status": "Ready for Pickup",
+        "timestamp": "2026-11-13T08:53:33.760Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Plated & Ready for pickup"
+      },
+      {
+        "status": "Ready for Pickup",
+        "timestamp": "2026-11-13T08:53:33.769Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Order ready for customer pickup"
+      },
+      {
+        "status": "Completed",
+        "timestamp": "2026-11-13T08:53:45.791Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Order advanced to Completed"
+      },
+      {
+        "status": "Completed",
+        "timestamp": "2026-11-13T08:53:45.811Z",
+        "updatedBy": "Kitchen Staff",
+        "note": "Status updated to Completed"
       }
     ],
     "verifiedBy": "Automated Webhook (GCash (PayMongo))",
     "verifiedAt": "2026-11-13T06:37:21.369Z",
     "membershipActivated": true,
-    "membershipId": "MEM-VIP-387"
+    "membershipId": "MEM-VIP-387",
+    "completedAt": "2026-11-13T08:42:48.249Z"
   },
   {
     "id": "ORD-3145",

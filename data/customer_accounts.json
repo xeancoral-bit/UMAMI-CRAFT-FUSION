@@ -113,16 +113,56 @@
     "membershipStatus": "Active",
     "subscriptionPlan": "Umami VIP Gourmet Club",
     "subscriptionStatus": "Active",
-    "activatedAt": "2026-11-13T06:37:21.369Z",
-    "expiresAt": "2026-12-13T06:37:21.388Z",
-    "pointsBalance": 43,
-    "totalSpent": 434,
+    "activatedAt": "2026-11-13T08:53:03.202Z",
+    "expiresAt": "2026-12-13T08:53:03.206Z",
+    "pointsBalance": 313,
+    "totalSpent": 3167,
     "perks": [
       "10% Off All Specialties",
       "Priority Kitchen Queue",
       "Free Boba Perk"
     ],
     "recentTransactions": [
+      {
+        "transactionId": "TXN-GCASH-505292",
+        "orderId": "ORD-3742",
+        "amount": 464,
+        "type": "Umami VIP Gourmet Club Automated Webhook Settlement",
+        "status": "Successful",
+        "date": "2026-11-13T08:53:03.202Z"
+      },
+      {
+        "transactionId": "TXN-GCASH-343602",
+        "orderId": "ORD-4589",
+        "amount": 464,
+        "type": "Umami VIP Gourmet Club Automated Webhook Settlement",
+        "status": "Successful",
+        "date": "2026-11-13T08:53:03.191Z"
+      },
+      {
+        "transactionId": "TXN-MARIBANK-165036",
+        "orderId": "ORD-6863",
+        "amount": 389,
+        "type": "Umami VIP Gourmet Club Automated Webhook Settlement",
+        "status": "Successful",
+        "date": "2026-11-13T08:42:22.821Z"
+      },
+      {
+        "transactionId": "TXN-GRABPAY-108872",
+        "orderId": "ORD-7221",
+        "amount": 708,
+        "type": "Umami VIP Gourmet Club Automated Webhook Settlement",
+        "status": "Successful",
+        "date": "2026-11-13T08:26:09.965Z"
+      },
+      {
+        "transactionId": "TXN-GRABPAY-821575",
+        "orderId": "ORD-6160",
+        "amount": 708,
+        "type": "Umami VIP Gourmet Club Automated Webhook Settlement",
+        "status": "Successful",
+        "date": "2026-11-13T08:26:09.952Z"
+      },
       {
         "transactionId": "TXN-GCASH-742337",
         "orderId": "ORD-1717",
@@ -132,6 +172,6 @@
         "date": "2026-11-13T06:37:21.369Z"
       }
     ],
-    "lastPaymentReference": "TXN-GCASH-742337"
+    "lastPaymentReference": "TXN-GCASH-505292"
   }
 ]

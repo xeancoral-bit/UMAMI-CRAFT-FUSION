@@ -60,11 +60,11 @@
     "staffData": null,
     "reportStatus": "Approved",
     "reviewedBy": "Chief Administrator",
-    "reviewedAt": "2026-11-13T08:02:41.801Z",
+    "reviewedAt": "2026-11-13T09:02:24.579Z",
     "reviewNotes": "All register transactions reconciled with POS tape. Drawer count is 100% accurate.",
     "employeeNotes": "Morning shift ran smoothly. Processed 10 POS orders (₱5,152.00) with zero cashier delays.",
     "createdAt": "2026-11-11T20:27:19.264Z",
-    "updatedAt": "2026-11-13T08:02:41.802Z"
+    "updatedAt": "2026-11-13T09:36:13.838Z"
   },
   {
     "id": "RPT-20261111-002",
@@ -87,11 +87,11 @@
       "registerId": "POS-02 (Takeout & Online)",
       "openingFloat": 2500,
       "cashSales": 1500,
-      "digitalSales": 12579.8,
-      "gcashSales": 10495.8,
-      "cardSales": 2084,
-      "totalSales": 14079.8,
-      "transactionsCount": 19,
+      "digitalSales": 16873.8,
+      "gcashSales": 11887.8,
+      "cardSales": 4986,
+      "totalSales": 18373.8,
+      "transactionsCount": 27,
       "cashReceived": 1500,
       "changeGiven": 0,
       "refundsCount": 0,
@@ -103,6 +103,14 @@
       "varianceStatus": "Balanced",
       "varianceReason": "System auto-reconciled with POS tape and verified payment records.",
       "handledOrderIds": [
+        "ORD-3742",
+        "ORD-4589",
+        "ORD-1378",
+        "ORD-6863",
+        "ORD-2130",
+        "ORD-7221",
+        "ORD-6160",
+        "ORD-2533",
         "ORD-2127",
         "ORD-8809",
         "ORD-4745",
@@ -138,9 +146,9 @@
     "reviewedBy": null,
     "reviewedAt": null,
     "reviewNotes": "",
-    "employeeNotes": "Smooth evening rush. Processed 19 orders (₱14,079.80). GCash and card payments verified on terminal receipts.",
+    "employeeNotes": "Smooth evening rush. Processed 27 orders (₱18,373.80). GCash and card payments verified on terminal receipts.",
     "createdAt": "2026-11-11T20:27:19.264Z",
-    "updatedAt": "2026-11-13T08:02:41.802Z"
+    "updatedAt": "2026-11-13T09:36:13.838Z"
   },
   {
     "id": "RPT-20261111-003",
@@ -177,11 +185,11 @@
     },
     "reportStatus": "Approved",
     "reviewedBy": "Chief Administrator",
-    "reviewedAt": "2026-11-13T08:02:41.801Z",
+    "reviewedAt": "2026-11-13T09:02:24.581Z",
     "reviewNotes": "Outstanding food prep quality and zero food safety incidents.",
     "employeeNotes": "Allergen warning chime alerted line cooks promptly.",
     "createdAt": "2026-11-11T20:27:19.264Z",
-    "updatedAt": "2026-11-13T08:02:41.802Z"
+    "updatedAt": "2026-11-13T09:36:13.838Z"
   },
   {
     "id": "RPT-20261111-004",
@@ -204,7 +212,7 @@
     "staffData": {
       "assignedStation": "Noodle Boiler, Gyoza Fryer & Cold Station",
       "tasksCompleted": [
-        "Handled 19 evening tickets (46 total dishes)",
+        "Handled 27 evening tickets (60 total dishes)",
         "Deep cleaned gyoza griddle and noodle blanchers",
         "Sealed, labeled, and dated overnight prep vegetables",
         "Sterilized all cutting boards with food-grade sanitizing wash"
@@ -212,17 +220,17 @@
       "tasksPending": [
         "Reorder scallions and sesame seeds"
       ],
-      "kitchenOrdersHandled": 19,
+      "kitchenOrdersHandled": 27,
       "tableServiceCallsHandled": 0,
       "incidentsReported": "None. Kitchen stations fully cleaned for opening shift."
     },
     "reportStatus": "Approved",
     "reviewedBy": "Chief Administrator",
-    "reviewedAt": "2026-11-13T08:02:41.801Z",
+    "reviewedAt": "2026-11-13T09:02:24.581Z",
     "reviewNotes": "Closing kitchen sanitation completed ahead of schedule.",
     "employeeNotes": "Gyoza dough supply replenished for tomorrow morning.",
     "createdAt": "2026-11-11T20:27:19.264Z",
-    "updatedAt": "2026-11-13T08:02:41.802Z"
+    "updatedAt": "2026-11-13T09:36:13.838Z"
   },
   {
     "id": "RPT-20261111-005",
@@ -259,11 +267,11 @@
     },
     "reportStatus": "Approved",
     "reviewedBy": "Chief Administrator",
-    "reviewedAt": "2026-11-13T08:02:41.801Z",
+    "reviewedAt": "2026-11-13T09:02:24.581Z",
     "reviewNotes": "Great customer feedback on table service speed.",
     "employeeNotes": "Customers appreciated the immediate water refill response.",
     "createdAt": "2026-11-11T20:27:19.264Z",
-    "updatedAt": "2026-11-13T08:02:41.802Z"
+    "updatedAt": "2026-11-13T09:36:13.838Z"
   },
   {
     "id": "RPT-20261111-006",
@@ -304,7 +312,7 @@
     "reviewNotes": "",
     "employeeNotes": "Dinner shift ran smoothly with minimal wait times.",
     "createdAt": "2026-11-11T20:27:19.264Z",
-    "updatedAt": "2026-11-13T08:02:41.802Z"
+    "updatedAt": "2026-11-13T09:36:13.838Z"
   },
   {
     "id": "RPT-20261111-007",
@@ -341,11 +349,11 @@
     },
     "reportStatus": "Approved",
     "reviewedBy": "Chief Administrator",
-    "reviewedAt": "2026-11-13T08:02:41.801Z",
+    "reviewedAt": "2026-11-13T09:02:24.581Z",
     "reviewNotes": "Shift operations fully certified.",
-    "employeeNotes": "Overall restaurant performance on target. Daily revenue reached ₱19,231.80 across 29 orders.",
+    "employeeNotes": "Overall restaurant performance on target. Daily revenue reached ₱23,525.80 across 37 orders.",
     "createdAt": "2026-11-11T20:27:19.264Z",
-    "updatedAt": "2026-11-13T08:02:41.802Z"
+    "updatedAt": "2026-11-13T09:36:13.838Z"
   },
   {
     "id": "RPT-20261111-008",
@@ -381,11 +389,11 @@
     },
     "reportStatus": "Needs Correction",
     "reviewedBy": "Chief Administrator",
-    "reviewedAt": "2026-11-13T08:02:41.802Z",
+    "reviewedAt": "2026-11-13T09:02:24.582Z",
     "reviewNotes": "Please submit signed late slip from supervisor before final sign-off.",
     "employeeNotes": "Traffic delay caused 28-min late clock in. Completed all assigned duties.",
     "createdAt": "2026-11-11T20:27:19.264Z",
-    "updatedAt": "2026-11-13T08:02:41.802Z"
+    "updatedAt": "2026-11-13T09:36:13.838Z"
   },
   {
     "id": "RPT-20261112-001",

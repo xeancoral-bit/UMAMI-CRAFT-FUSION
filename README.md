@@ -517,18 +517,37 @@ erDiagram
     - Includes an **"Edit Diet"** header button that allows diners to modify their allergies or flavors at any time during their dining session.
   - **Privacy Guarantee:** All dietary data persists strictly in client `localStorage` and binds temporarily to the scoped session token, preventing data leakage across different guests.
 
-### 4. Payment Gateway Engine & E-Wallet Sub-Selection
+### 4. Payment Gateway Engine, Dynamic QR Ph & Card Checkout
 - **Payment Method Hierarchy:**
-  - **Cash:** Directs customer to pay at Front Counter POS (order status: `Pending Counter`).
-  - **Card:** Routes to debit/credit POS terminal.
-  - **E-Wallet:** Expands an online digital wallet tray with individual logos and active green highlight states:
-    - **GCash**
-    - **Maya**
-    - **PayPal**
-    - **MariBank**
-    - **GrabPay**
-    - **ShopeePay**
-    - **GoTyme Bank**
+  - **Cash:** Directs customer to pay at Front Counter POS (order status: `Pending Counter Cash Payment`).
+  - **Card:** Opens dedicated, bank-grade checkout form with auto-formatted 16-digit card input, expiration validation (`MM/YY`), masked CVV, live card brand detection (**Visa**, **Mastercard**, **JCB**, **American Express**), and simulated bank **3D Secure 2.0 multi-factor OTP identity verification**. Zero raw PAN/CVVs stored.
+  - **E-Wallet:** Expands an online digital wallet tray with individual logos and active green highlight states across 7 supported providers:
+    - **GCash** (Popular)
+    - **Maya** (QR Ph)
+    - **PayPal** (Global)
+    - **MariBank** (Digital Bank)
+    - **GrabPay** (GrabRewards)
+    - **ShopeePay** (Shopee App)
+    - **GoTyme Bank** (Go Rewards)
+- **Official Philippine QR Ph Standee Display:**
+  - Exact pixel-perfect reproduction of the national **Bangko Sentral ng Pilipinas (BSP) QR Ph** standard standee:
+    - Official stylized Philippine QR Ph logo + heavy bold **"SCAN NA ALL!"** headline + yellow **"NO FEES"** pill badge (`#FACC15`).
+    - Centered white container card displaying merchant **`UMAMI CRAFT FUSION INC.`**.
+    - Dynamically generated EMVCo-compliant QR code with the official QR Ph emblem embedded in the center.
+    - Slogan: **"Basta kaya i-scan, pwede yan!"**.
+    - Three colored app badges: **BANKS** (Blue `#0056B3`), **E-WALLETS** (Red `#DC2626`), **AND MORE** (Green `#16A34A`).
+    - Payable amount banner (`₱...`), transaction reference (`TXN-UMAMI-...` with one-tap copy), live **10-minute expiration countdown timer**, and **"Simulate Customer Mobile App Payment"** action for rapid testing.
+- **Mobile Kiosk QR Scanner (`<MobileQRScannerModal />`):**
+  - Live rear camera viewfinder with camera permission handling and switch toggle.
+  - High-tech scanning reticle with animated vertical laser line (`scanLaser`).
+  - Torch / flashlight toggle control for low-light scanning.
+  - Manual fallbacks: transaction code input and active local kiosk session auto-detection.
+  - Dual-device vs. same-device mobile ordering: provides **"Pay via GCash / Maya App"** direct in-app authorization or **"Show QR for Companion"**.
+- **Digital Itemized Receipt (`<DigitalReceiptModal />`):**
+  - Displays upon successful payment with green checkmark banner, order ID (`#UM-XXXX`), and large **Pickup Token** (e.g. `U-108`).
+  - Itemized dish breakdown, customizations, subtotal, 12% VAT inclusive calculation, promo discount, total paid, and pickup verification QR code.
+  - Dispatches paid order directly to Kitchen Display System (KDS).
+  - One-click **Print Receipt** (`window.print()`) and **Start New Order**.
 - **Automated Webhook Engine:**
   - **Timing-Safe HMAC-SHA256 Signatures:** `crypto.timingSafeEqual` prevents side-channel timing attacks across `paymongo-signature`, `stripe-signature`, and custom headers.
   - **Replay Attack Defense:** 300-second maximum timestamp drift threshold.
@@ -650,6 +669,13 @@ allergicSuggestion/
 | `GET` | `/api/customer-accounts` | Retrieves customer loyalty membership tiers and points balances. |
 | `GET` | `/api/menu` | Retrieves menu products (supports `?restaurant=umami` scoping). |
 | `GET` | `/api/restaurant` | Returns active restaurant metadata, LAN IP, and Wi-Fi state. |
+| `POST`| `/api/payments/create-session` | Creates transaction-specific QR Ph / Card payment session with EMVCo payload. |
+| `GET` | `/api/payments/session/:reference` | Queries live payment session status and expiration countdown. |
+| `GET` | `/api/payments/active-sessions` | Lists active awaiting-payment sessions on the local network. |
+| `POST`| `/api/payments/confirm-qr-scan` | Confirms mobile QR scan payment, settles order, and notifies kitchen. |
+| `POST`| `/api/payments/process-card` | Securely authorizes debit/credit card payment via PayMongo 3DS gateway. |
+| `POST`| `/api/payments/simulate` | Simulates payment settlement for rapid end-to-end testing. |
+| `POST`| `/api/payments/cancel-session` | Cancels an active payment session. |
 
 ### Socket.IO Events Matrix
 
@@ -661,6 +687,8 @@ allergicSuggestion/
 | `new-order` | Server → Client | `{ order }` | Broadcasts newly submitted order to dashboards. |
 | `new-kitchen-order` | Server → Kitchen | `{ order }` | Dispatches confirmed, paid ticket to the kitchen display. |
 | `order-status-updated`| Server → Client | `{ orderId, status }` | Real-time order progress update (*Preparing*, *Ready*, *Completed*). |
+| `payment-session-created`| Server → Client | `{ referenceNumber, amount, walletId }` | Broadcasts new active payment session. |
+| `payment-completed` | Server → Client | `{ referenceNumber, order, pickupToken }` | Real-time settlement broadcast updating kiosks and receipts. |
 | `payment-webhook-received` | Server → Client | `{ eventId, gateway, status }` | Broadcasts verified webhook event to dashboards. |
 | `service-request` | Client → Server | `{ tableNumber, type }` | Customer calls server for assistance. |
 | `service-requests-updated` | Server → Staff | `{ requests }` | Synchronizes active table calls across staff terminals. |

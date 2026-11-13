@@ -17,9 +17,9 @@
     "dev:bella": "concurrently -k \"node --watch-path=server.js server.js --port 3002 --restaurant bella --frontend 3010\" \"vite --port 3010\"",
     "predev:verde": "npm run kill:ports",
     "dev:verde": "concurrently -k \"node --watch-path=server.js server.js --port 3003 --restaurant verde --frontend 3020\" \"vite --port 3020\"",
-    "dev:suite": "concurrently --kill-others -n \"UMAMI-BE,UMAMI-FE,BELLA-BE,BELLA-FE,VERDE-BE,VERDE-FE\" -c \"red,red.dim,yellow,yellow.dim,green,green.dim\" \"node server.js --port 3001 --restaurant umami --frontend 3000 --mobile-frontend 3000\" \"vite --port 3000\" \"node server.js --port 3002 --restaurant bella --frontend 3010 --mobile-frontend 3000\" \"vite --port 3010\" \"node server.js --port 3003 --restaurant verde --frontend 3020 --mobile-frontend 3000\" \"vite --port 3020\"",
-    "build": "vite build",
-    "test": "node --check server.js && vite build",
+    "dev:suite": "concurrently --kill-others -n \"UMAMI-BE,UMAMI-FE,BELLA-BE,BELLA-FE,VERDE-BE,VERDE-FE\" -c \"red,red.dim,yellow,yellow.dim,green,green.dim\" \"node --watch-path=server.js server.js --port 3001 --restaurant umami --frontend 3000 --mobile-frontend 3000\" \"vite --port 3000\" \"node --watch-path=server.js server.js --port 3002 --restaurant bella --frontend 3010 --mobile-frontend 3000\" \"vite --port 3010\" \"node --watch-path=server.js server.js --port 3003 --restaurant verde --frontend 3020 --mobile-frontend 3000\" \"vite --port 3020\"",
+    "build": "node --max-semi-space-size=128 ./node_modules/vite/bin/vite.js build",
+    "test": "node --check server.js && node --max-semi-space-size=128 ./node_modules/vite/bin/vite.js build",
     "start": "node server.js",
     "lint": "oxlint",
     "preview": "vite preview"
@@ -44,3 +44,4 @@
     "vite": "^8.1.0"
   }
 }
+

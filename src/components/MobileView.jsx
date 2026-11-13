@@ -661,6 +661,12 @@ function MobileView({ kioskId, onResetSession }) {
   const isViteProxyAvailable = window.location.port === '3000' || !kioskPort || kioskPort === window.location.port || isTunnelOrHttps;
   const backendTargetUrl = isViteProxyAvailable ? '' : `http://${window.location.hostname}:${kioskPort}`;
 
+  const currentTableParam = urlParams.get('tableId') || urlParams.get('table') || 'T-01';
+  const effectiveTableNumber = currentTableParam.startsWith('T-')
+    ? `Table ${currentTableParam.replace('T-', '').replace(/^0+/, '')}`
+    : currentTableParam;
+  const effectiveTableNum = effectiveTableNumber;
+
   // QR Session & Allergy Verification State (scoped to restaurant + kioskId so customer data never leaks)
   const sessionScopeKey = `${restaurantParam}_${effectiveKioskId}`;
   const [qrSession, setQrSession] = useState(null);
@@ -4643,8 +4649,9 @@ function MobileView({ kioskId, onResetSession }) {
         setPromoMsg={setPromoMsg}
         onConfirmOrder={handlePlaceOrder}
         kioskId={kioskId || 'MOBILE_01'}
-        tableNumber={effectiveTableNum || 'Table 04'}
+        tableNumber={activeOrder?.tableNumber || effectiveTableNumber || 'Table 04'}
         isMobile={true}
+        apiBase={backendTargetUrl}
       />
 
       {/* Camera-based Mobile QR Ph Scanner Modal */}

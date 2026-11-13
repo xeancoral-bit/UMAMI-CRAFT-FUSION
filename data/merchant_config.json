@@ -1,0 +1,86 @@
+{
+  "merchantName": "UMAMI CRAFT FUSION INC.",
+  "accountNumber": "0917-888-UMAMI (86264)",
+  "accountPhone": "0917-888-8626",
+  "merchantId": "UMAMI-MNL-86264",
+  "mcc": "5812",
+  "currency": "PHP",
+  "country": "PH",
+  "city": "MANILA",
+  "isVerified": true,
+  "verificationStatus": "VERIFIED_ACTIVE",
+  "tin": "482-910-384-000",
+  "bspRegistration": "BSP-QRPH-2024-86264",
+  "supportedWallets": [
+    {
+      "id": "GCash",
+      "name": "GCash",
+      "badge": "Popular",
+      "brandColor": "#007DFE",
+      "accountName": "UMAMI CRAFT FUSION INC.",
+      "accountNumber": "0917-888-UMAMI (86264)",
+      "deepLink": "gcash://",
+      "description": "Instant payment via GCash App / QR Ph scan"
+    },
+    {
+      "id": "Maya",
+      "name": "Maya",
+      "badge": "QR Ph",
+      "brandColor": "#00D665",
+      "accountName": "UMAMI CRAFT FUSION INC.",
+      "accountNumber": "0917-888-UMAMI (86264)",
+      "deepLink": "maya://",
+      "description": "Pay via Maya Wallet or QR Ph mobile app"
+    },
+    {
+      "id": "PayPal",
+      "name": "PayPal",
+      "badge": "Global",
+      "brandColor": "#003087",
+      "accountName": "UMAMI CRAFT FUSION INC.",
+      "accountNumber": "0917-888-UMAMI (86264)",
+      "deepLink": "https://www.paypal.com/checkoutnow",
+      "description": "International wallet & linked credit/debit cards"
+    },
+    {
+      "id": "MariBank",
+      "name": "MariBank",
+      "badge": "Digital Bank",
+      "brandColor": "#FF5722",
+      "accountName": "UMAMI CRAFT FUSION INC.",
+      "accountNumber": "0917-888-UMAMI (86264)",
+      "deepLink": "maribank://",
+      "description": "Instant digital bank transfer via Sea / MariBank"
+    },
+    {
+      "id": "GrabPay",
+      "name": "GrabPay",
+      "badge": "Grab Rewards",
+      "brandColor": "#00B14F",
+      "accountName": "UMAMI CRAFT FUSION INC.",
+      "accountNumber": "0917-888-UMAMI (86264)",
+      "deepLink": "grab://open",
+      "description": "Fast e-wallet checkout & earn GrabRewards points"
+    },
+    {
+      "id": "ShopeePay",
+      "name": "ShopeePay",
+      "badge": "Shopee App",
+      "brandColor": "#EE4D2D",
+      "accountName": "UMAMI CRAFT FUSION INC.",
+      "accountNumber": "0917-888-UMAMI (86264)",
+      "deepLink": "shopeepay://",
+      "description": "Direct checkout via ShopeePay wallet"
+    },
+    {
+      "id": "GoTyme Bank",
+      "name": "GoTyme Bank",
+      "badge": "Go Rewards",
+      "brandColor": "#00C2A0",
+      "accountName": "UMAMI CRAFT FUSION INC.",
+      "accountNumber": "0917-888-UMAMI (86264)",
+      "deepLink": "gotyme://",
+      "description": "Free instant transfer & Go Rewards earning"
+    }
+  ]
+}

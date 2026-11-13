@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import {
-  Clock, CheckCircle2, AlertCircle, RefreshCw, Smartphone,
-  Building2, Wallet, QrCode, ShieldCheck, Copy, Check, ArrowLeft, Loader2
+  Clock, AlertCircle, RefreshCw, Smartphone,
+  Building2, Wallet, QrCode, Copy, Check, ArrowLeft, Loader2
 } from 'lucide-react';
 
 /**
@@ -161,10 +161,20 @@ export default function QRPhPaymentCard({
           letterSpacing: '0.04em',
           textTransform: 'uppercase',
           textAlign: 'center',
-          marginBottom: '14px',
+          marginBottom: '2px',
           fontFamily: 'system-ui, -apple-system, sans-serif'
         }}>
           {session?.merchantName || 'UMAMI CRAFT FUSION INC.'}
+        </div>
+        <div style={{
+          fontSize: '12px',
+          fontWeight: 700,
+          color: '#047857',
+          fontFamily: 'monospace',
+          marginBottom: '12px',
+          letterSpacing: '0.02em'
+        }}>
+          Account: 0917-888-UMAMI (86264)
         </div>
 
         {/* Dynamically Generated QR Code with High-Density Error Correction */}
@@ -226,12 +236,6 @@ export default function QRPhPaymentCard({
                 size={230}
                 level="H"
                 includeMargin={false}
-                imageSettings={{
-                  src: '', // We render vector overlay in center
-                  height: 48,
-                  width: 48,
-                  excavate: true
-                }}
               />
               {/* Centered QR Ph Logo Overlay (Exact Match to Reference Image 2) */}
               <div style={{

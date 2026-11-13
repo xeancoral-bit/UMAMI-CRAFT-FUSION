@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
-  Camera, Zap, ZapOff, X, RefreshCw, AlertCircle, CheckCircle2,
-  Upload, ArrowRight, ShieldCheck, Loader2, Sparkles, Smartphone
+  Camera, Zap, ZapOff, X, AlertCircle, CheckCircle2, ShieldCheck, Loader2
 } from 'lucide-react';
 import { SUPPORTED_EWALLETS, EWalletLogo } from '../utils/paymentWallets';
 

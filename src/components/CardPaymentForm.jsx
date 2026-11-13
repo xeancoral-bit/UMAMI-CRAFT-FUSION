@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import {
-  CreditCard, Lock, ShieldCheck, AlertCircle, Loader2, ArrowLeft,
-  CheckCircle2, KeyRound, ExternalLink
+  CreditCard, Lock, ShieldCheck, Loader2, ArrowLeft, KeyRound
 } from 'lucide-react';
 
 /**
