@@ -1,9 +1,11 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { io } from 'socket.io-client';
 import { QRCodeSVG } from 'qrcode.react';
 import PesoReceipt from './PesoReceipt';
 import TableServiceModal from './TableServiceModal';
 import KioskCheckoutModal from './KioskCheckoutModal';
+import AllergenDoubleWarningModal from './AllergenDoubleWarningModal';
+import { getConflictingAllergens } from '../utils/allergenUtils';
 import { Bell } from 'lucide-react';
 import {
   Monitor,
@@ -62,11 +64,23 @@ function KioskView({ onOpenKitchen, initialKioskId }) {
     }
   }, [initialKioskId]);
   const [showServiceModal, setShowServiceModal] = useState(false);
-  const [state, setState] = useState('standby'); // 'standby' | 'connected' | 'success'
+  const [state, setState] = useState(() => {
+    try {
+      const savedReceipt = sessionStorage.getItem('umami_kiosk_receipt');
+      if (savedReceipt) return 'success';
+    } catch (_) {}
+    return 'standby'; // 'standby' | 'connected' | 'success'
+  });
   const [allergens, setAllergens] = useState([]);
   const [preferences, setPreferences] = useState([]);
   const [orderedItem, setOrderedItem] = useState(null);
-  const [orderReceipt, setOrderReceipt] = useState(null);
+  const [orderReceipt, setOrderReceipt] = useState(() => {
+    try {
+      const savedReceipt = sessionStorage.getItem('umami_kiosk_receipt');
+      if (savedReceipt) return JSON.parse(savedReceipt);
+    } catch (_) {}
+    return null;
+  });
   const [timeLeft, setTimeLeft] = useState(90);
   const [socketConnected, setSocketConnected] = useState(false);
   const [customerBattery, setCustomerBattery] = useState(null);
@@ -93,6 +107,7 @@ function KioskView({ onOpenKitchen, initialKioskId }) {
   const [selectedAddons, setSelectedAddons] = useState([]);
   const [selectedSpiceOrSugar, setSelectedSpiceOrSugar] = useState('Original');
   const [specialInstructions, setSpecialInstructions] = useState('');
+  const [kioskStage1Warning, setKioskStage1Warning] = useState(null); // { item, conflicts, executeAdd }
 
   // Touchscreen Kiosk Cart & Checkout State
   const [kioskCart, setKioskCart] = useState([]);
@@ -587,8 +602,7 @@ function KioskView({ onOpenKitchen, initialKioskId }) {
       const count = data.itemCount || items.reduce((s, i) => s + (i.quantity || 1), 0);
       const total = data.totalPrice !== undefined ? data.totalPrice : items.reduce((s, i) => s + (i.price * (i.quantity || 1)), 0);
 
-      setOrderedItem(data.item || items[0]);
-      setOrderReceipt({
+      const receiptObj = {
         orderId: data.orderId || data.id,
         items,
         itemCount: count,
@@ -597,7 +611,12 @@ function KioskView({ onOpenKitchen, initialKioskId }) {
         paymentStatus: data.paymentStatus,
         status: data.status,
         orderedTags: data.orderedTags || []
-      });
+      };
+      setOrderedItem(data.item || items[0]);
+      setOrderReceipt(receiptObj);
+      try {
+        sessionStorage.setItem('umami_kiosk_receipt', JSON.stringify(receiptObj));
+      } catch (_) {}
       setState('success');
     });
 
@@ -681,6 +700,9 @@ function KioskView({ onOpenKitchen, initialKioskId }) {
     setOrderedItem(null);
     setCustomerBattery(null);
     setOrderReceipt(null);
+    try {
+      sessionStorage.removeItem('umami_kiosk_receipt');
+    } catch (_) {}
     setTimeLeft(90);
     setIsDirectKioskMode(false);
     setKioskCart([]);
@@ -939,10 +961,10 @@ function KioskView({ onOpenKitchen, initialKioskId }) {
   }, [fullCatalog, allergens]);
 
   // 2. Count match score for preferences to sort/highlight
-  const getMatchCount = (item) => {
+  const getMatchCount = useCallback((item) => {
     const itemTags = Array.isArray(item.tags) ? item.tags.map(t => t.toLowerCase()) : [];
     return itemTags.filter(tag => preferences.map(p => p.toLowerCase()).includes(tag)).length;
-  };
+  }, [preferences]);
 
   // 3. Category tabs (matching screenshot + database categories)
   const categoriesList = useMemo(() => {
@@ -999,7 +1021,7 @@ function KioskView({ onOpenKitchen, initialKioskId }) {
       const scoreB = getMatchCount(b);
       return scoreB - scoreA;
     });
-  }, [categoryFilteredMenu, preferences]);
+  }, [categoryFilteredMenu, getMatchCount]);
 
   // Interactive Product Modal & Cart Helpers
   const openProductDetails = (item) => {
@@ -1026,7 +1048,7 @@ function KioskView({ onOpenKitchen, initialKioskId }) {
     return base + addonsSum;
   }, [selectedProduct, selectedSize, selectedAddons]);
 
-  const handleAddToCartFromModal = () => {
+  const commitAddToCartFromModal = () => {
     if (!selectedProduct) return;
     const prefLabel = selectedProduct.isDrink ? `Prep: ${selectedSpiceOrSugar}` : (selectedSpiceOrSugar !== 'Original' ? `Spice: ${selectedSpiceOrSugar}` : '');
     const cartKey = `${selectedProduct.id}__${selectedSize ? selectedSize.label || selectedSize.name : 'std'}__${selectedSpiceOrSugar}__${selectedAddons.map(a => a.name).sort().join('|')}__${specialInstructions.trim()}`;
@@ -1050,6 +1072,8 @@ function KioskView({ onOpenKitchen, initialKioskId }) {
           addons: selectedAddons,
           specialInstructions: specialInstructions.trim(),
           tags: selectedProduct.tags || [],
+          allergens: Array.isArray(selectedProduct.allergens) ? selectedProduct.allergens : [],
+          ingredients: selectedProduct.ingredients || '',
           customizations: [
             ...(selectedSize ? [`Size: ${selectedSize.label || selectedSize.name}`] : []),
             ...(prefLabel ? [prefLabel] : []),
@@ -1060,10 +1084,24 @@ function KioskView({ onOpenKitchen, initialKioskId }) {
       ];
     });
     setSelectedProduct(null);
+    setKioskStage1Warning(null);
   };
 
-  const handleQuickAddToCart = (e, item) => {
-    e.stopPropagation();
+  const handleAddToCartFromModal = () => {
+    if (!selectedProduct) return;
+    const conflicts = getConflictingAllergens(selectedProduct, allergens);
+    if (conflicts.length > 0) {
+      setKioskStage1Warning({
+        item: selectedProduct,
+        conflicts,
+        executeAdd: () => commitAddToCartFromModal()
+      });
+      return;
+    }
+    commitAddToCartFromModal();
+  };
+
+  const commitQuickAddToCart = (item) => {
     const firstSize = item.sizes && item.sizes.length > 0 ? item.sizes[0] : null;
     const unitPrice = firstSize ? Number(firstSize.price || item.price || 0) : Number(item.price || 0);
     const cartKey = `${item.id}__${firstSize ? (firstSize.label || firstSize.name) : 'std'}____`;
@@ -1087,10 +1125,27 @@ function KioskView({ onOpenKitchen, initialKioskId }) {
           addons: [],
           specialInstructions: '',
           tags: item.tags || [],
+          allergens: Array.isArray(item.allergens) ? item.allergens : [],
+          ingredients: item.ingredients || '',
           customizations: firstSize ? [`Size: ${firstSize.label || firstSize.name}`] : []
         }
       ];
     });
+    setKioskStage1Warning(null);
+  };
+
+  const handleQuickAddToCart = (e, item) => {
+    e.stopPropagation();
+    const conflicts = getConflictingAllergens(item, allergens);
+    if (conflicts.length > 0) {
+      setKioskStage1Warning({
+        item,
+        conflicts,
+        executeAdd: () => commitQuickAddToCart(item)
+      });
+      return;
+    }
+    commitQuickAddToCart(item);
   };
 
   const kioskCartSubtotal = useMemo(() => {
@@ -1189,7 +1244,7 @@ function KioskView({ onOpenKitchen, initialKioskId }) {
     }
 
     setOrderedItem(payload.items[0]);
-    setOrderReceipt({
+    const receiptObj = {
       orderId,
       pickupToken: modalOrderData?.pickupToken || `U-${Math.floor(100 + Math.random() * 900)}`,
       items: payload.items,
@@ -1199,7 +1254,11 @@ function KioskView({ onOpenKitchen, initialKioskId }) {
       paymentStatus: payload.paymentStatus,
       status: payload.status,
       orderedTags: allOrderedTags
-    });
+    };
+    setOrderReceipt(receiptObj);
+    try {
+      sessionStorage.setItem('umami_kiosk_receipt', JSON.stringify(receiptObj));
+    } catch (_) {}
     setKioskCart([]);
     setAppliedPromo(null);
     setCheckoutPromoCode('');
@@ -2983,6 +3042,7 @@ function KioskView({ onOpenKitchen, initialKioskId }) {
               isOpen={showCheckoutModal}
               onClose={() => setShowCheckoutModal(false)}
               cartItems={kioskCart}
+              userAllergens={allergens}
               diningOption={diningOption}
               onChangeDiningOption={setDiningOption}
               onUpdateQuantity={(id, delta) => {
@@ -3002,6 +3062,22 @@ function KioskView({ onOpenKitchen, initialKioskId }) {
               kioskId={kioskId}
               tableNumber={`Kiosk ${kioskId}`}
               isMobile={false}
+            />
+
+            {/* Kiosk Stage 1 Allergen Warning Modal (Item Addition Double-Confirmation) */}
+            <AllergenDoubleWarningModal
+              isOpen={Boolean(kioskStage1Warning)}
+              stage="item_addition"
+              item={kioskStage1Warning?.item}
+              conflictingAllergens={kioskStage1Warning?.conflicts || []}
+              userAllergens={allergens}
+              onClose={() => setKioskStage1Warning(null)}
+              onCancel={() => setKioskStage1Warning(null)}
+              onConfirm={() => {
+                if (kioskStage1Warning?.executeAdd) {
+                  kioskStage1Warning.executeAdd();
+                }
+              }}
             />
           </div>
         )}

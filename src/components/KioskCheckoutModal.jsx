@@ -1,11 +1,13 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import io from 'socket.io-client';
 import {
   X, Plus, Minus, Trash2, Tag, CreditCard, Smartphone, Banknote,
   Utensils, ShoppingBag, ArrowRight, ArrowLeft, ShieldCheck, Lock, Loader2, ExternalLink,
-  AlertCircle, Check
+  AlertCircle, Check, AlertTriangle
 } from 'lucide-react';
 import { SUPPORTED_EWALLETS, EWalletLogo } from '../utils/paymentWallets';
+import { getConflictingAllergens, formatAllergenName } from '../utils/allergenUtils';
+import AllergenDoubleWarningModal from './AllergenDoubleWarningModal';
 import QRPhPaymentCard from './QRPhPaymentCard';
 import CardPaymentForm from './CardPaymentForm';
 import DigitalReceiptModal from './DigitalReceiptModal';
@@ -37,15 +39,18 @@ const PAYMENT_OPTIONS = [
   }
 ];
 
+const EMPTY_ARRAY = Object.freeze([]);
+
 export default function KioskCheckoutModal({
   isOpen,
   onClose,
-  cartItems = [],
+  cartItems = EMPTY_ARRAY,
+  userAllergens = EMPTY_ARRAY,
   diningOption = 'Dine-In',
   onChangeDiningOption,
   onUpdateQuantity,
   onRemoveItem,
-  promos = [],
+  promos = EMPTY_ARRAY,
   promoCode = '',
   setPromoCode,
   promoApplied = null,
@@ -60,6 +65,7 @@ export default function KioskCheckoutModal({
 }) {
   // Steps: 'review' | 'payment' | 'qr_screen' | 'card_screen'
   const [step, setStep] = useState('review');
+  const [showStage2AllergenModal, setShowStage2AllergenModal] = useState(false);
   const [selectedPayment, setSelectedPayment] = useState('E-Wallet');
   const [selectedEWallet, setSelectedEWallet] = useState('GCash');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -73,7 +79,7 @@ export default function KioskCheckoutModal({
   const socketRef = useRef(null);
 
   // Robust API caller with LAN IP, localhost, and proxy fallback
-  const callPaymentApi = async (path, options = {}) => {
+  const callPaymentApi = useCallback(async (path, options = {}) => {
     const urlParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
     const kioskPort = urlParams?.get('kioskPort') || '3001';
     const host = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
@@ -122,7 +128,20 @@ export default function KioskCheckoutModal({
     }
 
     throw lastError || new Error('Connection to payment gateway timed out.');
-  };
+  }, [apiBase]);
+
+  // Called when payment succeeds (via QR scan, simulated click, or card)
+  const handlePaymentSuccess = useCallback((finalOrder, session) => {
+    setPaidOrder(finalOrder);
+    setShowReceipt(true);
+    if (onConfirmOrder) {
+      // Notify parent to clear tray if needed
+      onConfirmOrder({
+        ...finalOrder,
+        _alreadySettled: true
+      })?.catch?.(() => {});
+    }
+  }, [onConfirmOrder]);
 
   // Initialize Socket.IO connection for real-time payment notifications
   useEffect(() => {
@@ -146,7 +165,7 @@ export default function KioskCheckoutModal({
     } catch (err) {
       console.warn('[Checkout Socket] Connection fallback:', err);
     }
-  }, [isOpen, currentSession, apiBase]);
+  }, [isOpen, currentSession, apiBase, handlePaymentSuccess]);
 
   // Polling fallback: polls session status every 2 seconds when in payment screen
   useEffect(() => {
@@ -167,7 +186,20 @@ export default function KioskCheckoutModal({
       isMounted = false;
       clearInterval(interval);
     };
-  }, [isOpen, currentSession?.referenceNumber, step, showReceipt]);
+  }, [isOpen, currentSession, step, showReceipt, callPaymentApi, handlePaymentSuccess]);
+
+  // Find any cart items containing declared user allergens for Warning 2 of 2
+  const conflictingCartItems = useMemo(() => {
+    if (!Array.isArray(userAllergens) || userAllergens.length === 0 || !Array.isArray(cartItems)) {
+      return [];
+    }
+    return cartItems
+      .map(item => ({
+        item,
+        conflicts: getConflictingAllergens(item, userAllergens)
+      }))
+      .filter(entry => entry.conflicts.length > 0);
+  }, [cartItems, userAllergens]);
 
   if (!isOpen) return null;
 
@@ -235,6 +267,22 @@ export default function KioskCheckoutModal({
     }
     if (setPromoApplied) setPromoApplied(match);
     if (setPromoMsg) setPromoMsg({ text: `Promo "${match.code}" applied!`, ok: true });
+  };
+
+  // Stage 2 Warning Interceptor: Check order before proceeding to payment
+  const handleReviewProceedToPayment = () => {
+    if (conflictingCartItems.length > 0) {
+      setShowStage2AllergenModal(true);
+      return;
+    }
+    setStep('payment');
+    setProviderAuthState('idle');
+  };
+
+  const handleConfirmAllergenCheckout = () => {
+    setShowStage2AllergenModal(false);
+    setStep('payment');
+    setProviderAuthState('idle');
   };
 
   // Create payment session and proceed to appropriate gateway
@@ -344,18 +392,6 @@ export default function KioskCheckoutModal({
     }
   };
 
-  // Called when payment succeeds (via QR scan, simulated click, or card)
-  const handlePaymentSuccess = (finalOrder, session) => {
-    setPaidOrder(finalOrder);
-    setShowReceipt(true);
-    if (onConfirmOrder) {
-      // Notify parent to clear tray if needed
-      onConfirmOrder({
-        ...finalOrder,
-        _alreadySettled: true
-      }).catch?.(() => {});
-    }
-  };
 
   // Real e-wallet mobile app checkout handler
   const handleOpenAppAndPay = async () => {
@@ -619,7 +655,9 @@ export default function KioskCheckoutModal({
                     </div>
                   ) : (
                     <div className="kiosk-co-items-list">
-                      {cartItems.map(item => (
+                      {cartItems.map(item => {
+                        const itemConflicts = getConflictingAllergens(item, userAllergens);
+                        return (
                         <div key={item.id || item.cartKey} className="kiosk-co-item-row">
                           <div className="kiosk-co-item-thumb">
                             {item.image ? (
@@ -639,6 +677,24 @@ export default function KioskCheckoutModal({
                                     : null,
                                   item.specialNote || null
                                 ].filter(Boolean).join(' • ')}
+                              </div>
+                            )}
+                            {itemConflicts.length > 0 && (
+                              <div style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                marginTop: '5px',
+                                padding: '3px 8px',
+                                borderRadius: '6px',
+                                backgroundColor: '#FEF2F2',
+                                border: '1px solid #FECDD3',
+                                color: '#DC2626',
+                                fontSize: '11px',
+                                fontWeight: 800
+                              }}>
+                                <AlertTriangle size={12} strokeWidth={2.5} />
+                                <span>Contains: {itemConflicts.map(formatAllergenName).join(', ')}</span>
                               </div>
                             )}
                             <div style={{ fontWeight: 800, fontSize: '13px', color: '#C24522', marginTop: '4px' }}>
@@ -670,7 +726,7 @@ export default function KioskCheckoutModal({
                             )}
                           </div>
                         </div>
-                      ))}
+                      ); })}
                     </div>
                   )}
 
@@ -1243,7 +1299,7 @@ export default function KioskCheckoutModal({
                       type="button"
                       className="kiosk-co-next-btn"
                       disabled={cartItems.length === 0}
-                      onClick={() => setStep('payment')}
+                      onClick={handleReviewProceedToPayment}
                     >
                       <span>Proceed to Payment • ₱{finalTotal.toFixed(2)}</span>
                       <ArrowRight size={18} />
@@ -1289,6 +1345,22 @@ export default function KioskCheckoutModal({
           </div>
         </div>
       )}
+
+      {/* Stage 2 Allergen Warning Modal (Checkout Review Double-Confirmation) */}
+      <AllergenDoubleWarningModal
+        isOpen={showStage2AllergenModal}
+        stage="checkout"
+        conflictingItems={conflictingCartItems}
+        userAllergens={userAllergens}
+        onClose={() => setShowStage2AllergenModal(false)}
+        onCancel={() => setShowStage2AllergenModal(false)}
+        onConfirm={handleConfirmAllergenCheckout}
+        onRemoveItem={(itemToRemove) => {
+          if (onRemoveItem) {
+            onRemoveItem(itemToRemove.cartKey || itemToRemove.id);
+          }
+        }}
+      />
     </>
   );
 }

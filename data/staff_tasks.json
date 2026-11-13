@@ -14,8 +14,11 @@
     "shift": "Morning Shift (07:30 AM - 04:00 PM)",
     "assignedAt": "2026-11-11T07:35:00.000Z",
     "startedAt": "2026-11-11T07:40:00.000Z",
-    "completedAt": "2026-11-11T09:15:00.000Z",
-    "notes": "Completed 25L batch. Dedicated peanut-free and shellfish-free ladles sanitized and sealed."
+    "completedAt": "2026-11-13T15:21:37.434Z",
+    "notes": "Completed 25L batch. Dedicated peanut-free and shellfish-free ladles sanitized and sealed.",
+    "actorId": "EMP-201",
+    "actorName": "Master Chef Kenji",
+    "updatedAt": "2026-11-13T15:21:37.434Z"
   },
   {
     "id": "TSK-002",
@@ -46,12 +49,15 @@
     "description": "Portion and fold fresh pork-chive and mushroom-truffle dumplings for peak lunch service.",
     "category": "Kitchen Prep",
     "priority": "Medium",
-    "status": "In Progress",
+    "status": "Completed",
     "shift": "Morning Shift (07:30 AM - 04:00 PM)",
     "assignedAt": "2026-11-11T10:00:00.000Z",
     "startedAt": "2026-11-11T10:15:00.000Z",
-    "completedAt": null,
-    "notes": "95 of 120 dumplings folded and chilled in walk-in tray #4."
+    "completedAt": "2026-11-13T18:04:05.896Z",
+    "notes": "95 of 120 dumplings folded and chilled in walk-in tray #4.",
+    "actorId": "EMP-201",
+    "actorName": "Master Chef Kenji",
+    "updatedAt": "2026-11-13T18:04:05.896Z"
   },
   {
     "id": "TSK-004",
@@ -64,12 +70,15 @@
     "description": "Filter fryer oil, clean wok jet rings, and restock aromatics before shift handover.",
     "category": "Sanitation",
     "priority": "Medium",
-    "status": "Pending",
+    "status": "Completed",
     "shift": "Morning Shift (07:30 AM - 04:00 PM)",
     "assignedAt": "2026-11-11T13:00:00.000Z",
     "startedAt": null,
-    "completedAt": null,
-    "notes": "Scheduled before 3:30 PM handover."
+    "completedAt": "2026-11-13T15:19:49.160Z",
+    "notes": "Scheduled before 3:30 PM handover.",
+    "actorId": "EMP-201",
+    "actorName": "Master Chef Kenji",
+    "updatedAt": "2026-11-13T15:19:49.160Z"
   },
   {
     "id": "TSK-005",
@@ -100,12 +109,15 @@
     "description": "Portion 40 bags of organic edamame and marinate yakitori skewers.",
     "category": "Kitchen Prep",
     "priority": "Medium",
-    "status": "In Progress",
+    "status": "Completed",
     "shift": "Afternoon Shift (01:00 PM - 09:30 PM)",
     "assignedAt": "2026-11-11T14:00:00.000Z",
     "startedAt": "2026-11-11T14:10:00.000Z",
-    "completedAt": null,
-    "notes": "Edamame portioned; finishing skewer prep."
+    "completedAt": "2026-11-13T15:21:31.136Z",
+    "notes": "Edamame portioned; finishing skewer prep.",
+    "actorId": "EMP-201",
+    "actorName": "Master Chef Kenji",
+    "updatedAt": "2026-11-13T15:21:31.136Z"
   },
   {
     "id": "TSK-007",
@@ -154,12 +166,15 @@
     "description": "Clear bus tubs at station B, refill cold barley tea pitchers, and wipe high-chairs.",
     "category": "Table Service",
     "priority": "Medium",
-    "status": "In Progress",
+    "status": "Completed",
     "shift": "Morning Shift (08:00 AM - 04:30 PM)",
     "assignedAt": "2026-11-11T11:30:00.000Z",
     "startedAt": "2026-11-11T11:45:00.000Z",
-    "completedAt": null,
-    "notes": "Barley tea refilled; clearing Tables 4 and 7."
+    "completedAt": "2026-11-13T15:21:30.128Z",
+    "notes": "Barley tea refilled; clearing Tables 4 and 7.",
+    "actorId": "EMP-201",
+    "actorName": "Master Chef Kenji",
+    "updatedAt": "2026-11-13T15:21:30.128Z"
   },
   {
     "id": "TSK-010",
@@ -190,12 +205,14 @@
     "description": "Check in on active dine-in tables, confirm allergy-tagged dishes upon delivery, and process water/tea refills.",
     "category": "Guest Relations",
     "priority": "High",
-    "status": "In Progress",
+    "status": "Completed",
     "shift": "Morning Shift (09:00 AM - 05:30 PM)",
     "assignedAt": "2026-11-11T11:00:00.000Z",
     "startedAt": "2026-11-11T11:05:00.000Z",
-    "completedAt": null,
-    "notes": "Assisted Tables 12, 14, and 15 with custom dietary requests."
+    "completedAt": "2026-11-13T15:19:38.656Z",
+    "notes": "Assisted Tables 12, 14, and 15 with custom dietary requests.",
+    "actorId": "EMP-201",
+    "actorName": "Master Chef Kenji",
+    "updatedAt": "2026-11-13T15:19:38.656Z"
   }
 ]
-

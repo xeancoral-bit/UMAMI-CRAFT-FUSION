@@ -110,10 +110,12 @@ export const SUPPORTED_EWALLETS = [
   }
 ];
 
+const EMPTY_STYLE = Object.freeze({});
+
 /**
  * High-definition Vector Logos for supported E-Wallets
  */
-export function EWalletLogo({ id, size = 20, style = {} }) {
+export function EWalletLogo({ id, size = 20, style = EMPTY_STYLE }) {
   const s = size;
   const key = String(id || '').toLowerCase().trim();
 

@@ -5184,10 +5184,34 @@ app.get('/api/admin/auth-status', (req, res) => {
 const EMPLOYEES_FILE = path.join(__dirname, 'data', 'employees.json');
 const STAFF_TASKS_FILE = path.join(__dirname, 'data', 'staff_tasks.json');
 const AUDIT_LOGS_FILE = path.join(__dirname, 'data', 'audit_logs.json');
+const ATTENDANCE_FILE = path.join(__dirname, 'data', 'attendance.json');
 
 let employeesList = [];
 let staffTasksList = [];
 let auditLogsList = [];
+let attendanceList = [];
+
+async function loadAttendanceFromDb() {
+  try {
+    const raw = await fs.readFile(ATTENDANCE_FILE, 'utf8');
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) {
+      attendanceList = parsed;
+    }
+  } catch (err) {
+    attendanceList = [];
+  }
+  return attendanceList;
+}
+
+async function saveAttendanceToDb() {
+  try {
+    await fs.writeFile(ATTENDANCE_FILE, JSON.stringify(attendanceList, null, 2), 'utf8');
+  } catch (err) {
+    console.error('[DB] Failed to save attendance.json:', err);
+  }
+}
+loadAttendanceFromDb();
 
 async function loadEmployeesFromDb() {
   try {
@@ -5417,6 +5441,28 @@ const handleRoleBasedLogin = async (req, res) => {
     });
   }
 
+  // Centralized ONE STAFF ACCOUNT check for all employees
+  if (['staff', 'staff@umamicraft.com', 'kitchen@umamicraft.com', 'kitchen', 'staff.kenji'].includes(loginId)) {
+    if (password === 'staff123' || password === 'admin123') {
+      return res.json({
+        success: true,
+        token: `staff_session_${Date.now()}`,
+        user: {
+          id: 'STAFF-CENTRAL',
+          employeeId: 'STAFF-CENTRAL',
+          username: 'staff',
+          email: 'staff@umamicraft.com',
+          name: 'Restaurant Staff Account',
+          accountType: 'staff',
+          role: 'Staff Account',
+          position: 'Operations Staff (Kitchen, Service, Bussing)',
+          department: 'Restaurant Operations & Kitchen Floor',
+          permissions: ['assigned_tasks', 'kitchen_prep', 'table_service', 'staff_daily_report', 'shift_activity']
+        }
+      });
+    }
+  }
+
   return res.status(401).json({ error: 'Access Denied: Invalid username/email or unauthorized account.' });
 };
 
@@ -5500,6 +5546,8 @@ app.post('/api/employees', async (req, res) => {
       shift: body.shift || 'Morning Shift (08:00 AM - 04:30 PM)',
       contact: body.contact || '+63 917 000 0000',
       status: body.status || 'Active',
+      pin: body.pin ? String(body.pin).trim() : String(Math.floor(Math.random() * 8999 + 1000)),
+      station: body.station || body.department || (accountType === 'cashier' ? 'POS Counter' : 'Kitchen Operations'),
       registerId: body.registerId || (accountType === 'cashier' ? 'POS-01 (Main Counter)' : null),
       openingFloat: accountType === 'cashier' ? Number(body.openingFloat || 5000) : 0,
       permissions: Array.isArray(body.permissions) && body.permissions.length > 0 ? body.permissions : defaultPermissions,
@@ -5697,6 +5745,237 @@ app.delete('/api/employees/:id', async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: 'Failed to delete employee account' });
   }
+});
+
+// ── Staff Attendance Tracker Endpoints (Time In & Time Out) ──
+
+app.get('/api/attendance', async (req, res) => {
+  await loadAttendanceFromDb();
+  const { date, employeeId } = req.query;
+  let list = [...attendanceList];
+  if (date) {
+    list = list.filter(a => a.date === date);
+  }
+  if (employeeId && employeeId !== 'all') {
+    list = list.filter(a => a.employeeId === employeeId);
+  }
+  res.json(list);
+});
+
+app.post('/api/attendance/time-in', async (req, res) => {
+  try {
+    await loadAttendanceFromDb();
+    await loadEmployeesFromDb();
+    const { employeeId, date, time } = req.body || {};
+    if (!employeeId) {
+      return res.status(400).json({ error: 'Employee ID is required for Time In.' });
+    }
+
+    const employee = employeesList.find(e => e.id === employeeId);
+    if (!employee) {
+      return res.status(404).json({ error: `Employee #${employeeId} not found in personnel directory.` });
+    }
+
+    const todayDate = date || new Date().toISOString().split('T')[0];
+    const existing = attendanceList.find(a => a.employeeId === employeeId && a.date === todayDate);
+    if (existing && existing.clockIn && !existing.clockOut) {
+      return res.status(400).json({
+        error: `${employee.name} is already clocked in today at ${existing.clockIn}.`
+      });
+    }
+
+    const now = new Date();
+    const formattedTime = time || now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+
+    let isLate = false;
+    let lateMinutes = 0;
+    const shiftStr = employee.shift || 'Morning Shift (07:30 - 16:00)';
+    const match = shiftStr.match(/\((\d{1,2}):(\d{2})/);
+    if (match) {
+      const shiftHour = parseInt(match[1], 10);
+      const shiftMinute = parseInt(match[2], 10);
+      const shiftStartMinutes = shiftHour * 60 + shiftMinute;
+      const curMinutes = now.getHours() * 60 + now.getMinutes();
+      if (curMinutes > shiftStartMinutes + 10) {
+        isLate = true;
+        lateMinutes = curMinutes - shiftStartMinutes;
+      }
+    }
+
+    const attRecord = {
+      id: existing?.id || `ATT-${todayDate.replace(/-/g, '')}-${employee.id.replace(/\D/g, '')}`,
+      date: todayDate,
+      employeeId: employee.id,
+      employeeName: employee.name,
+      role: employee.role,
+      department: employee.department,
+      shift: employee.shift,
+      status: isLate ? 'Late' : 'Present',
+      clockIn: formattedTime,
+      clockOut: null,
+      clockInIso: now.toISOString(),
+      clockOutIso: null,
+      totalHours: 0,
+      breakMinutes: 45,
+      isLate,
+      lateMinutes,
+      overtimeHours: 0,
+      undertimeHours: 0
+    };
+
+    if (existing) {
+      const idx = attendanceList.findIndex(a => a.id === existing.id);
+      attendanceList[idx] = attRecord;
+    } else {
+      attendanceList.unshift(attRecord);
+    }
+
+    await saveAttendanceToDb();
+
+    // Sync with daily reports
+    await loadDailyReportsData();
+    if (Array.isArray(cachedDailyReports)) {
+      const existingRptIdx = cachedDailyReports.findIndex(r => r.employeeId === employeeId && r.reportDate === todayDate);
+      if (existingRptIdx !== -1) {
+        cachedDailyReports[existingRptIdx].attendance = {
+          status: attRecord.status,
+          clockIn: attRecord.clockIn,
+          clockOut: null,
+          totalHours: 0,
+          breakMinutes: 45,
+          isLate: attRecord.isLate
+        };
+        await saveDailyReportsData();
+      }
+    }
+
+    await recordAuditLog({
+      actorId: employee.id,
+      actorName: employee.name,
+      actorRole: employee.role,
+      accountType: 'staff',
+      category: 'Staff Operations',
+      action: `Time In Recorded (${isLate ? 'Late' : 'On Time'})`,
+      target: `${employee.name} (${employee.id})`,
+      details: `${employee.name} clocked in at ${formattedTime} for ${employee.shift}.`,
+      status: 'Success'
+    });
+
+    if (io) {
+      io.emit('attendance-updated', attendanceList);
+      io.emit('staff-activity-updated', attRecord);
+    }
+
+    res.json({ success: true, attendance: attRecord });
+  } catch (err) {
+    console.error('[Attendance] Time in error:', err);
+    res.status(500).json({ error: 'Failed to record Time In.' });
+  }
+});
+
+app.post('/api/attendance/time-out', async (req, res) => {
+  try {
+    await loadAttendanceFromDb();
+    await loadEmployeesFromDb();
+    const { employeeId, date, time } = req.body || {};
+    if (!employeeId) {
+      return res.status(400).json({ error: 'Employee ID is required for Time Out.' });
+    }
+
+    const employee = employeesList.find(e => e.id === employeeId);
+    if (!employee) {
+      return res.status(404).json({ error: `Employee #${employeeId} not found in personnel directory.` });
+    }
+
+    const todayDate = date || new Date().toISOString().split('T')[0];
+    const existingIdx = attendanceList.findIndex(a => a.employeeId === employeeId && a.date === todayDate);
+    if (existingIdx === -1 || !attendanceList[existingIdx].clockIn) {
+      return res.status(400).json({ error: 'No active Time In found for today. Please Time In first.' });
+    }
+
+    const existing = attendanceList[existingIdx];
+    if (existing.clockOut) {
+      return res.status(400).json({ error: `${employee.name} already timed out at ${existing.clockOut}.` });
+    }
+
+    const now = new Date();
+    const formattedTime = time || now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+
+    let hoursWorked = 8.0;
+    if (existing.clockInIso) {
+      const startMs = new Date(existing.clockInIso).getTime();
+      const endMs = now.getTime();
+      const rawHrs = (endMs - startMs) / (1000 * 60 * 60);
+      const netHrs = Math.max(0.5, rawHrs - 0.75); // deduct 45m break
+      hoursWorked = parseFloat(netHrs.toFixed(2));
+    }
+
+    const overtime = hoursWorked > 8 ? parseFloat((hoursWorked - 8).toFixed(2)) : 0;
+    const undertime = hoursWorked < 8 ? parseFloat((8 - hoursWorked).toFixed(2)) : 0;
+
+    const updated = {
+      ...existing,
+      clockOut: formattedTime,
+      clockOutIso: now.toISOString(),
+      totalHours: hoursWorked,
+      overtimeHours: overtime,
+      undertimeHours: undertime,
+      status: 'Completed'
+    };
+
+    attendanceList[existingIdx] = updated;
+    await saveAttendanceToDb();
+
+    // Sync with daily reports
+    await loadDailyReportsData();
+    if (Array.isArray(cachedDailyReports)) {
+      const existingRptIdx = cachedDailyReports.findIndex(r => r.employeeId === employeeId && r.reportDate === todayDate);
+      if (existingRptIdx !== -1) {
+        cachedDailyReports[existingRptIdx].attendance = {
+          status: 'Completed',
+          clockIn: existing.clockIn,
+          clockOut: updated.clockOut,
+          totalHours: updated.totalHours,
+          breakMinutes: 45,
+          isLate: existing.isLate
+        };
+        await saveDailyReportsData();
+      }
+    }
+
+    await recordAuditLog({
+      actorId: employee.id,
+      actorName: employee.name,
+      actorRole: employee.role,
+      accountType: 'staff',
+      category: 'Staff Operations',
+      action: 'Time Out Recorded (Completed)',
+      target: `${employee.name} (${employee.id})`,
+      details: `${employee.name} clocked out at ${formattedTime}. Total hours worked: ${hoursWorked} hrs.`,
+      status: 'Success'
+    });
+
+    if (io) {
+      io.emit('attendance-updated', attendanceList);
+      io.emit('staff-activity-updated', updated);
+    }
+
+    res.json({ success: true, attendance: updated });
+  } catch (err) {
+    console.error('[Attendance] Time out error:', err);
+    res.status(500).json({ error: 'Failed to record Time Out.' });
+  }
+});
+
+// POST /api/attendance/clock - Unified Time In / Time Out endpoint
+app.post('/api/attendance/clock', async (req, res, next) => {
+  const { type } = req.body || {};
+  if (type === 'out') {
+    req.url = '/api/attendance/time-out';
+    return app._router.handle(req, res, next);
+  }
+  req.url = '/api/attendance/time-in';
+  return app._router.handle(req, res, next);
 });
 
 // ── Staff Tasks & Operational Responsibilities Endpoints ──
@@ -6890,7 +7169,12 @@ app.post('/api/daily-reports', async (req, res) => {
         tasksPending: Array.isArray(s.tasksPending) ? s.tasksPending : [],
         kitchenOrdersHandled: Number(s.kitchenOrdersHandled || 0),
         tableServiceCallsHandled: Number(s.tableServiceCallsHandled || 0),
-        incidentsReported: s.incidentsReported || 'None'
+        incidentsReported: s.incidentsReported || 'None',
+        dailyAccomplishments: s.dailyAccomplishments || s.accomplishments || '',
+        kitchenOperationsNotes: s.kitchenOperationsNotes || s.kitchenOpsNotes || '',
+        customerConcernsHandled: s.customerConcernsHandled || s.customerConcerns || '',
+        inventoryUpdates: s.inventoryUpdates || s.inventoryNotes || '',
+        shiftHandoverInstructions: s.shiftHandoverInstructions || s.handoverInstructions || ''
       };
     }
 

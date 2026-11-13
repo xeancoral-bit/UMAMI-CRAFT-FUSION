@@ -18,7 +18,27 @@ function App() {
   const [kioskId, setKioskId] = useState(null);
   const [currentView, setCurrentView] = useState(() => {
     const params = new URLSearchParams(window.location.search);
-    return params.get('view') || 'kiosk';
+    const viewParam = params.get('view');
+    if (viewParam) {
+      try {
+        sessionStorage.setItem('umami_active_view', viewParam);
+        sessionStorage.setItem('umami_active_search', window.location.search);
+      } catch (_) {}
+      return viewParam;
+    }
+
+    // Attempt restoration from sessionStorage / localStorage if query parameters were absent
+    try {
+      const storedView = sessionStorage.getItem('umami_active_view') || localStorage.getItem('umami_active_view');
+      const storedSearch = sessionStorage.getItem('umami_active_search') || localStorage.getItem('umami_active_search');
+      if (storedView) {
+        const queryToRestore = storedSearch && storedSearch.includes('view=') ? storedSearch : `?view=${storedView}`;
+        window.history.replaceState({}, '', `${window.location.pathname}${queryToRestore}`);
+        return storedView;
+      }
+    } catch (_) {}
+
+    return 'kiosk';
   });
   const [restaurantInfo, setRestaurantInfo] = useState({
     id: 'umami',
@@ -129,19 +149,35 @@ function App() {
     return () => socket.disconnect();
   }, []);
 
-  // Check URL parameters
+  // Check URL parameters & maintain reliable route state
   useEffect(() => {
     const handleUrlCheck = () => {
       const params = new URLSearchParams(window.location.search);
       const id = params.get('kioskId');
       const viewParam = params.get('view');
       setKioskId(id);
+
       if (viewParam) {
         setCurrentView(viewParam);
+        try {
+          sessionStorage.setItem('umami_active_view', viewParam);
+          sessionStorage.setItem('umami_active_search', window.location.search);
+        } catch (_) {}
         if (viewParam === 'admin' && !isAdminAuthenticated) {
           setShowAdminLoginModal(true);
         }
       } else {
+        // Fall back to stored active session route if available before defaulting
+        try {
+          const storedView = sessionStorage.getItem('umami_active_view') || localStorage.getItem('umami_active_view');
+          const storedSearch = sessionStorage.getItem('umami_active_search') || localStorage.getItem('umami_active_search');
+          if (storedView) {
+            setCurrentView(storedView);
+            const query = storedSearch && storedSearch.includes('view=') ? storedSearch : `?view=${storedView}`;
+            window.history.replaceState({}, '', `${window.location.pathname}${query}`);
+            return;
+          }
+        } catch (_) {}
         setCurrentView('kiosk');
       }
     };
@@ -152,8 +188,18 @@ function App() {
   }, [isAdminAuthenticated]);
 
   const handleResetSession = () => {
-    window.history.pushState({}, document.title, window.location.pathname);
-    setKioskId(null);
+    // Preserve active view and query parameters so page refreshes never unexpectedly redirect
+    const params = new URLSearchParams(window.location.search);
+    params.delete('orderId');
+    params.delete('ref');
+    if (!params.get('view')) {
+      params.set('view', currentView || 'kiosk');
+    }
+    const newSearch = params.toString() ? `?${params.toString()}` : `?view=${currentView || 'kiosk'}`;
+    window.history.replaceState({}, document.title, `${window.location.pathname}${newSearch}`);
+    try {
+      sessionStorage.setItem('umami_active_search', newSearch);
+    } catch (_) {}
   };
 
   const handleSelectView = (view) => {
@@ -170,6 +216,10 @@ function App() {
     }
     window.history.pushState({}, '', url.toString());
     setCurrentView(view);
+    try {
+      sessionStorage.setItem('umami_active_view', view);
+      sessionStorage.setItem('umami_active_search', url.search);
+    } catch (_) {}
   };
 
   const handleAdminAuthSuccess = (user) => {

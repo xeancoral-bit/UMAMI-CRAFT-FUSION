@@ -68,7 +68,7 @@ export default function TableServiceModal({
         }
       })
       .catch(() => {});
-  }, [isOpen, effectiveTable]);
+  }, [isOpen, effectiveTable, apiBase]);
 
   // Listen to socket updates for this table's requests
   useEffect(() => {

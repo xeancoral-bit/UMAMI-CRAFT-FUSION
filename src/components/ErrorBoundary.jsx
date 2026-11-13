@@ -26,7 +26,14 @@ export default class ErrorBoundary extends React.Component {
   };
 
   handleGoHome = () => {
-    window.location.href = '/?view=kiosk';
+    const currentSearch = typeof window !== 'undefined' ? window.location.search : '';
+    const params = new URLSearchParams(currentSearch);
+    const view = params.get('view') || sessionStorage.getItem('umami_active_view');
+    if (view && view !== 'kiosk') {
+      window.location.href = `${window.location.pathname}${currentSearch || `?view=${view}`}`;
+    } else {
+      window.location.href = '/?view=kiosk';
+    }
   };
 
   render() {

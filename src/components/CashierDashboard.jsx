@@ -14,14 +14,15 @@ import {
 import { SUPPORTED_EWALLETS, EWalletLogo } from '../utils/paymentWallets';
 
 const DENOMINATION_VALUES = [1000, 500, 200, 100, 50, 20];
+const EMPTY_ARRAY = Object.freeze([]);
 
 export default function CashierDashboard({
   socket,
   currentUser,
   onLogout,
   onLockSession,
-  menuCatalog = [],
-  drinksCatalog = []
+  menuCatalog = EMPTY_ARRAY,
+  drinksCatalog = EMPTY_ARRAY
 }) {
   const [activeSection, setActiveSection] = useState('pos'); // 'pos' | 'orders' | 'payments' | 'receipts' | 'daily-report'
   const [orders, setOrders] = useState([]);

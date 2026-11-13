@@ -123,7 +123,7 @@ export default function DigitalReceiptModal({
           {/* Purchased Items List */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '180px', overflowY: 'auto' }}>
             {items.map((item, idx) => (
-              <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', fontSize: '13px' }}>
+              <div key={item.id || item.cartKey || `${item.name}-${idx}`} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', fontSize: '13px' }}>
                 <div style={{ flex: 1, paddingRight: '8px' }}>
                   <div style={{ fontWeight: 800, color: '#1C1917' }}>
                     {item.quantity || item.qty || 1}x {item.name}

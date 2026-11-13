@@ -1,0 +1,65 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run lint)",
+      "Bash(npm run test *)",
+      "Bash(npm run build)",
+      "Bash(npm run dev)",
+      "Bash(git diff *)",
+      "Bash(git status)",
+      "Bash(git log *)",
+      "Bash(gh issue *)",
+      "Bash(gh pr *)",
+      "Read(**/*)",
+      "Write(src/**/*)",
+      "Write(app/**/*)",
+      "Write(components/**/*)",
+      "Write(pages/**/*)",
+      "Write(tests/**/*)"
+    ],
+    "deny": [
+      "Read(.env)",
+      "Read(.env.*)",
+      "Read(secrets/**/*)",
+      "Write(.env)",
+      "Write(.env.*)",
+      "Bash(rm -rf *)",
+      "Bash(git push --force *)",
+      "Bash(git reset --hard *)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash(git commit|npm run build|npm test)",
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/pre-commit.sh"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/lint-on-save.sh"
+          }
+        ]
+      }
+    ]
+  },
+  "model": "claude-sonnet-4-6",
+  "autoMemoryEnabled": true,
+  "defaultAgent": "code-reviewer",
+  "rules": {
+    "autoLoad": true,
+    "checkPath": true
+  },
+  "skills": {
+    "autoLoad": true
+  }
+}

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Camera, Zap, ZapOff, X, AlertCircle, CheckCircle2, ShieldCheck, Loader2
 } from 'lucide-react';
@@ -62,6 +62,56 @@ export default function MobileQRScannerModal({
       .catch(() => {});
   }, [isOpen]);
 
+  const stopCamera = useCallback(() => {
+    if (scanIntervalRef.current) {
+      clearInterval(scanIntervalRef.current);
+      scanIntervalRef.current = null;
+    }
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(t => t.stop());
+      streamRef.current = null;
+    }
+  }, []);
+
+  const handleFoundQR = useCallback(async (rawCode) => {
+    const ref = extractReferenceFromQR(rawCode);
+    if (!ref) {
+      setErrorMsg('Could not detect a valid QR Ph payment code. Please try again.');
+      return;
+    }
+
+    try {
+      setErrorMsg('');
+      const res = await fetch(`/api/payments/session/${encodeURIComponent(ref)}`);
+      const data = await res.json();
+      if (res.ok && data.session) {
+        setDetectedSession(data.session);
+        setSelectedWallet(data.session.walletId || 'GCash');
+      } else {
+        setErrorMsg(data.error || 'Transaction reference not found on server.');
+      }
+    } catch (_) {
+      setErrorMsg('Network error connecting to payment gateway.');
+    }
+  }, []);
+
+  const startScanningLoop = useCallback((stream) => {
+    if (!('BarcodeDetector' in window)) return;
+    try {
+      const barcodeDetector = new window.BarcodeDetector({ formats: ['qr_code'] });
+      scanIntervalRef.current = setInterval(async () => {
+        if (!videoRef.current || videoRef.current.readyState < 2 || detectedSession) return;
+        try {
+          const barcodes = await barcodeDetector.detect(videoRef.current);
+          if (barcodes && barcodes.length > 0) {
+            const rawVal = barcodes[0].rawValue;
+            handleFoundQR(rawVal);
+          }
+        } catch (_) {}
+      }, 500);
+    } catch (_) {}
+  }, [detectedSession, handleFoundQR]);
+
   // Start Camera Stream
   useEffect(() => {
     if (!isOpen) {
@@ -120,18 +170,7 @@ export default function MobileQRScannerModal({
       isMounted = false;
       stopCamera();
     };
-  }, [isOpen]);
-
-  const stopCamera = () => {
-    if (scanIntervalRef.current) {
-      clearInterval(scanIntervalRef.current);
-      scanIntervalRef.current = null;
-    }
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach(t => t.stop());
-      streamRef.current = null;
-    }
-  };
+  }, [isOpen, startScanningLoop, stopCamera]);
 
   const toggleTorch = async () => {
     if (!streamRef.current || !torchAvailable) return;
@@ -144,45 +183,6 @@ export default function MobileQRScannerModal({
       setIsTorchOn(nextTorch);
     } catch (err) {
       console.warn('[Torch] Failed to toggle flashlight:', err);
-    }
-  };
-
-  const startScanningLoop = (stream) => {
-    if (!('BarcodeDetector' in window)) return;
-    try {
-      const barcodeDetector = new window.BarcodeDetector({ formats: ['qr_code'] });
-      scanIntervalRef.current = setInterval(async () => {
-        if (!videoRef.current || videoRef.current.readyState < 2 || detectedSession) return;
-        try {
-          const barcodes = await barcodeDetector.detect(videoRef.current);
-          if (barcodes && barcodes.length > 0) {
-            const rawVal = barcodes[0].rawValue;
-            handleFoundQR(rawVal);
-          }
-        } catch (e) {}
-      }, 500);
-    } catch (e) {}
-  };
-
-  const handleFoundQR = async (rawCode) => {
-    const ref = extractReferenceFromQR(rawCode);
-    if (!ref) {
-      setErrorMsg('Could not detect a valid QR Ph payment code. Please try again.');
-      return;
-    }
-
-    try {
-      setErrorMsg('');
-      const res = await fetch(`/api/payments/session/${encodeURIComponent(ref)}`);
-      const data = await res.json();
-      if (res.ok && data.session) {
-        setDetectedSession(data.session);
-        setSelectedWallet(data.session.walletId || 'GCash');
-      } else {
-        setErrorMsg(data.error || 'Transaction reference not found on server.');
-      }
-    } catch (err) {
-      setErrorMsg('Network error connecting to payment gateway.');
     }
   };
 

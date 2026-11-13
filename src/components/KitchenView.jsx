@@ -341,6 +341,10 @@ function KitchenView({ onReturnToKiosk }) {
   const [orders, setOrders] = useState([]);
   const [filter, setFilter] = useState('active'); // 'active' | 'received' | 'preparing' | 'ready' | 'all'
   const [soundEnabled, setSoundEnabled] = useState(true);
+  const soundEnabledRef = useRef(soundEnabled);
+  useEffect(() => {
+    soundEnabledRef.current = soundEnabled;
+  }, [soundEnabled]);
   const [currentTime, setCurrentTime] = useState(new Date());
   // Compact by default: set of expanded card IDs (ORD-XXXX)
   const [expandedOrders, setExpandedOrders] = useState(() => new Set());
@@ -503,7 +507,7 @@ function KitchenView({ onReturnToKiosk }) {
     const handleWindowOrderEvent = (e) => {
       console.log("[Kitchen] Received new order event:", e.detail);
       loadAllOrders();
-      if (soundEnabled) playChime('new-order');
+      if (soundEnabledRef.current) playChime('new-order');
     };
 
     window.addEventListener('storage', loadAllOrders);

@@ -65,6 +65,8 @@ export default function EmployeeAccountManager({
   const [editingAccount, setEditingAccount] = useState(null);
   const [passwordResetTarget, setPasswordResetTarget] = useState(null);
   const [newPasswordInput, setNewPasswordInput] = useState('');
+  const [pinUpdateTarget, setPinUpdateTarget] = useState(null);
+  const [newPinInput, setNewPinInput] = useState('');
   const [activityTarget, setActivityTarget] = useState(null);
 
   const [formData, setFormData] = useState({
@@ -72,6 +74,7 @@ export default function EmployeeAccountManager({
     username: '',
     email: '',
     password: '',
+    pin: '2011',
     accountType: 'cashier',
     role: 'Cashier',
     position: 'POS Cashier & Register Operator',
@@ -188,14 +191,15 @@ export default function EmployeeAccountManager({
     setEditingAccount(null);
     setFormData({
       name: '',
-      username: '',
-      email: '',
+      username: type === 'staff' ? 'staff' : '',
+      email: type === 'staff' ? 'staff@umamicraft.com' : '',
       password: type === 'admin' ? 'admin123' : type === 'cashier' ? 'cashier123' : 'staff123',
+      pin: type === 'staff' ? String(Math.floor(2000 + Math.random() * 800)) : '1234',
       accountType: type,
       role: ROLE_OPTIONS_BY_TYPE[type][0],
       position: type === 'admin' ? 'Operations Administrator' : type === 'cashier' ? 'POS Cashier & Counter Register' : 'Kitchen & Floor Operations Staff',
       department: type === 'admin' ? 'Executive Management' : type === 'cashier' ? 'POS & Front Counter' : 'Kitchen & Culinary',
-      shift: 'Morning Shift (08:00 AM - 04:30 PM)',
+      shift: 'Morning Shift (07:30 AM - 04:00 PM)',
       contact: '+63 917 555 0199',
       status: 'Active',
       registerId: type === 'cashier' ? 'POS-01 (Main Counter)' : '',
@@ -212,11 +216,12 @@ export default function EmployeeAccountManager({
       username: emp.username || '',
       email: emp.email || '',
       password: '',
+      pin: emp.pin || (emp.accountType === 'staff' ? '2011' : '1234'),
       accountType: emp.accountType || 'staff',
       role: emp.role || 'Kitchen Staff',
       position: emp.position || '',
       department: emp.department || '',
-      shift: emp.shift || 'Morning Shift (08:00 AM - 04:30 PM)',
+      shift: emp.shift || 'Morning Shift (07:30 AM - 04:00 PM)',
       contact: emp.contact || '',
       status: emp.status || 'Active',
       registerId: emp.registerId || 'POS-01 (Main Counter)',
@@ -250,13 +255,29 @@ export default function EmployeeAccountManager({
 
   const handleSaveAccount = async (e) => {
     e.preventDefault();
-    if (!formData.name.trim() || (!formData.username.trim() && !formData.email.trim())) {
-      showToastMsg('Please provide the employee full name, username, and email.', 'error');
+    const isStaff = formData.accountType === 'staff';
+    if (!formData.name.trim()) {
+      showToastMsg('Please provide the employee full name.', 'error');
+      return;
+    }
+    if (!isStaff && (!formData.username.trim() && !formData.email.trim())) {
+      showToastMsg('Please provide the employee username and login email.', 'error');
       return;
     }
 
     const actorName = currentUser?.name || 'Chief Administrator';
     const nowIso = new Date().toISOString();
+
+    const normalizedUsername = isStaff
+      ? (formData.username.trim() || 'staff')
+      : formData.username.trim();
+    const normalizedEmail = isStaff
+      ? (formData.email.trim() || 'staff@umamicraft.com')
+      : formData.email.trim();
+    const normalizedPassword = isStaff
+      ? 'staff123'
+      : (formData.password || (formData.accountType === 'admin' ? 'admin123' : 'cashier123'));
+    const normalizedPin = formData.pin ? String(formData.pin).trim() : (editingAccount?.pin || (isStaff ? '2011' : '1234'));
 
     if (editingAccount) {
       const updatedList = employees.map(emp => {
@@ -264,7 +285,10 @@ export default function EmployeeAccountManager({
         return {
           ...emp,
           ...formData,
-          password: formData.password ? formData.password : emp.password
+          username: normalizedUsername,
+          email: normalizedEmail,
+          password: isStaff ? (emp.password || 'staff123') : (formData.password ? formData.password : emp.password),
+          pin: normalizedPin
         };
       });
       setEmployees(updatedList);
@@ -275,17 +299,22 @@ export default function EmployeeAccountManager({
         actorRole: 'Administrator',
         accountType: 'admin',
         category: 'Account Management',
-        action: 'Employee Account Updated',
+        action: isStaff ? 'Employee Personnel Record Updated' : 'Employee Account Updated',
         target: `${editingAccount.name} (${editingAccount.id})`,
-        details: `Updated role/permissions for ${formData.name} (${formData.role}).`,
+        details: isStaff
+          ? `Updated personnel record, station (${formData.department}), shift (${formData.shift}), and PIN for ${formData.name}.`
+          : `Updated role/permissions for ${formData.name} (${formData.role}).`,
         status: 'Success'
       });
     } else {
-      const prefix = formData.accountType === 'admin' ? 'EMP-00' : formData.accountType === 'cashier' ? 'EMP-10' : 'EMP-30';
+      const prefix = formData.accountType === 'admin' ? 'EMP-00' : formData.accountType === 'cashier' ? 'EMP-10' : 'EMP-20';
       const newEmp = {
         id: `${prefix}${Math.floor(Math.random() * 89 + 10)}`,
         ...formData,
-        password: formData.password || (formData.accountType === 'admin' ? 'admin123' : formData.accountType === 'cashier' ? 'cashier123' : 'staff123'),
+        username: normalizedUsername,
+        email: normalizedEmail,
+        password: normalizedPassword,
+        pin: normalizedPin,
         createdAt: nowIso,
         lastLogin: null
       };
@@ -298,9 +327,11 @@ export default function EmployeeAccountManager({
         actorRole: 'Administrator',
         accountType: 'admin',
         category: 'Account Management',
-        action: 'Employee Account Created',
+        action: isStaff ? 'Employee Personnel Profile Registered' : 'Employee Account Created',
         target: `${newEmp.name} (${newEmp.id})`,
-        details: `Created new ${formData.accountType.toUpperCase()} account for ${newEmp.name} (@${newEmp.username}).`,
+        details: isStaff
+          ? `Registered new employee personnel profile for ${newEmp.name} (${newEmp.position}) under centralized Staff Account.`
+          : `Created new ${formData.accountType.toUpperCase()} account for ${newEmp.name} (@${newEmp.username}).`,
         status: 'Success'
       });
     }
@@ -310,9 +341,13 @@ export default function EmployeeAccountManager({
       const method = editingAccount ? 'PUT' : 'POST';
       const payload = {
         ...formData,
+        username: normalizedUsername,
+        email: normalizedEmail,
+        password: normalizedPassword,
+        pin: normalizedPin,
         actorName
       };
-      if (editingAccount && !payload.password) {
+      if (editingAccount && !formData.password) {
         delete payload.password;
       }
 
@@ -330,11 +365,20 @@ export default function EmployeeAccountManager({
       }
     } catch {}
 
+    window.dispatchEvent(new CustomEvent('umami-system-sync'));
+    window.dispatchEvent(new Event('storage'));
+    if (socket) {
+      socket.emit('employees-updated', employees);
+      socket.emit('request-network-refresh');
+    }
+
     setShowFormModal(false);
     showToastMsg(
       editingAccount
-        ? `Account "${formData.name}" updated successfully.`
-        : `New ${formData.accountType.toUpperCase()} account created for "${formData.name}".`
+        ? `Personnel record "${formData.name}" updated successfully.`
+        : isStaff
+          ? `New employee profile registered for "${formData.name}".`
+          : `New ${formData.accountType.toUpperCase()} account created for "${formData.name}".`
     );
   };
 
@@ -412,6 +456,46 @@ export default function EmployeeAccountManager({
     showToastMsg(`Password reset for ${passwordResetTarget.name} (@${passwordResetTarget.username}).`);
     setPasswordResetTarget(null);
     setNewPasswordInput('');
+  };
+
+  const handleUpdatePin = async (e) => {
+    e.preventDefault();
+    if (!pinUpdateTarget || !newPinInput.trim() || newPinInput.trim().length !== 4) {
+      showToastMsg('Please enter a valid 4-digit numeric PIN.', 'error');
+      return;
+    }
+    const cleanPin = newPinInput.trim();
+    const updatedList = employees.map(emp =>
+      emp.id === pinUpdateTarget.id ? { ...emp, pin: cleanPin } : emp
+    );
+    setEmployees(updatedList);
+    saveLocalEmployees(updatedList);
+    appendLocalAuditLog({
+      actorId: currentUser?.id || 'EMP-001',
+      actorName: currentUser?.name || 'Chief Administrator',
+      actorRole: 'Administrator',
+      accountType: 'admin',
+      category: 'Security',
+      action: 'Employee Terminal PIN Updated',
+      target: `${pinUpdateTarget.name} (${pinUpdateTarget.id})`,
+      details: `Administrator updated workstation verification PIN for ${pinUpdateTarget.name} (${pinUpdateTarget.id}) to ${cleanPin}.`,
+      status: 'Success'
+    });
+
+    try {
+      await fetch(`/api/employees/${pinUpdateTarget.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...pinUpdateTarget,
+          pin: cleanPin,
+          actorName: currentUser?.name || 'Chief Administrator'
+        })
+      });
+    } catch {}
+    showToastMsg(`Updated verification PIN for ${pinUpdateTarget.name} to "${cleanPin}".`);
+    setPinUpdateTarget(null);
+    setNewPinInput('');
   };
 
   const handleDeleteAccount = async (emp) => {
@@ -569,7 +653,7 @@ export default function EmployeeAccountManager({
             { id: 'all', label: `All Accounts (${counts.all})` },
             { id: 'admin', label: `Administrator Accounts (${counts.admin})` },
             { id: 'cashier', label: `Cashier Accounts (${counts.cashier})` },
-            { id: 'staff', label: `Staff Accounts (${counts.staff})` },
+            { id: 'staff', label: `Staff Personnel Directory (${counts.staff})` },
             { id: 'audit', label: `Account Activity & Login Audit (${auditLogs.length})` }
           ].map(tab => {
             const active = activeCategory === tab.id;
@@ -591,6 +675,29 @@ export default function EmployeeAccountManager({
             );
           })}
         </div>
+
+        {/* Centralized Staff Account Informational Banner */}
+        {activeCategory === 'staff' && (
+          <div style={{
+            background: '#EFF6FF', border: '1px solid #BFDBFE', borderRadius: '12px',
+            padding: '0.95rem 1.25rem', display: 'flex', alignItems: 'center', gap: '12px'
+          }}>
+            <div style={{
+              width: '38px', height: '38px', borderRadius: '10px', background: '#DBEAFE',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0
+            }}>
+              <ChefHat size={22} color="#1D4ED8" />
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontWeight: 800, color: '#1E40AF', fontSize: '0.88rem' }}>
+                CENTRALIZED &ldquo;ONE STAFF ACCOUNT FOR ALL EMPLOYEES&rdquo; SYSTEM ACTIVE
+              </div>
+              <div style={{ fontSize: '0.78rem', color: '#1E3A8A', marginTop: '2px', lineHeight: 1.45 }}>
+                All culinary, kitchen, busser, and floor staff access the Staff Operations Dashboard through the single authorized Staff Account (<strong>Username: staff</strong> / <strong>Password: staff123</strong>). Individual staff login account creation is disabled. Each employee profile below is an identifiable personnel record synchronized with the Staff Dashboard and terminal PIN verification.
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Row 2: Search, Status Filter & Action Controls */}
         <div style={{
@@ -787,13 +894,41 @@ export default function EmployeeAccountManager({
                           </div>
                         </td>
                         <td style={{ padding: '0.95rem 1rem', width: '210px', minWidth: '200px' }}>
-                          <div style={{ fontWeight: 700, color: '#1C1917', fontFamily: 'monospace', fontSize: '0.82rem', whiteSpace: 'nowrap' }}>
-                            @{emp.username}
-                          </div>
-                          <div style={{ fontSize: '0.76rem', color: '#57534E', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px', whiteSpace: 'nowrap' }}>
-                            <Mail size={12} color="#A8A29E" style={{ flexShrink: 0 }} />
-                            <span>{emp.email}</span>
-                          </div>
+                          {emp.accountType === 'staff' ? (
+                            emp.id === 'STAFF-CENTRAL' ? (
+                              <div>
+                                <div style={{ fontWeight: 800, color: '#1D4ED8', fontSize: '0.84rem', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                                  <ChefHat size={14} color="#1D4ED8" /> @{emp.username} (Shared)
+                                </div>
+                                <div style={{ fontSize: '0.74rem', color: '#57534E', marginTop: '2px' }}>
+                                  {emp.email}
+                                </div>
+                              </div>
+                            ) : (
+                              <div>
+                                <div style={{ fontWeight: 800, color: '#1D4ED8', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                  <ChefHat size={13} color="#2563EB" /> Shared Login: @staff
+                                </div>
+                                <div style={{
+                                  display: 'inline-flex', alignItems: 'center', gap: '4px', marginTop: '3px',
+                                  background: '#EFF6FF', border: '1px solid #BFDBFE', padding: '2px 8px',
+                                  borderRadius: '6px', fontSize: '0.73rem', fontWeight: 800, color: '#1E40AF'
+                                }}>
+                                  <Key size={11} /> Terminal PIN: <strong>{emp.pin || '2011'}</strong>
+                                </div>
+                              </div>
+                            )
+                          ) : (
+                            <div>
+                              <div style={{ fontWeight: 700, color: '#1C1917', fontFamily: 'monospace', fontSize: '0.82rem', whiteSpace: 'nowrap' }}>
+                                @{emp.username}
+                              </div>
+                              <div style={{ fontSize: '0.76rem', color: '#57534E', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '2px', whiteSpace: 'nowrap' }}>
+                                <Mail size={12} color="#A8A29E" style={{ flexShrink: 0 }} />
+                                <span>{emp.email}</span>
+                              </div>
+                            </div>
+                          )}
                         </td>
                         <td style={{ padding: '0.95rem 1rem', width: '180px', minWidth: '170px' }}>
                           <span style={{
@@ -863,19 +998,35 @@ export default function EmployeeAccountManager({
                             >
                               <Edit2 size={13} /> Edit
                             </button>
-                            <button
-                              title="Reset Login Password"
-                              onClick={() => {
-                                setPasswordResetTarget(emp);
-                                setNewPasswordInput('');
-                              }}
-                              style={{
-                                padding: '6px 9px', borderRadius: '8px', border: '1px solid #FED7AA',
-                                background: '#FFF7ED', color: '#C24522', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '0.74rem', fontWeight: 700
-                              }}
-                            >
-                              <Key size={13} /> Reset PW
-                            </button>
+                            {emp.accountType === 'staff' && emp.id !== 'STAFF-CENTRAL' ? (
+                              <button
+                                title="Update Terminal Identification PIN"
+                                onClick={() => {
+                                  setPinUpdateTarget(emp);
+                                  setNewPinInput(emp.pin || '2011');
+                                }}
+                                style={{
+                                  padding: '6px 9px', borderRadius: '8px', border: '1px solid #BFDBFE',
+                                  background: '#EFF6FF', color: '#1D4ED8', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '0.74rem', fontWeight: 700
+                                }}
+                              >
+                                <Key size={13} /> Update PIN
+                              </button>
+                            ) : (
+                              <button
+                                title="Reset Login Password"
+                                onClick={() => {
+                                  setPasswordResetTarget(emp);
+                                  setNewPasswordInput('');
+                                }}
+                                style={{
+                                  padding: '6px 9px', borderRadius: '8px', border: '1px solid #FED7AA',
+                                  background: '#FFF7ED', color: '#C24522', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: '0.74rem', fontWeight: 700
+                                }}
+                              >
+                                <Key size={13} /> Reset PW
+                              </button>
+                            )}
                             {emp.id !== 'EMP-001' ? (
                               <>
                                 <button
@@ -983,54 +1134,90 @@ export default function EmployeeAccountManager({
               </div>
 
               {/* Personal & Login Credentials */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.9rem' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: '#44403C', marginBottom: '4px' }}>Full Name *</label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    placeholder="e.g. Elena Cruz"
-                    style={{ width: '100%', padding: '0.6rem 0.75rem', borderRadius: '10px', border: '1px solid #D6D3D1', fontSize: '0.85rem' }}
-                  />
+              {formData.accountType === 'staff' ? (
+                <div style={{ background: '#EFF6FF', padding: '1rem', borderRadius: '12px', border: '1px solid #BFDBFE', display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#1E40AF', fontSize: '0.82rem', fontWeight: 800 }}>
+                    <ChefHat size={16} /> CENTRALIZED ONE STAFF ACCOUNT ACTIVE (SHARED LOGIN: @staff / staff123)
+                  </div>
+                  <p style={{ margin: 0, fontSize: '0.78rem', color: '#1E3A8A', lineHeight: 1.4 }}>
+                    All staff log into the terminal using the single shared Staff Account credentials. Register this employee&rsquo;s identifiable personnel record and 4-digit workstation verification PIN below.
+                  </p>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.9rem' }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: '#1E3A8A', marginBottom: '4px' }}>Full Employee Name *</label>
+                      <input
+                        type="text"
+                        required
+                        value={formData.name}
+                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                        placeholder="e.g. Master Chef Kenji"
+                        style={{ width: '100%', padding: '0.6rem 0.75rem', borderRadius: '10px', border: '1px solid #93C5FD', fontSize: '0.85rem' }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: '#1E3A8A', marginBottom: '4px' }}>4-Digit Terminal Verification PIN *</label>
+                      <input
+                        type="text"
+                        required
+                        maxLength={4}
+                        value={formData.pin || ''}
+                        onChange={(e) => setFormData({ ...formData, pin: e.target.value.replace(/\D/g, '') })}
+                        placeholder="e.g. 2011"
+                        style={{ width: '100%', padding: '0.6rem 0.75rem', borderRadius: '10px', border: '1px solid #93C5FD', fontSize: '0.85rem', fontWeight: 800, letterSpacing: '2px' }}
+                      />
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: '#44403C', marginBottom: '4px' }}>Username *</label>
-                  <input
-                    type="text"
-                    required
-                    value={formData.username}
-                    onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-                    placeholder="e.g. cashier.elena"
-                    style={{ width: '100%', padding: '0.6rem 0.75rem', borderRadius: '10px', border: '1px solid #D6D3D1', fontSize: '0.85rem' }}
-                  />
+              ) : (
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.9rem' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: '#44403C', marginBottom: '4px' }}>Full Name *</label>
+                    <input
+                      type="text"
+                      required
+                      value={formData.name}
+                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                      placeholder="e.g. Elena Cruz"
+                      style={{ width: '100%', padding: '0.6rem 0.75rem', borderRadius: '10px', border: '1px solid #D6D3D1', fontSize: '0.85rem' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: '#44403C', marginBottom: '4px' }}>Username *</label>
+                    <input
+                      type="text"
+                      required
+                      value={formData.username}
+                      onChange={(e) => setFormData({ ...formData, username: e.target.value })}
+                      placeholder="e.g. cashier.elena"
+                      style={{ width: '100%', padding: '0.6rem 0.75rem', borderRadius: '10px', border: '1px solid #D6D3D1', fontSize: '0.85rem' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: '#44403C', marginBottom: '4px' }}>Login Email *</label>
+                    <input
+                      type="email"
+                      required
+                      value={formData.email}
+                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                      placeholder="e.g. cashier.elena@umamicraft.com"
+                      style={{ width: '100%', padding: '0.6rem 0.75rem', borderRadius: '10px', border: '1px solid #D6D3D1', fontSize: '0.85rem' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: '#44403C', marginBottom: '4px' }}>
+                      {editingAccount ? 'New Password (leave blank to keep current)' : 'Initial Login Password *'}
+                    </label>
+                    <input
+                      type="text"
+                      required={!editingAccount}
+                      value={formData.password}
+                      onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                      placeholder={editingAccount ? 'Unchanged' : 'Enter password'}
+                      style={{ width: '100%', padding: '0.6rem 0.75rem', borderRadius: '10px', border: '1px solid #D6D3D1', fontSize: '0.85rem' }}
+                    />
+                  </div>
                 </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: '#44403C', marginBottom: '4px' }}>Login Email *</label>
-                  <input
-                    type="email"
-                    required
-                    value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    placeholder="e.g. cashier.elena@umamicraft.com"
-                    style={{ width: '100%', padding: '0.6rem 0.75rem', borderRadius: '10px', border: '1px solid #D6D3D1', fontSize: '0.85rem' }}
-                  />
-                </div>
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: '#44403C', marginBottom: '4px' }}>
-                    {editingAccount ? 'New Password (leave blank to keep current)' : 'Initial Login Password *'}
-                  </label>
-                  <input
-                    type="text"
-                    required={!editingAccount}
-                    value={formData.password}
-                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                    placeholder={editingAccount ? 'Unchanged' : 'Enter password'}
-                    style={{ width: '100%', padding: '0.6rem 0.75rem', borderRadius: '10px', border: '1px solid #D6D3D1', fontSize: '0.85rem' }}
-                  />
-                </div>
-              </div>
+              )}
 
               {/* Role, Position, Department, Shift */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.9rem' }}>
@@ -1205,6 +1392,65 @@ export default function EmployeeAccountManager({
                   style={{ padding: '0.55rem 1.15rem', borderRadius: '8px', border: 'none', background: '#C24522', color: '#FFFFFF', fontWeight: 800, cursor: 'pointer' }}
                 >
                   Confirm Password Reset
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal: Update Staff Terminal PIN */}
+      {pinUpdateTarget && (
+        <div style={{
+          position: 'fixed', inset: 0, background: 'rgba(28, 25, 23, 0.58)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9100, padding: '1rem'
+        }}>
+          <div style={{
+            background: '#FFFFFF', borderRadius: '18px', width: '100%', maxWidth: '420px',
+            padding: '1.5rem', border: '1px solid #E7E5E4', boxShadow: '0 20px 40px rgba(0,0,0,0.2)'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+              <Key size={18} color="#1D4ED8" />
+              <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: '#1C1917' }}>
+                Update Workstation PIN • {pinUpdateTarget.name}
+              </h3>
+            </div>
+            <p style={{ margin: '0 0 1rem', fontSize: '0.82rem', color: '#78716C', lineHeight: 1.4 }}>
+              Set a new 4-digit verification PIN used by <strong>{pinUpdateTarget.name}</strong> ({pinUpdateTarget.id}) to verify their terminal sessions and attendance records.
+            </p>
+            <form onSubmit={handleUpdatePin} style={{ display: 'flex', flexDirection: 'column', gap: '0.9rem' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: '#44403C', marginBottom: '4px' }}>
+                  4-Digit Numeric PIN *
+                </label>
+                <input
+                  type="text"
+                  required
+                  maxLength={4}
+                  autoFocus
+                  value={newPinInput}
+                  onChange={(e) => setNewPinInput(e.target.value.replace(/\D/g, ''))}
+                  placeholder="e.g. 2011"
+                  style={{
+                    width: '100%', padding: '0.7rem 0.85rem', borderRadius: '10px',
+                    border: '1px solid #93C5FD', fontSize: '1.1rem', fontWeight: 900,
+                    letterSpacing: '4px', textAlign: 'center', background: '#EFF6FF', color: '#1E40AF'
+                  }}
+                />
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.6rem' }}>
+                <button
+                  type="button"
+                  onClick={() => setPinUpdateTarget(null)}
+                  style={{ padding: '0.55rem 1rem', borderRadius: '8px', border: '1px solid #D6D3D1', background: '#FFFFFF', fontWeight: 700, cursor: 'pointer' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  style={{ padding: '0.55rem 1.15rem', borderRadius: '8px', border: 'none', background: '#1D4ED8', color: '#FFFFFF', fontWeight: 800, cursor: 'pointer' }}
+                >
+                  Save New PIN
                 </button>
               </div>
             </form>

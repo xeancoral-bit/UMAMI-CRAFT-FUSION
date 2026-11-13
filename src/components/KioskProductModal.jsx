@@ -2,6 +2,8 @@ import React, { useState, useEffect, useMemo } from 'react';
 import {
   X, Plus, Minus, AlertTriangle, Clock, Sparkles, Flame, Check, Utensils
 } from 'lucide-react';
+import { getConflictingAllergens } from '../utils/allergenUtils';
+import AllergenDoubleWarningModal from './AllergenDoubleWarningModal';
 
 const SPICE_LEVELS = [
   { id: 'Regular', label: 'Regular', badge: 'Standard' },
@@ -10,18 +12,21 @@ const SPICE_LEVELS = [
   { id: 'Extra Spicy', label: 'Extra Spicy', badge: 'Fiery' }
 ];
 
+const EMPTY_ARRAY = Object.freeze([]);
+
 export default function KioskProductModal({
   item,
   isOpen,
   onClose,
   onAddToCart,
-  userAllergens = []
+  userAllergens = EMPTY_ARRAY
 }) {
   const [selectedSizeIndex, setSelectedSizeIndex] = useState(0);
   const [selectedSpice, setSelectedSpice] = useState('Regular');
   const [selectedAddons, setSelectedAddons] = useState([]);
   const [customNote, setCustomNote] = useState('');
   const [qty, setQty] = useState(1);
+  const [showStage1AllergenModal, setShowStage1AllergenModal] = useState(false);
 
   useEffect(() => {
     if (isOpen && item) {
@@ -32,6 +37,7 @@ export default function KioskProductModal({
       setSelectedAddons([]);
       setCustomNote('');
       setQty(1);
+      setShowStage1AllergenModal(false);
     }
   }, [isOpen, item]);
 
@@ -129,6 +135,10 @@ export default function KioskProductModal({
     return [];
   }, [item]);
 
+  const matchingUserAllergens = useMemo(() => {
+    return getConflictingAllergens(item, userAllergens);
+  }, [item, userAllergens]);
+
   if (!isOpen || !item) return null;
 
   const activeSize = parsedSizes[selectedSizeIndex] || parsedSizes[0] || { name: 'Standard', price: Number(item.promoPrice || item.price || 0) };
@@ -137,16 +147,6 @@ export default function KioskProductModal({
   const totalPrice = unitPrice * qty;
 
   const itemAllergens = Array.isArray(item.allergens) ? item.allergens : [];
-  const ingredientBlob = [
-    ...itemAllergens,
-    item.ingredients || '',
-    ...ingredientsRows.map(r => r.name || '')
-  ].join(' ').toLowerCase();
-  const matchingUserAllergens = userAllergens.filter(ua => {
-    const lower = String(ua || '').toLowerCase().trim();
-    if (!lower) return false;
-    return itemAllergens.some(a => String(a).toLowerCase() === lower) || ingredientBlob.includes(lower);
-  });
   const isFood = item.catalogType === 'food';
 
   const toggleAddon = (addonObj) => {
@@ -157,7 +157,7 @@ export default function KioskProductModal({
     });
   };
 
-  const handleConfirmAdd = () => {
+  const executeAddToCart = () => {
     const combinedNotes = [
       ...(isFood && selectedSpice !== 'Regular' ? [`Spice: ${selectedSpice}`] : []),
       ...(customNote.trim() ? [customNote.trim()] : [])
@@ -173,7 +173,16 @@ export default function KioskProductModal({
       specialNote: combinedNotes,
       qty
     });
+    setShowStage1AllergenModal(false);
     onClose();
+  };
+
+  const handleConfirmAdd = () => {
+    if (matchingUserAllergens.length > 0) {
+      setShowStage1AllergenModal(true);
+      return;
+    }
+    executeAddToCart();
   };
 
   return (
@@ -462,6 +471,18 @@ export default function KioskProductModal({
           </button>
         </div>
       </div>
+
+      {/* Stage 1 Warning Modal (Item Addition Double-Confirmation) */}
+      <AllergenDoubleWarningModal
+        isOpen={showStage1AllergenModal}
+        stage="item_addition"
+        item={item}
+        conflictingAllergens={matchingUserAllergens}
+        userAllergens={userAllergens}
+        onClose={() => setShowStage1AllergenModal(false)}
+        onCancel={() => setShowStage1AllergenModal(false)}
+        onConfirm={executeAddToCart}
+      />
     </div>
   );
 }

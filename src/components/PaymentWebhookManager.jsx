@@ -5,9 +5,11 @@ import {
   FileText, Activity, Users, Award, Sparkles, ExternalLink
 } from 'lucide-react';
 
+const EMPTY_ARRAY = Object.freeze([]);
+
 export default function PaymentWebhookManager({
   socket,
-  orders = [],
+  orders = EMPTY_ARRAY,
   currentAdminName = 'Chief Administrator'
 }) {
   const [activeTab, setActiveTab] = useState('feed'); // 'feed' | 'simulator' | 'memberships' | 'config'

@@ -5,12 +5,14 @@ import React from 'react';
  * Custom SVG icon representing a receipt ticket with the Philippine Peso (₱)
  * symbol in place of the default dollar ($) sign.
  */
+const EMPTY_STYLE = Object.freeze({});
+
 export default function PesoReceipt({
   size = 18,
   color = 'currentColor',
   strokeWidth = 2,
   className = '',
-  style = {}
+  style = EMPTY_STYLE
 }) {
   return (
     <svg

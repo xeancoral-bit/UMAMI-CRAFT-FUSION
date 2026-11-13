@@ -193,6 +193,70 @@ export async function fetchDailyReportsList() {
   return localReports;
 }
 
+const ATTENDANCE_STORAGE_KEY = 'umami_attendance_records';
+
+export function getLocalAttendance() {
+  return readLocal(ATTENDANCE_STORAGE_KEY, []);
+}
+
+export function saveLocalAttendance(list, skipEvent = false) {
+  writeLocal(ATTENDANCE_STORAGE_KEY, list, skipEvent);
+  return list;
+}
+
+export async function fetchAttendanceList(date = '', employeeId = '') {
+  const local = getLocalAttendance();
+  try {
+    const params = new URLSearchParams();
+    if (date) params.set('date', date);
+    if (employeeId && employeeId !== 'all') params.set('employeeId', employeeId);
+    const res = await fetch(`/api/attendance?${params.toString()}`);
+    if (res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        saveLocalAttendance(data, true);
+        return data;
+      }
+    }
+  } catch {}
+  let filtered = [...local];
+  if (date) filtered = filtered.filter(a => a.date === date);
+  if (employeeId && employeeId !== 'all') filtered = filtered.filter(a => a.employeeId === employeeId);
+  return filtered;
+}
+
+export async function recordAttendanceTimeIn({ employeeId, date, time, shift }) {
+  const res = await fetch('/api/attendance/time-in', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ employeeId, date, time, shift })
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to record Time In.');
+  if (data.attendance) {
+    const current = getLocalAttendance();
+    const updated = [data.attendance, ...current.filter(a => a.id !== data.attendance.id)];
+    saveLocalAttendance(updated);
+  }
+  return data.attendance;
+}
+
+export async function recordAttendanceTimeOut({ employeeId, date, time }) {
+  const res = await fetch('/api/attendance/time-out', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ employeeId, date, time })
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to record Time Out.');
+  if (data.attendance) {
+    const current = getLocalAttendance();
+    const updated = current.map(a => a.id === data.attendance.id ? data.attendance : a);
+    saveLocalAttendance(updated);
+  }
+  return data.attendance;
+}
+
 /**
  * Unified Role-Based Account Login (Admin, Cashier, Staff).
  * Authenticates via backend `/api/admin/login` first, and seamlessly falls back
@@ -341,6 +405,25 @@ export async function authenticateRoleBasedAccount(identifierInput, passwordInpu
       lastLogin: nowIso,
       createdAt: matchedEmp.createdAt
     };
+  }
+
+  // Fallback for centralized ONE STAFF ACCOUNT
+  if (['staff', 'staff@umamicraft.com', 'kitchen@umamicraft.com', 'kitchen', 'staff.kenji'].includes(loginId)) {
+    if (password === 'staff123' || password === 'admin123') {
+      return {
+        id: 'STAFF-CENTRAL',
+        employeeId: 'STAFF-CENTRAL',
+        username: 'staff',
+        email: 'staff@umamicraft.com',
+        name: 'Restaurant Staff Account',
+        accountType: 'staff',
+        role: 'Staff Account',
+        position: 'Operations Staff (Kitchen, Service, Bussing)',
+        department: 'Restaurant Operations & Kitchen Floor',
+        permissions: ['assigned_tasks', 'kitchen_prep', 'table_service', 'staff_daily_report', 'shift_activity'],
+        status: 'Active'
+      };
+    }
   }
 
   throw new Error('Access Denied: Invalid username/email or unauthorized account.');

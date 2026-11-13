@@ -319,6 +319,9 @@ export function saveAllergens(allergens, socket = null) {
   try {
     localStorage.setItem(STORAGE_KEY_ALLERGENS, JSON.stringify(normalized));
     broadcastLocalUpdate({ allergens: normalized });
+    if (socket && typeof socket.emit === 'function') {
+      socket.emit('allergens-updated', normalized);
+    }
   } catch (e) {
     console.error('[preferencesService] Error saving allergens:', e);
   }
@@ -337,6 +340,9 @@ export function saveFlavorPreferences(flavors, socket = null) {
   try {
     localStorage.setItem(STORAGE_KEY_FLAVORS, JSON.stringify(normalized));
     broadcastLocalUpdate({ flavors: normalized });
+    if (socket && typeof socket.emit === 'function') {
+      socket.emit('preferences-updated', normalized);
+    }
   } catch (e) {
     console.error('[preferencesService] Error saving flavors:', e);
   }
@@ -349,7 +355,9 @@ export function saveFlavorPreferences(flavors, socket = null) {
 function broadcastLocalUpdate(payload) {
   try {
     window.dispatchEvent(new CustomEvent(EVENT_PREFERENCES_UPDATED, { detail: payload }));
-  } catch (_) {}
+  } catch (err) {
+    console.warn('[preferencesService] Local broadcast skipped:', err);
+  }
 }
 
 /**

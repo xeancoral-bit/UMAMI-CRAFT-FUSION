@@ -1,5 +1,417 @@
 [
   {
+    "id": "sess_mweuug4v_dob30q",
+    "sessionId": "sess_mweuug4v_dob30q",
+    "orderId": "ORD-6504",
+    "pickupToken": "U-208",
+    "referenceNumber": "TXN-UMAMI-MWEUUG4V-5505",
+    "merchantName": "UMAMI CRAFT FUSION INC.",
+    "amount": 349,
+    "currency": "PHP",
+    "subtotal": 349,
+    "taxAmount": 37.39285714285717,
+    "discountAmount": 0,
+    "promoCode": null,
+    "paymentMethod": "E-Wallet",
+    "walletId": "GCash",
+    "kioskId": "LJTUVW",
+    "tableNumber": "Table 1",
+    "diningOption": "Dine-In",
+    "customer": "Kiosk Guest (LJTUVW)",
+    "items": [
+      {
+        "id": "CMB-102-Standard Serving-reg--",
+        "name": "Szechuan Dumpling Duo",
+        "description": "Spicy Szechuan Dumplings + Egg Fried Rice + Thai Iced Milk Tea",
+        "price": 349,
+        "originalPrice": 450,
+        "available": true,
+        "allergens": [
+          "gluten",
+          "dairy",
+          "soy"
+        ],
+        "tags": [
+          "combo",
+          "savory"
+        ],
+        "category": "Combos & Value Meals",
+        "catalogType": "combo",
+        "emoji": "🍱",
+        "image": "https://images.unsplash.com/photo-1563245372-f21724e3856d?auto=format&fit=crop&w=600&q=80",
+        "originalId": "CMB-102",
+        "size": "Standard Serving",
+        "volume": "",
+        "spiceLevel": null,
+        "addons": [],
+        "specialNote": "",
+        "quantity": 1
+      }
+    ],
+    "allergens": [],
+    "note": "",
+    "status": "successful",
+    "qrPayload": "00020101021228650012ph.ppmi.qrph0110UMAMI8626402220917-888-UMAMI (86264)0305GCASH5204581253036085406349.005802PH5923UMAMI CRAFT FUSION INC.6006MANILA62370123TXN-UMAMI-MWEUUG4V-55050706LJTUVW630402B3",
+    "createdAt": "2026-11-13T10:49:40.399Z",
+    "expiresAt": 1794567580399,
+    "expiresInSeconds": 600,
+    "restaurantId": "umami",
+    "paidAt": "2026-11-13T10:49:47.262Z",
+    "payerWallet": "GCash",
+    "payerPhone": "0917-***-****",
+    "merchantAccount": "0917-888-UMAMI (86264)"
+  },
+  {
+    "id": "sess_mweujjy7_tj1rag",
+    "sessionId": "sess_mweujjy7_tj1rag",
+    "orderId": "ORD-7565",
+    "pickupToken": "U-614",
+    "referenceNumber": "TXN-UMAMI-MWEUJJY7-3319",
+    "merchantName": "UMAMI CRAFT FUSION INC.",
+    "amount": 429,
+    "currency": "PHP",
+    "subtotal": 429,
+    "taxAmount": 45.96428571428572,
+    "discountAmount": 0,
+    "promoCode": null,
+    "paymentMethod": "E-Wallet",
+    "walletId": "MariBank",
+    "kioskId": "CND8KK",
+    "tableNumber": "Table 1",
+    "diningOption": "Dine-In",
+    "customer": "Kiosk Guest (CND8KK)",
+    "items": [
+      {
+        "id": "CMB-101-Standard Serving-reg--",
+        "name": "Ultimate Teriyaki Feast Combo",
+        "description": "Chicken Teriyaki Rice Bowl + Pork & Chive Gyoza + Matcha Boba Milk Tea",
+        "price": 399,
+        "originalPrice": 480,
+        "available": true,
+        "allergens": [
+          "gluten",
+          "dairy"
+        ],
+        "tags": [
+          "combo",
+          "savory"
+        ],
+        "category": "Combos & Value Meals",
+        "catalogType": "combo",
+        "emoji": "🍱",
+        "image": "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=600&q=80",
+        "originalId": "CMB-101",
+        "size": "Standard Serving",
+        "volume": "",
+        "spiceLevel": null,
+        "addons": [],
+        "specialNote": "",
+        "quantity": 1
+      },
+      {
+        "id": "DRK-006-Small-reg--",
+        "sku": "DRK-006",
+        "name": "Bottled Water (Small)",
+        "description": "Purified drinking water.",
+        "price": 30,
+        "promoPrice": null,
+        "available": true,
+        "isExplicitlyUnavailable": false,
+        "isOutOfStock": false,
+        "stock": 115,
+        "sizes": [
+          {
+            "name": "Small",
+            "volume": "350 ml",
+            "price": 30,
+            "stock": 50
+          },
+          {
+            "name": "Medium",
+            "volume": "500 ml",
+            "price": 35,
+            "stock": 40
+          },
+          {
+            "name": "Large",
+            "volume": "1000 ml",
+            "price": 55,
+            "stock": 25
+          }
+        ],
+        "addons": [],
+        "allergens": [],
+        "tags": [
+          "healthy",
+          "drinks"
+        ],
+        "category": "Drinks & Boba",
+        "drinkCategory": "Bottled Drinks",
+        "catalogType": "drink",
+        "emoji": "💧",
+        "image": "https://th.bing.com/th/id/OIP.50DXuEV930QBh27MRvuo5AHaHa?w=192&h=192&c=7&r=0&o=7&dpr=1.3&pid=1.7&rm=3",
+        "originalId": "DRK-006",
+        "size": "Small",
+        "volume": "350 ml",
+        "spiceLevel": null,
+        "specialNote": "",
+        "quantity": 1
+      }
+    ],
+    "allergens": [],
+    "note": "",
+    "status": "successful",
+    "qrPayload": "00020101021228680012ph.ppmi.qrph0110UMAMI8626402220917-888-UMAMI (86264)0308MARIBANK5204581253036085406429.005802PH5923UMAMI CRAFT FUSION INC.6006MANILA62370123TXN-UMAMI-MWEUJJY7-33190706CND8KK63045DB7",
+    "createdAt": "2026-11-13T10:41:12.127Z",
+    "expiresAt": 1794567072127,
+    "expiresInSeconds": 600,
+    "restaurantId": "umami",
+    "paidAt": "2026-11-13T10:41:14.783Z",
+    "payerWallet": "MariBank",
+    "payerPhone": "0917-***-****",
+    "merchantAccount": "0917-888-UMAMI (86264)"
+  },
+  {
+    "id": "sess_mweuhs3m_mwz38v",
+    "sessionId": "sess_mweuhs3m_mwz38v",
+    "orderId": "ORD-9421",
+    "pickupToken": "U-354",
+    "referenceNumber": "TXN-UMAMI-MWEUHS3M-2244",
+    "merchantName": "UMAMI CRAFT FUSION INC.",
+    "amount": 500,
+    "currency": "PHP",
+    "subtotal": 500,
+    "taxAmount": 53.57142857142861,
+    "discountAmount": 0,
+    "promoCode": null,
+    "paymentMethod": "E-Wallet",
+    "walletId": "GCash",
+    "kioskId": "MOBILE_01",
+    "tableNumber": "Table 1",
+    "diningOption": "Takeout",
+    "customer": "Kiosk Guest (MOBILE_01)",
+    "items": [
+      {
+        "id": "102-Standard-Regular--",
+        "sku": "APP-002",
+        "name": "Smoked Truffle Edamame (Standard)",
+        "category": "Appetizers",
+        "price": 250,
+        "promoPrice": null,
+        "available": true,
+        "status": "Available",
+        "stock": 25,
+        "reorderLevel": 5,
+        "lastUpdated": "Oct 26, 2024 10:24 AM",
+        "image": "https://images.unsplash.com/photo-1622205313162-be1d5712a43f?auto=format&fit=crop&w=600&q=80",
+        "description": "Steamed organic edamame pods tossed in aromatic white truffle oil, roasted garlic, and smoked Maldon sea salt flakes.",
+        "allergens": [
+          "soy"
+        ],
+        "tags": [
+          "vegan",
+          "savory"
+        ],
+        "prepTime": "5 mins",
+        "sizes": "Standard",
+        "addons": [],
+        "subcategory": "Signature",
+        "ingredients": "Organic Edamame Pods (200 g), White Truffle Oil (8 ml), Smoked Maldon Sea Salt (3 g), Roasted Garlic (5 g)",
+        "ingredientsList": [
+          {
+            "name": "Organic Edamame Pods",
+            "quantity": "200",
+            "unit": "g"
+          },
+          {
+            "name": "White Truffle Oil",
+            "quantity": "8",
+            "unit": "ml"
+          },
+          {
+            "name": "Smoked Maldon Sea Salt",
+            "quantity": "3",
+            "unit": "g"
+          },
+          {
+            "name": "Roasted Garlic",
+            "quantity": "5",
+            "unit": "g"
+          }
+        ],
+        "emoji": "🫛",
+        "catalogType": "food",
+        "isExplicitlyUnavailable": false,
+        "isOutOfStock": false,
+        "originalId": "102",
+        "size": "Standard",
+        "volume": "",
+        "spiceLevel": "Regular",
+        "specialNote": "",
+        "quantity": 2
+      }
+    ],
+    "allergens": [],
+    "note": "",
+    "status": "successful",
+    "qrPayload": "00020101021228650012ph.ppmi.qrph0110UMAMI8626402220917-888-UMAMI (86264)0305GCASH5204581253036085406500.005802PH5923UMAMI CRAFT FUSION INC.6006MANILA62400123TXN-UMAMI-MWEUHS3M-22440709MOBILE_016304F8DD",
+    "createdAt": "2026-11-13T10:39:49.378Z",
+    "expiresAt": 1794566989378,
+    "expiresInSeconds": 600,
+    "restaurantId": "umami",
+    "paidAt": "2026-11-13T10:39:51.718Z",
+    "payerWallet": "GCash",
+    "payerPhone": "0917-***-****",
+    "merchantAccount": "0917-888-UMAMI (86264)"
+  },
+  {
+    "id": "sess_mweug9qc_dgu64x",
+    "sessionId": "sess_mweug9qc_dgu64x",
+    "orderId": "ORD-6667",
+    "pickupToken": "U-702",
+    "referenceNumber": "TXN-UMAMI-MWEUG9QC-8634",
+    "merchantName": "UMAMI CRAFT FUSION INC.",
+    "amount": 565,
+    "currency": "PHP",
+    "subtotal": 565,
+    "taxAmount": 60.535714285714334,
+    "discountAmount": 0,
+    "promoCode": null,
+    "paymentMethod": "E-Wallet",
+    "walletId": "GCash",
+    "kioskId": "OPNTBQ",
+    "tableNumber": "Table 1",
+    "diningOption": "Takeout",
+    "customer": "Kiosk Guest (OPNTBQ)",
+    "items": [
+      {
+        "id": "105-Standard-Medium--Spice: Medium",
+        "sku": "RCB-001",
+        "name": "Thai Coconut Curry Bowl (Standard)",
+        "category": "Rice Bowls",
+        "price": 490,
+        "promoPrice": null,
+        "available": true,
+        "status": "Available",
+        "stock": 25,
+        "reorderLevel": 10,
+        "lastUpdated": "Oct 26, 2024 10:24 AM",
+        "image": "https://images.unsplash.com/photo-1455619452474-d2be8b1e70cd?auto=format&fit=crop&w=600&q=80",
+        "description": "Aromatic lemongrass red curry simmered in creamy coconut milk with seasonal garden vegetables over steamed fragrant jasmine rice.",
+        "allergens": [],
+        "tags": [
+          "vegan",
+          "spicy"
+        ],
+        "prepTime": "15 mins",
+        "sizes": "Standard",
+        "addons": [],
+        "subcategory": "Signature",
+        "ingredients": "Steamed Jasmine Rice (250 g), Coconut Milk (180 ml), Red Curry Paste (25 g), Fresh Lemongrass (15 g), Seasonal Vegetables (120 g)",
+        "ingredientsList": [
+          {
+            "name": "Steamed Jasmine Rice",
+            "quantity": "250",
+            "unit": "g"
+          },
+          {
+            "name": "Coconut Milk",
+            "quantity": "180",
+            "unit": "ml"
+          },
+          {
+            "name": "Red Curry Paste",
+            "quantity": "25",
+            "unit": "g"
+          },
+          {
+            "name": "Fresh Lemongrass",
+            "quantity": "15",
+            "unit": "g"
+          },
+          {
+            "name": "Seasonal Vegetables",
+            "quantity": "120",
+            "unit": "g"
+          }
+        ],
+        "emoji": "🍛",
+        "catalogType": "food",
+        "isExplicitlyUnavailable": false,
+        "isOutOfStock": false,
+        "originalId": "105",
+        "size": "Standard",
+        "volume": "",
+        "spiceLevel": "Medium",
+        "specialNote": "Spice: Medium",
+        "quantity": 1
+      },
+      {
+        "id": "DRK-001-Small-reg--",
+        "sku": "DRK-001",
+        "name": "Matcha Boba Milk Tea (Small)",
+        "description": "Premium Japanese matcha with fresh milk and chewy tapioca pearls.",
+        "price": 75,
+        "promoPrice": null,
+        "available": true,
+        "isExplicitlyUnavailable": false,
+        "isOutOfStock": false,
+        "stock": 55,
+        "sizes": [
+          {
+            "name": "Small",
+            "volume": "355 ml",
+            "price": 75,
+            "stock": 25
+          },
+          {
+            "name": "Medium",
+            "volume": "500 ml",
+            "price": 85,
+            "stock": 18
+          },
+          {
+            "name": "Large",
+            "volume": "700 ml",
+            "price": 95,
+            "stock": 12
+          }
+        ],
+        "addons": [],
+        "allergens": [
+          "dairy"
+        ],
+        "tags": [
+          "sweet",
+          "drinks"
+        ],
+        "category": "Drinks & Boba",
+        "drinkCategory": "Milk Tea",
+        "catalogType": "drink",
+        "emoji": "🧋",
+        "image": "data:image/webp;base64,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",
+        "originalId": "DRK-001",
+        "size": "Small",
+        "volume": "355 ml",
+        "spiceLevel": null,
+        "specialNote": "",
+        "quantity": 1
+      }
+    ],
+    "allergens": [],
+    "note": "",
+    "status": "successful",
+    "qrPayload": "00020101021228650012ph.ppmi.qrph0110UMAMI8626402220917-888-UMAMI (86264)0305GCASH5204581253036085406565.005802PH5923UMAMI CRAFT FUSION INC.6006MANILA62370123TXN-UMAMI-MWEUG9QC-86340706OPNTBQ6304E761",
+    "createdAt": "2026-11-13T10:38:38.916Z",
+    "expiresAt": 1794566918916,
+    "expiresInSeconds": 600,
+    "restaurantId": "umami",
+    "paidAt": "2026-11-13T10:38:49.388Z",
+    "payerWallet": "GCash",
+    "payerPhone": "0917-***-****",
+    "merchantAccount": "0917-888-UMAMI (86264)"
+  },
+  {
     "id": "sess_mweqocgf_o3um5a",
     "sessionId": "sess_mweqocgf_o3um5a",
     "orderId": "ORD-1378",

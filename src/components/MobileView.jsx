@@ -5,6 +5,8 @@ import PesoReceipt from './PesoReceipt';
 import TableServiceModal from './TableServiceModal';
 import KioskProductModal from './KioskProductModal';
 import KioskCheckoutModal from './KioskCheckoutModal';
+import AllergenDoubleWarningModal from './AllergenDoubleWarningModal';
+import { getConflictingAllergens } from '../utils/allergenUtils';
 import MobileQRScannerModal from './MobileQRScannerModal';
 import AllergyVerificationModal from './AllergyVerificationModal';
 import {
@@ -384,6 +386,7 @@ function MobileView({ kioskId, onResetSession }) {
 
   const [cart, setCart] = useState({}); // { [itemId]: quantity }
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [mobileStage1Warning, setMobileStage1Warning] = useState(null); // { item, customDetails, conflicts }
   const [promoCode, setPromoCode] = useState('');
   const [promoApplied, setPromoApplied] = useState(null); // { code, discountType, discountValue, applicableItems, applyToAll }
   const [promoMsg, setPromoMsg] = useState({ text: '', ok: false });
@@ -607,7 +610,20 @@ function MobileView({ kioskId, onResetSession }) {
   });
   const [activeOrder, setActiveOrder] = useState(() => {
     try {
-      localStorage.removeItem('synapse_active_order');
+      const urlP = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+      const orderIdFromUrl = urlP?.get('orderId');
+      const saved = sessionStorage.getItem('synapse_active_order') || localStorage.getItem('synapse_active_order');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && (parsed.orderId || parsed.id)) {
+          if (!orderIdFromUrl || parsed.orderId === orderIdFromUrl || parsed.id === orderIdFromUrl) {
+            return parsed;
+          }
+        }
+      }
+      if (orderIdFromUrl) {
+        return { orderId: orderIdFromUrl, status: 'Preparing', items: [] };
+      }
     } catch (_) {}
     return null;
   });
@@ -666,6 +682,53 @@ function MobileView({ kioskId, onResetSession }) {
     ? `Table ${currentTableParam.replace('T-', '').replace(/^0+/, '')}`
     : currentTableParam;
   const effectiveTableNum = effectiveTableNumber;
+
+  // Authoritative Order Restoration on Mount / Page Refresh
+  const orderIdParam = urlParams.get('orderId');
+  const activeOrderId = activeOrder?.orderId || activeOrder?.id || orderIdParam;
+  useEffect(() => {
+    if (!activeOrderId) return;
+
+    let isMounted = true;
+    const fetchAuthoritativeOrder = async () => {
+      try {
+        const res = await fetch(`/api/orders/${activeOrderId}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data && (data.orderId || data.id) && isMounted) {
+          setActiveOrder(prev => {
+            const merged = { ...(prev || {}), ...data };
+            try {
+              sessionStorage.setItem('synapse_active_order', JSON.stringify(merged));
+              localStorage.setItem('synapse_active_order', JSON.stringify(merged));
+            } catch (_) {}
+            return merged;
+          });
+        }
+      } catch (err) {
+        console.warn('[Mobile] Could not sync authoritative order status:', err);
+      }
+    };
+
+    fetchAuthoritativeOrder();
+    return () => { isMounted = false; };
+  }, [activeOrderId]);
+
+  // Keep orderId synchronized in URL and storage so refreshing always restores the exact session
+  useEffect(() => {
+    if (activeOrder && (activeOrder.orderId || activeOrder.id)) {
+      const orderIdVal = activeOrder.orderId || activeOrder.id;
+      try {
+        sessionStorage.setItem('synapse_active_order', JSON.stringify(activeOrder));
+        localStorage.setItem('synapse_active_order', JSON.stringify(activeOrder));
+        const currentUrl = new URL(window.location.href);
+        if (currentUrl.searchParams.get('orderId') !== orderIdVal) {
+          currentUrl.searchParams.set('orderId', orderIdVal);
+          window.history.replaceState({}, '', currentUrl.toString());
+        }
+      } catch (_) {}
+    }
+  }, [activeOrder]);
 
   // QR Session & Allergy Verification State (scoped to restaurant + kioskId so customer data never leaks)
   const sessionScopeKey = `${restaurantParam}_${effectiveKioskId}`;
@@ -1093,7 +1156,7 @@ function MobileView({ kioskId, onResetSession }) {
       window.removeEventListener('umami_catalog_updated', handleCatalogSync);
       window.removeEventListener('storage', handleCatalogSync);
     };
-  }, [backendTargetUrl]);
+  }, [backendTargetUrl, restaurantParam]);
 
   // Check for OpenNDS captive portal parameters in URL on mount
   useEffect(() => {
@@ -1139,11 +1202,14 @@ function MobileView({ kioskId, onResetSession }) {
     }
   }, [isOnboarded]);
 
-  // When scanning a new kiosk session, if the previous order was already completed or ready, clear it
+  // When scanning a new kiosk session, if the previous order was already archived, clear it
   useEffect(() => {
     if (kioskId && activeOrder && activeOrder.kioskId && activeOrder.kioskId !== kioskId) {
-      if (activeOrder.status === 'Completed' || activeOrder.status === 'Order Ready') {
-        localStorage.removeItem('synapse_active_order');
+      if (['Completed', 'Cancelled', 'Claimed', 'Refunded'].includes(activeOrder.status)) {
+        try {
+          localStorage.removeItem('synapse_active_order');
+          sessionStorage.removeItem('synapse_active_order');
+        } catch (_) {}
         setActiveOrder(null);
       }
     }
@@ -1525,11 +1591,26 @@ function MobileView({ kioskId, onResetSession }) {
 
       return true;
     });
-  }, [allCatalogItems, allergens, selectedCategory, catalogSearch, matchesCategoryTab]);
+  }, [allCatalogItems, allergens, customAllergens, selectedCategory, catalogSearch, matchesCategoryTab]);
 
   // Cart Helper Methods supporting both standard and customized items
   const handleAddToCart = (item, customDetails = null) => {
     if (!item.available && !customDetails) return;
+
+    // Stage 1 Allergen Safety Interceptor for Mobile (if not already confirmed in KioskProductModal)
+    if (!customDetails?.allergenAcknowledged) {
+      const activeUserAllergens = [...allergens, ...customAllergens];
+      const conflicts = getConflictingAllergens(item, activeUserAllergens);
+      if (conflicts.length > 0) {
+        setMobileStage1Warning({
+          item,
+          customDetails,
+          conflicts
+        });
+        return;
+      }
+    }
+
     if (customDetails) {
       const addonSignature = (customDetails.addons || []).map(a => a.name || a).sort().join('|');
       const cartKey = `${item.id}-${customDetails.sizeName || 'std'}-${customDetails.spiceLevel || 'reg'}-${addonSignature}-${customDetails.specialNote || ''}`;
@@ -1558,10 +1639,18 @@ function MobileView({ kioskId, onResetSession }) {
       });
     } else {
       setCart(prev => {
-        const current = typeof prev[item.id] === 'number' ? prev[item.id] : (prev[item.id]?.quantity || 0);
+        const existing = prev[item.id];
+        const current = typeof existing === 'number' ? existing : (existing?.quantity || 0);
         return {
           ...prev,
-          [item.id]: current + 1
+          [item.id]: {
+            ...item,
+            id: item.id,
+            originalId: item.id,
+            name: item.name,
+            price: Number(item.promoPrice || item.price || 0),
+            quantity: current + 1
+          }
         };
       });
     }
@@ -1771,6 +1860,12 @@ function MobileView({ kioskId, onResetSession }) {
 
     setActiveOrder(newActiveOrder);
     localStorage.setItem('synapse_active_order', JSON.stringify(newActiveOrder));
+    try {
+      sessionStorage.setItem('synapse_active_order', JSON.stringify(newActiveOrder));
+      const currentUrl = new URL(window.location.href);
+      currentUrl.searchParams.set('orderId', orderId);
+      window.history.replaceState({}, '', currentUrl.toString());
+    } catch (_) {}
 
     // Also persist into umami_orders so KitchenView picks it up instantly
     try {
@@ -1833,6 +1928,8 @@ function MobileView({ kioskId, onResetSession }) {
     setPromoMsg({ text: '', ok: false });
     setIsCartOpen(false);
     setIsCheckoutOpen(false);
+
+    return newActiveOrder;
   };
 
   // Dismiss / complete active order session
@@ -1840,6 +1937,13 @@ function MobileView({ kioskId, onResetSession }) {
     stopContinuousBuzzer();
     stopVibReminder();            // cancel repeating haptic reminder
     localStorage.removeItem('synapse_active_order');
+    try {
+      sessionStorage.removeItem('synapse_active_order');
+      const currentUrl = new URL(window.location.href);
+      currentUrl.searchParams.delete('orderId');
+      currentUrl.searchParams.delete('ref');
+      window.history.replaceState({}, '', currentUrl.toString());
+    } catch (_) {}
     localStorage.removeItem('synapse_allergens');
     localStorage.removeItem('synapse_preferences');
     try {
@@ -4636,6 +4740,7 @@ function MobileView({ kioskId, onResetSession }) {
         isOpen={isCheckoutOpen}
         onClose={() => setIsCheckoutOpen(false)}
         cartItems={cartItemsList}
+        userAllergens={[...allergens, ...customAllergens]}
         diningOption={diningOption}
         onChangeDiningOption={setDiningOption}
         onUpdateQuantity={handleUpdateQuantity}
@@ -4652,6 +4757,24 @@ function MobileView({ kioskId, onResetSession }) {
         tableNumber={activeOrder?.tableNumber || effectiveTableNumber || 'Table 04'}
         isMobile={true}
         apiBase={backendTargetUrl}
+      />
+
+      {/* Mobile Stage 1 Allergen Warning Modal (Item Addition Double-Confirmation) */}
+      <AllergenDoubleWarningModal
+        isOpen={Boolean(mobileStage1Warning)}
+        stage="item_addition"
+        item={mobileStage1Warning?.item}
+        conflictingAllergens={mobileStage1Warning?.conflicts || []}
+        userAllergens={[...allergens, ...customAllergens]}
+        onClose={() => setMobileStage1Warning(null)}
+        onCancel={() => setMobileStage1Warning(null)}
+        onConfirm={() => {
+          if (mobileStage1Warning) {
+            const { item, customDetails } = mobileStage1Warning;
+            setMobileStage1Warning(null);
+            handleAddToCart(item, { ...customDetails, allergenAcknowledged: true });
+          }
+        }}
       />
 
       {/* Camera-based Mobile QR Ph Scanner Modal */}

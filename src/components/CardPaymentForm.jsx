@@ -277,6 +277,11 @@ export default function CardPaymentForm({
             <div style={{ fontSize: '20px', fontWeight: 900, color: '#C24522' }}>
               ₱{Number(amount).toFixed(2)}
             </div>
+            {referenceNumber && (
+              <div style={{ fontSize: '10px', color: '#64748B', fontFamily: 'monospace', marginTop: '2px' }}>
+                Ref: {referenceNumber}
+              </div>
+            )}
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>

@@ -11,6 +11,7 @@
     "contact": "+63 917 500 1001",
     "shift": "Full Day (08:00 - 18:00)",
     "status": "Active",
+    "pin": "1234",
     "permissions": [
       "all",
       "manage_accounts",
@@ -22,7 +23,7 @@
     ],
     "password": "admin123",
     "createdAt": "2026-01-15T08:00:00.000Z",
-    "lastLogin": "2026-11-13T09:19:34.604Z"
+    "lastLogin": "2026-11-13T17:52:50.865Z"
   },
   {
     "id": "EMP-002",
@@ -36,6 +37,7 @@
     "contact": "+63 917 500 1002",
     "shift": "Day Shift (09:00 - 17:00)",
     "status": "Active",
+    "pin": "1234",
     "permissions": [
       "manage_reports",
       "manage_menu",
@@ -45,6 +47,30 @@
     "password": "admin123",
     "createdAt": "2026-02-10T09:00:00.000Z",
     "lastLogin": "2026-11-11T17:15:00.000Z"
+  },
+  {
+    "id": "STAFF-CENTRAL",
+    "username": "staff",
+    "name": "Umami Restaurant Staff",
+    "email": "staff@umamicraft.com",
+    "accountType": "staff",
+    "role": "Staff Account",
+    "position": "Restaurant Operations & Culinary Staff",
+    "department": "Restaurant Operations & Kitchen Floor",
+    "contact": "+63 917 888 8626",
+    "shift": "All Shifts",
+    "status": "Active",
+    "pin": "2011",
+    "permissions": [
+      "assigned_tasks",
+      "kitchen_prep",
+      "table_service",
+      "activity_logs",
+      "staff_daily_report"
+    ],
+    "password": "staff123",
+    "createdAt": "2026-01-01T00:00:00.000Z",
+    "lastLogin": "2026-11-14T02:00:00.000Z"
   },
   {
     "id": "EMP-101",
@@ -60,6 +86,7 @@
     "contact": "+63 917 601 2001",
     "shift": "Morning Shift (08:00 - 16:00)",
     "status": "Active",
+    "pin": "1011",
     "permissions": [
       "pos_terminal",
       "payment_processing",
@@ -84,6 +111,7 @@
     "contact": "+63 917 601 2002",
     "shift": "Evening Shift (16:00 - 00:00)",
     "status": "Active",
+    "pin": "1022",
     "permissions": [
       "pos_terminal",
       "payment_processing",
@@ -106,6 +134,7 @@
     "contact": "+63 917 701 3001",
     "shift": "Morning Shift (07:30 - 16:00)",
     "status": "Active",
+    "pin": "2011",
     "permissions": [
       "assigned_tasks",
       "order_preparation",
@@ -114,7 +143,7 @@
     ],
     "password": "staff123",
     "createdAt": "2026-02-01T07:30:00.000Z",
-    "lastLogin": "2026-11-12T09:55:49.248Z"
+    "lastLogin": "2026-11-13T20:49:24.105Z"
   },
   {
     "id": "EMP-202",
@@ -128,6 +157,7 @@
     "contact": "+63 917 701 3002",
     "shift": "Evening Shift (15:30 - 23:45)",
     "status": "Active",
+    "pin": "2022",
     "permissions": [
       "assigned_tasks",
       "order_preparation",
@@ -150,6 +180,7 @@
     "contact": "+63 917 801 4001",
     "shift": "Morning Shift (08:00 - 16:30)",
     "status": "Active",
+    "pin": "3011",
     "permissions": [
       "assigned_tasks",
       "table_service",
@@ -172,6 +203,7 @@
     "contact": "+63 917 801 4002",
     "shift": "Evening Shift (15:45 - 00:15)",
     "status": "Active",
+    "pin": "3022",
     "permissions": [
       "assigned_tasks",
       "table_service",
@@ -194,6 +226,7 @@
     "contact": "+63 917 801 4003",
     "shift": "Mid Shift (11:00 - 19:00)",
     "status": "Active",
+    "pin": "3033",
     "permissions": [
       "assigned_tasks",
       "table_service",

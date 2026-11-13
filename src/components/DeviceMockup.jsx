@@ -47,6 +47,11 @@ export default function DeviceMockup({
 
   const containerRef = useRef(null);
 
+  const onBatteryChangeRef = useRef(onBatteryChange);
+  useEffect(() => {
+    onBatteryChangeRef.current = onBatteryChange;
+  }, [onBatteryChange]);
+
   // ── Auto-Detect Screen Size & Orientation ──
   useEffect(() => {
     const updateDetection = () => {
@@ -99,8 +104,8 @@ export default function DeviceMockup({
             localStorage.setItem('synapse_device_battery', String(lvl));
             localStorage.setItem('synapse_device_charging', String(chg));
           } catch (_) {}
-          if (onBatteryChange) {
-            onBatteryChange({ level: lvl, charging: chg });
+          if (onBatteryChangeRef.current) {
+            onBatteryChangeRef.current({ level: lvl, charging: chg });
           }
         };
         update();
