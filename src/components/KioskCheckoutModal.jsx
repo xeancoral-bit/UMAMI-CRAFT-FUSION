@@ -68,6 +68,29 @@ export default function KioskCheckoutModal({
   const [showStage2AllergenModal, setShowStage2AllergenModal] = useState(false);
   const [selectedPayment, setSelectedPayment] = useState('E-Wallet');
   const [selectedEWallet, setSelectedEWallet] = useState('GCash');
+
+  // On mobile view (?view=mobile or isMobile={true}), remove the "Cash: Pay at Counter Register" option
+  const isMobileSession = useMemo(() => {
+    if (isMobile) return true;
+    if (typeof window !== 'undefined') {
+      const v = new URLSearchParams(window.location.search).get('view');
+      if (v === 'mobile') return true;
+    }
+    return false;
+  }, [isMobile]);
+
+  const availablePaymentOptions = useMemo(() => {
+    if (isMobileSession) {
+      return PAYMENT_OPTIONS.filter(opt => opt.id !== 'Cash');
+    }
+    return PAYMENT_OPTIONS;
+  }, [isMobileSession]);
+
+  useEffect(() => {
+    if (isMobileSession && selectedPayment === 'Cash') {
+      setSelectedPayment('E-Wallet');
+    }
+  }, [isMobileSession, selectedPayment]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSimulatingPayment, setIsSimulatingPayment] = useState(false);
   const [providerAuthState, setProviderAuthState] = useState('idle'); // 'idle' | 'initiating' | 'waiting_authorization' | 'verifying'
@@ -802,7 +825,7 @@ export default function KioskCheckoutModal({
 
                   {/* Method Selection Cards */}
                   <div className="kiosk-co-payment-grid">
-                    {PAYMENT_OPTIONS.map(opt => {
+                    {availablePaymentOptions.map(opt => {
                       const Icon = opt.icon;
                       const active = selectedPayment === opt.id;
                       return (

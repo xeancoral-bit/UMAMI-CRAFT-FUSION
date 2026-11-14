@@ -225,8 +225,8 @@ flowchart TD
     ReviewCart --> ValidatePromo["Validate Promo Code (e.g. UMAMI20)"]
     ValidatePromo --> SelectPayMethod{"Select Payment Method"}
 
-    %% Two-Phase Cash Payment
-    SelectPayMethod -->|Cash (Inclusivity)| SelectCash["Select 'Cash (Pay at Counter)'"]
+    %% Two-Phase Cash Payment (Kiosk Only)
+    SelectPayMethod -->|Cash (Kiosk Only)| SelectCash["Kiosk: Select 'Cash (Pay at Counter)'"]
     SelectCash --> SubmitCashOrder["Order Created (paymentStatus: 'Pending Counter Settlement')<br/>(KITCHEN DOES NOT COOK UNTIL CASH PAID)"]
     SubmitCashOrder --> CashierPOS["Customer Brings Order Slip / Reference to Cashier POS-01"]
     CashierPOS --> CashierReceives["Head Cashier Receives Bills, Enters Count, Gives Change"]
@@ -710,6 +710,7 @@ erDiagram
     3. The customer brings their order reference number or printed slip to **Cashier POS-01** (`?view=admin` under cashier role).
     4. Head Cashier Maria collects banknotes, counts physical cash, and clicks **"Confirm Cash Payment"**.
     5. The backend immediately marks the order as `Paid` and dispatches it via Socket.IO to the Kitchen KDS.
+  - **Mobile QR Checkout Streamlining (No Cash Card on Mobile):** On the Mobile Web App (`?view=mobile`), the Cash ("Pay at Counter Register") card is automatically removed so mobile diners pay directly on their phone via **E-Wallet (QR Ph)** or **Card**, providing an authentic contactless dining experience at their table. Cash payment remains exclusively accessible on physical touchscreen kiosks (`?view=kiosk`).
 - **Dual-Mode Architecture: High-Fidelity Sandbox vs. Live Production Deployment:**
   - **Academic / Capstone Sandbox Engine (Zero Financial Loss):**
     - Built specifically for development, demonstration, and capstone grading so testers can run hundreds of checkout cycles without depleting personal GCash or Maya funds.
