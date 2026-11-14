@@ -194,6 +194,7 @@ export default function DailyReportsManager({
     socket.on('new-service-request', handleUpdated);
     socket.on('service-request-updated', handleUpdated);
     socket.on('employees-updated', handleUpdated);
+    socket.on('shift-restarted', handleUpdated);
     return () => {
       socket.off('daily-reports-updated', handleUpdated);
       socket.off('new-order', handleUpdated);
@@ -201,6 +202,7 @@ export default function DailyReportsManager({
       socket.off('new-service-request', handleUpdated);
       socket.off('service-request-updated', handleUpdated);
       socket.off('employees-updated', handleUpdated);
+      socket.off('shift-restarted', handleUpdated);
     };
   }, [socket, fetchReports]);
 

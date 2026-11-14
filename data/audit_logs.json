@@ -1,5 +1,18 @@
 [
   {
+    "id": "AUD-56896-74",
+    "timestamp": "2026-11-14T14:55:56.896Z",
+    "actorId": "EMP-101",
+    "actorName": "Maria Santos",
+    "actorRole": "Head Cashier",
+    "accountType": "cashier",
+    "category": "Authentication",
+    "action": "Cashier Account Login",
+    "target": "Front Counter Register #1",
+    "details": "Maria Santos (EMP-101 • Head Cashier) signed in successfully.",
+    "status": "Success"
+  },
+  {
     "id": "AUD-65049-25",
     "timestamp": "2026-11-13T20:51:05.049Z",
     "actorId": "EMP-201",

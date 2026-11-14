@@ -1,0 +1,14 @@
+{
+  "activeShift": {
+    "shiftId": "SHIFT-20261114-001",
+    "cashierId": "EMP-101",
+    "cashierName": "Maria Santos",
+    "registerId": "POS-01 (Main Counter)",
+    "openingFloat": 3000,
+    "startTime": "2026-11-14T07:30:00+08:00",
+    "businessDate": "2026-11-14",
+    "status": "active",
+    "lastAutoResetDate": "2026-11-14"
+  },
+  "history": []
+}

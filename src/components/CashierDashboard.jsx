@@ -4,7 +4,7 @@ import {
   Trash2, CheckCircle2, XCircle, Clock, Search, Printer, DollarSign, Tag,
   RefreshCw, Send, Save, AlertTriangle, LogOut, Lock, Calculator, ArrowRight,
   Utensils, Coffee, Sparkles, Check, X, Banknote, Smartphone, RotateCcw,
-  ShieldCheck, Zap
+  ShieldCheck, Zap, CalendarClock, History
 } from 'lucide-react';
 import {
   fetchDailyReportsList,
@@ -31,6 +31,17 @@ export default function CashierDashboard({
   const [myReports, setMyReports] = useState([]);
   const [toast, setToast] = useState(null);
 
+  // Shift Management State
+  const [activeShift, setActiveShift] = useState(null);
+  const [liveShiftSales, setLiveShiftSales] = useState(0);
+  const [shiftHistory, setShiftHistory] = useState([]);
+  const [showShiftRestartModal, setShowShiftRestartModal] = useState(false);
+  const [shiftRestartStep, setShiftRestartStep] = useState('confirm'); // 'confirm' | 'blocking' | 'success'
+  const [shiftRestartLoading, setShiftRestartLoading] = useState(false);
+  const [shiftRestartError, setShiftRestartError] = useState(null);
+  const [blockingOrdersInfo, setBlockingOrdersInfo] = useState(null);
+  const [restartConfirmText, setRestartConfirmText] = useState('');
+
   // POS State
   const [posCategory, setPosCategory] = useState('All');
   const [posSearch, setPosSearch] = useState('');
@@ -49,6 +60,8 @@ export default function CashierDashboard({
 
   // Receipt Modal State
   const [activeReceiptOrder, setActiveReceiptOrder] = useState(null);
+  const [receiptsTab, setReceiptsTab] = useState('shifts'); // 'shifts' | 'orders'
+  const [expandedShiftId, setExpandedShiftId] = useState(null);
 
   // Orders & History Filter State
   const [orderStatusFilter, setOrderStatusFilter] = useState('All');
@@ -109,9 +122,94 @@ export default function CashierDashboard({
     }
   }, [employeeId]);
 
+  // Fetch active shift info from backend
+  const fetchActiveShift = useCallback(async () => {
+    try {
+      const res = await fetch('/api/shifts/active');
+      if (res.ok) {
+        const data = await res.json();
+        setActiveShift(data.activeShift || null);
+        setLiveShiftSales(data.sales?.totalSales ?? 0);
+      }
+    } catch (err) {
+      console.error('[CashierDashboard] Failed to load active shift:', err);
+    }
+  }, []);
+
+  // Fetch shift history
+  const fetchShiftHistory = useCallback(async () => {
+    try {
+      const res = await fetch('/api/shifts/history?limit=20');
+      if (res.ok) {
+        const data = await res.json();
+        setShiftHistory(data.shifts || []);
+      }
+    } catch (err) {
+      console.error('[CashierDashboard] Failed to load shift history:', err);
+    }
+  }, []);
+
+  // Handle shift restart submission
+  const handleShiftRestart = async (force = false) => {
+    setShiftRestartLoading(true);
+    setShiftRestartError(null);
+    try {
+      const res = await fetch('/api/shifts/restart', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          actorId: employeeId,
+          actorName: employeeName,
+          actorRole: currentUser?.role || 'cashier',
+          forceCarryover: force
+        })
+      });
+      const data = await res.json();
+      if (res.status === 409 && data.error === 'blocking_orders') {
+        setBlockingOrdersInfo(data);
+        setShiftRestartStep('blocking');
+        return;
+      }
+      if (!res.ok) {
+        setShiftRestartError(data.error || 'Failed to restart shift. Please try again.');
+        return;
+      }
+      // Success
+      setActiveShift(data.newShift);
+      setLiveShiftSales(0);
+      setShiftRestartStep('success');
+      setRestartConfirmText('');
+      await fetchShiftHistory();
+      await fetchDashboardData();
+      showToastMsg('✅ Shift restarted successfully. New shift started at ₱0.00.');
+    } catch (err) {
+      setShiftRestartError('Network error. Please check your connection and try again.');
+    } finally {
+      setShiftRestartLoading(false);
+    }
+  };
+
+  const openShiftRestartModal = () => {
+    setShiftRestartStep('confirm');
+    setShiftRestartError(null);
+    setRestartConfirmText('');
+    setBlockingOrdersInfo(null);
+    setShowShiftRestartModal(true);
+  };
+
+  const closeShiftRestartModal = () => {
+    setShowShiftRestartModal(false);
+    setShiftRestartStep('confirm');
+    setShiftRestartError(null);
+    setRestartConfirmText('');
+    setBlockingOrdersInfo(null);
+  };
+
   useEffect(() => {
     fetchDashboardData();
-    const onSystemSync = () => fetchDashboardData();
+    fetchActiveShift();
+    fetchShiftHistory();
+    const onSystemSync = () => { fetchDashboardData(); fetchActiveShift(); };
     window.addEventListener('umami-system-sync', onSystemSync);
     return () => window.removeEventListener('umami-system-sync', onSystemSync);
   }, [fetchDashboardData]);
@@ -146,17 +244,30 @@ export default function CashierDashboard({
         setWebhookLogs(prev => [data.log, ...prev]);
       }
     };
+    const onShiftRestarted = (payload) => {
+      if (payload?.newShift) {
+        setActiveShift(payload.newShift);
+        setLiveShiftSales(0);
+        // Refresh shift history list
+        fetchShiftHistory();
+        // Refresh orders to reflect new shift context
+        fetchDashboardData();
+        showToastMsg('🔄 Shift restarted — New business session started at ₱0.00.');
+      }
+    };
     socket.on('new-order', onNewOrder);
     socket.on('order-status-updated', onOrderStatus);
     socket.on('daily-reports-updated', onReportsUpdated);
     socket.on('payment-webhook-received', onWebhookEvent);
+    socket.on('shift-restarted', onShiftRestarted);
     return () => {
       socket.off('new-order', onNewOrder);
       socket.off('order-status-updated', onOrderStatus);
       socket.off('daily-reports-updated', onReportsUpdated);
       socket.off('payment-webhook-received', onWebhookEvent);
+      socket.off('shift-restarted', onShiftRestarted);
     };
-  }, [socket, employeeId]);
+  }, [socket, employeeId, fetchDashboardData, fetchShiftHistory]);
 
   // Unified POS Catalog (Food + Drinks)
   const combinedCatalog = useMemo(() => {
@@ -728,6 +839,216 @@ export default function CashierDashboard({
         </div>
       )}
 
+      {/* ── Shift Restart Modal ── */}
+      {showShiftRestartModal && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 10000,
+          background: 'rgba(0,0,0,0.65)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+          padding: '1rem'
+        }}>
+          <div style={{
+            background: '#FFFFFF', borderRadius: '20px', width: '100%', maxWidth: '520px',
+            boxShadow: '0 24px 60px rgba(0,0,0,0.3)', overflow: 'hidden'
+          }}>
+            {/* Modal Header */}
+            <div style={{
+              background: 'linear-gradient(135deg, #B45309 0%, #92400E 100%)',
+              padding: '1.25rem 1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <RotateCcw size={20} color="#FEF3C7" />
+                <span style={{ fontWeight: 900, fontSize: '1.05rem', color: '#FFFFFF' }}>
+                  {shiftRestartStep === 'success' ? 'Shift Restarted Successfully' : 'Close Shift & Start New Business Day'}
+                </span>
+              </div>
+              <button onClick={closeShiftRestartModal} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#FEF3C7' }}>
+                <X size={20} />
+              </button>
+            </div>
+
+            <div style={{ padding: '1.5rem' }}>
+              {/* ── SUCCESS STATE ── */}
+              {shiftRestartStep === 'success' && (
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: '3rem', marginBottom: '0.75rem' }}>✅</div>
+                  <div style={{ fontWeight: 800, fontSize: '1.1rem', color: '#065F46', marginBottom: '0.5rem' }}>
+                    New Shift Started – ₱0.00
+                  </div>
+                  <div style={{ fontSize: '0.88rem', color: '#78716C', marginBottom: '0.25rem' }}>
+                    Shift ID: <strong>{activeShift?.shiftId || '—'}</strong>
+                  </div>
+                  <div style={{ fontSize: '0.88rem', color: '#78716C', marginBottom: '1.25rem' }}>
+                    Started: <strong>{activeShift?.startTime ? new Date(activeShift.startTime).toLocaleString() : '—'}</strong>
+                  </div>
+                  <p style={{ fontSize: '0.85rem', color: '#78716C', marginBottom: '1.5rem' }}>
+                    The previous shift has been closed and recorded. All new orders will be assigned to the new shift. The Kitchen Display has been refreshed.
+                  </p>
+                  <button
+                    onClick={closeShiftRestartModal}
+                    style={{
+                      padding: '0.7rem 2rem', borderRadius: '10px', border: 'none',
+                      background: '#059669', color: '#FFFFFF', fontWeight: 800, fontSize: '0.9rem', cursor: 'pointer'
+                    }}
+                  >
+                    Continue to POS Terminal
+                  </button>
+                </div>
+              )}
+
+              {/* ── BLOCKING ORDERS STATE ── */}
+              {shiftRestartStep === 'blocking' && blockingOrdersInfo && (
+                <div>
+                  <div style={{
+                    background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: '12px',
+                    padding: '1rem', marginBottom: '1.25rem', display: 'flex', gap: '10px'
+                  }}>
+                    <AlertTriangle size={18} color="#B91C1C" style={{ flexShrink: 0, marginTop: '2px' }} />
+                    <div>
+                      <div style={{ fontWeight: 800, color: '#B91C1C', fontSize: '0.9rem', marginBottom: '4px' }}>
+                        Active Orders Must Be Resolved First
+                      </div>
+                      <div style={{ fontSize: '0.84rem', color: '#7F1D1D' }}>
+                        {blockingOrdersInfo.message}
+                      </div>
+                      {blockingOrdersInfo.sampleOrderIds?.length > 0 && (
+                        <div style={{ marginTop: '6px', fontSize: '0.8rem', color: '#991B1B' }}>
+                          Pending: {blockingOrdersInfo.sampleOrderIds.map(id => `#${id}`).join(', ')}
+                          {blockingOrdersInfo.pendingCount > 5 ? ` + ${blockingOrdersInfo.pendingCount - 5} more` : ''}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <p style={{ fontSize: '0.84rem', color: '#78716C', marginBottom: '1.25rem' }}>
+                    Please complete, cancel, or carry over all active orders before restarting the shift. If this is an emergency, you may force-close the shift — unresolved orders will remain in the system for administrative review.
+                  </p>
+                  <div style={{ display: 'flex', gap: '0.75rem' }}>
+                    <button
+                      onClick={() => setShiftRestartStep('confirm')}
+                      style={{
+                        flex: 1, padding: '0.7rem', borderRadius: '10px',
+                        border: '1px solid #E7E5E4', background: '#FAF8F5',
+                        color: '#44403C', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer'
+                      }}
+                    >
+                      ← Go Back
+                    </button>
+                    <button
+                      onClick={() => handleShiftRestart(true)}
+                      disabled={shiftRestartLoading}
+                      style={{
+                        flex: 1, padding: '0.7rem', borderRadius: '10px', border: 'none',
+                        background: shiftRestartLoading ? '#D6D3D1' : '#B91C1C',
+                        color: '#FFFFFF', fontWeight: 800, fontSize: '0.85rem', cursor: 'pointer'
+                      }}
+                    >
+                      {shiftRestartLoading ? 'Processing...' : '⚠ Force Close Shift'}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* ── CONFIRM STATE ── */}
+              {shiftRestartStep === 'confirm' && (
+                <div>
+                  {/* Shift Summary Card */}
+                  <div style={{
+                    background: '#F5F5F4', borderRadius: '12px', padding: '1rem',
+                    marginBottom: '1.25rem', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.6rem'
+                  }}>
+                    <div>
+                      <div style={{ fontSize: '0.72rem', fontWeight: 700, color: '#A8A29E', marginBottom: '2px' }}>CURRENT SHIFT ID</div>
+                      <div style={{ fontWeight: 800, fontSize: '0.9rem', color: '#1C1917' }}>{activeShift?.shiftId || '—'}</div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '0.72rem', fontWeight: 700, color: '#A8A29E', marginBottom: '2px' }}>SHIFT STARTED</div>
+                      <div style={{ fontWeight: 700, fontSize: '0.85rem', color: '#1C1917' }}>
+                        {activeShift?.startTime ? new Date(activeShift.startTime).toLocaleString() : '—'}
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '0.72rem', fontWeight: 700, color: '#A8A29E', marginBottom: '2px' }}>SHIFT SALES</div>
+                      <div style={{ fontWeight: 900, fontSize: '1.15rem', color: '#059669' }}>
+                        ₱{(liveShiftSales > 0 ? liveShiftSales : liveShiftStats.totalSales).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '0.72rem', fontWeight: 700, color: '#A8A29E', marginBottom: '2px' }}>CASHIER</div>
+                      <div style={{ fontWeight: 700, fontSize: '0.85rem', color: '#1C1917' }}>{employeeName}</div>
+                    </div>
+                  </div>
+
+                  <div style={{
+                    background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: '12px',
+                    padding: '0.9rem', marginBottom: '1.25rem', fontSize: '0.84rem', color: '#78350F'
+                  }}>
+                    <strong>What happens when you restart:</strong>
+                    <ul style={{ margin: '6px 0 0 0', paddingLeft: '1.2rem', lineHeight: 1.7 }}>
+                      <li>Current shift will be closed and a full summary recorded</li>
+                      <li>A new shift will begin with <strong>₱0.00 sales</strong></li>
+                      <li>Kitchen Display will show the empty-state for new orders</li>
+                      <li>All historical orders & receipts are preserved in the database</li>
+                    </ul>
+                  </div>
+
+                  {shiftRestartError && (
+                    <div style={{
+                      background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: '10px',
+                      padding: '0.75rem', marginBottom: '1rem', fontSize: '0.84rem', color: '#B91C1C',
+                      display: 'flex', alignItems: 'center', gap: '8px'
+                    }}>
+                      <AlertTriangle size={16} /> {shiftRestartError}
+                    </div>
+                  )}
+
+                  <div style={{ marginBottom: '1.25rem' }}>
+                    <label style={{ fontSize: '0.84rem', fontWeight: 700, color: '#44403C', display: 'block', marginBottom: '6px' }}>
+                      Type <strong>RESTART</strong> to confirm:
+                    </label>
+                    <input
+                      type="text"
+                      value={restartConfirmText}
+                      onChange={e => setRestartConfirmText(e.target.value.toUpperCase())}
+                      placeholder="Type RESTART"
+                      style={{
+                        width: '100%', padding: '0.6rem 0.85rem', borderRadius: '10px',
+                        border: `1px solid ${restartConfirmText === 'RESTART' ? '#10B981' : '#D6D3D1'}`,
+                        fontSize: '0.9rem', fontWeight: 700, outline: 'none', boxSizing: 'border-box',
+                        fontFamily: 'monospace', letterSpacing: '0.08em'
+                      }}
+                    />
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '0.75rem' }}>
+                    <button
+                      onClick={closeShiftRestartModal}
+                      style={{
+                        flex: 1, padding: '0.7rem', borderRadius: '10px',
+                        border: '1px solid #E7E5E4', background: '#FAF8F5',
+                        color: '#44403C', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer'
+                      }}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={() => handleShiftRestart(false)}
+                      disabled={restartConfirmText !== 'RESTART' || shiftRestartLoading}
+                      style={{
+                        flex: 2, padding: '0.7rem', borderRadius: '10px', border: 'none',
+                        background: restartConfirmText === 'RESTART' && !shiftRestartLoading ? '#B45309' : '#D6D3D1',
+                        color: '#FFFFFF', fontWeight: 800, fontSize: '0.9rem',
+                        cursor: restartConfirmText === 'RESTART' && !shiftRestartLoading ? 'pointer' : 'not-allowed'
+                      }}
+                    >
+                      {shiftRestartLoading ? '⏳ Restarting Shift...' : '🔄 Confirm Shift Restart'}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Top Cashier Header Bar */}
       <header style={{
         background: '#FFFFFF', borderBottom: '1px solid #E7E5E4', padding: '0.9rem 1.75rem',
@@ -767,9 +1088,22 @@ export default function CashierDashboard({
             border: '1px solid #A7F3D0', color: '#047857', fontSize: '0.78rem', fontWeight: 800,
             display: 'flex', alignItems: 'center', gap: '6px'
           }}>
-            <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#10B981' }} />
-            POS Live Sync • ₱{liveShiftStats.totalSales.toLocaleString('en-US', { minimumFractionDigits: 2 })} Shift Sales
+            <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#10B981', animation: 'pulse 2s infinite' }} />
+            POS Live Sync • ₱{(liveShiftSales > 0 ? liveShiftSales : liveShiftStats.totalSales).toLocaleString('en-US', { minimumFractionDigits: 2 })} Shift Sales
           </div>
+
+          {/* Restart Shift Button */}
+          <button
+            onClick={openShiftRestartModal}
+            title="Close current shift & start new business day"
+            style={{
+              padding: '0.5rem 0.95rem', borderRadius: '10px', border: '1px solid #FDE68A',
+              background: '#FFFBEB', color: '#B45309', fontWeight: 700, fontSize: '0.8rem',
+              cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px'
+            }}
+          >
+            <RotateCcw size={14} /> Restart Shift
+          </button>
 
           {onLockSession && (
             <button
@@ -1725,80 +2059,228 @@ export default function CashierDashboard({
                 <div>
                   <h2 style={{ margin: 0, fontSize: '1.3rem', fontWeight: 900 }}>Official Receipt Generation & Shift Transaction History</h2>
                   <p style={{ margin: '2px 0 0', fontSize: '0.84rem', color: '#78716C' }}>
-                    View itemized order breakdowns, payment references, cash tendered, and print official thermal receipts.
+                    View closed shift summaries, financial breakdowns, and itemized customer receipts with thermal printing.
                   </p>
                 </div>
-                <input
-                  type="text"
-                  value={historySearch}
-                  onChange={(e) => setHistorySearch(e.target.value)}
-                  placeholder="Search order ID, customer, payment..."
-                  style={{ padding: '0.55rem 0.9rem', borderRadius: '10px', border: '1px solid #D6D3D1', fontSize: '0.84rem', minWidth: '250px' }}
-                />
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                  <div style={{ display: 'flex', background: '#F5F5F4', padding: '3px', borderRadius: '10px' }}>
+                    <button
+                      onClick={() => setReceiptsTab('shifts')}
+                      style={{
+                        padding: '6px 14px', borderRadius: '8px', border: 'none',
+                        background: receiptsTab === 'shifts' ? '#C24522' : 'transparent',
+                        color: receiptsTab === 'shifts' ? '#FFFFFF' : '#44403C',
+                        fontWeight: 800, fontSize: '0.8rem', cursor: 'pointer'
+                      }}
+                    >
+                      Shift Records ({shiftHistory.length})
+                    </button>
+                    <button
+                      onClick={() => setReceiptsTab('orders')}
+                      style={{
+                        padding: '6px 14px', borderRadius: '8px', border: 'none',
+                        background: receiptsTab === 'orders' ? '#C24522' : 'transparent',
+                        color: receiptsTab === 'orders' ? '#FFFFFF' : '#44403C',
+                        fontWeight: 800, fontSize: '0.8rem', cursor: 'pointer'
+                      }}
+                    >
+                      Order Receipts ({orders.length})
+                    </button>
+                  </div>
+                  <input
+                    type="text"
+                    value={historySearch}
+                    onChange={(e) => setHistorySearch(e.target.value)}
+                    placeholder={receiptsTab === 'shifts' ? 'Search shift ID, cashier...' : 'Search order ID, customer...'}
+                    style={{ padding: '0.55rem 0.9rem', borderRadius: '10px', border: '1px solid #D6D3D1', fontSize: '0.84rem', minWidth: '220px' }}
+                  />
+                </div>
               </div>
 
-              <div style={{ background: '#FFFFFF', borderRadius: '16px', border: '1px solid #E7E5E4', overflow: 'hidden' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.84rem' }}>
-                  <thead>
-                    <tr style={{ background: '#FAF8F5', borderBottom: '1px solid #E7E5E4', textAlign: 'left' }}>
-                      <th style={{ padding: '0.85rem 1.25rem' }}>Order #</th>
-                      <th style={{ padding: '0.85rem 1rem' }}>Date & Time</th>
-                      <th style={{ padding: '0.85rem 1rem' }}>Customer / Table</th>
-                      <th style={{ padding: '0.85rem 1rem' }}>Items</th>
-                      <th style={{ padding: '0.85rem 1rem' }}>Payment</th>
-                      <th style={{ padding: '0.85rem 1rem' }}>Total Paid</th>
-                      <th style={{ padding: '0.85rem 1.25rem', textAlign: 'right' }}>Official Receipt</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {orders
-                      .filter(o => {
+              {/* ── TAB 1: SHIFT HISTORY ── */}
+              {receiptsTab === 'shifts' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.9rem' }}>
+                  {shiftHistory.length === 0 ? (
+                    <div style={{ background: '#FFFFFF', borderRadius: '16px', border: '1px solid #E7E5E4', padding: '2.5rem', textAlign: 'center', color: '#78716C' }}>
+                      <History size={36} style={{ marginBottom: '8px', opacity: 0.5 }} />
+                      <div style={{ fontWeight: 800, fontSize: '1rem', color: '#1C1917' }}>No Closed Shifts Yet</div>
+                      <p style={{ margin: '4px 0 0', fontSize: '0.84rem' }}>
+                        When a shift is restarted or closed, the complete shift summary and financial breakdown will appear here.
+                      </p>
+                    </div>
+                  ) : (
+                    shiftHistory
+                      .filter(sh => {
                         if (!historySearch.trim()) return true;
                         const q = historySearch.toLowerCase();
                         return (
-                          String(o.orderId || o.id).toLowerCase().includes(q) ||
-                          (o.customer || '').toLowerCase().includes(q) ||
-                          (o.payment || '').toLowerCase().includes(q)
+                          sh.shiftId?.toLowerCase().includes(q) ||
+                          sh.cashierName?.toLowerCase().includes(q) ||
+                          sh.businessDate?.includes(q)
                         );
                       })
-                      .slice(0, 40)
-                      .map(order => {
-                        const id = order.orderId || order.id;
+                      .map(sh => {
+                        const isExpanded = expandedShiftId === sh.shiftId;
+                        const s = sh.sales || {};
                         return (
-                          <tr key={id} style={{ borderBottom: '1px solid #F5F5F4' }}>
-                            <td style={{ padding: '0.85rem 1.25rem', fontWeight: 800 }}>#{id}</td>
-                            <td style={{ padding: '0.85rem 1rem', color: '#78716C', fontSize: '0.78rem' }}>
-                              {order.createdAt ? new Date(order.createdAt).toLocaleString() : 'Today'}
-                            </td>
-                            <td style={{ padding: '0.85rem 1rem' }}>
-                              <div style={{ fontWeight: 700 }}>{order.customer}</div>
-                              <div style={{ fontSize: '0.74rem', color: '#78716C' }}>{order.diningOption} • {order.tableNumber}</div>
-                            </td>
-                            <td style={{ padding: '0.85rem 1rem', fontSize: '0.79rem' }}>
-                              {(order.items || []).map(i => `${i.quantity || i.qty || 1}x ${i.name}`).join(', ')}
-                            </td>
-                            <td style={{ padding: '0.85rem 1rem', fontWeight: 700 }}>{order.payment}</td>
-                            <td style={{ padding: '0.85rem 1rem', fontWeight: 900, color: '#047857' }}>
-                              ₱{Number(order.totalPrice || order.total || 0).toFixed(2)}
-                            </td>
-                            <td style={{ padding: '0.85rem 1.25rem', textAlign: 'right' }}>
-                              <button
-                                onClick={() => handlePrintReceipt(order)}
-                                style={{
-                                  padding: '6px 12px', borderRadius: '8px', border: '1px solid #C24522',
-                                  background: '#FFF7ED', color: '#C24522', fontWeight: 800, fontSize: '0.76rem',
-                                  cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '5px'
-                                }}
-                              >
-                                <Printer size={13} /> Print Receipt
-                              </button>
-                            </td>
-                          </tr>
+                          <div key={sh.shiftId} style={{ background: '#FFFFFF', borderRadius: '14px', border: '1px solid #E7E5E4', overflow: 'hidden' }}>
+                            <div
+                              onClick={() => setExpandedShiftId(isExpanded ? null : sh.shiftId)}
+                              style={{
+                                padding: '1rem 1.25rem', display: 'flex', justifyContent: 'space-between',
+                                alignItems: 'center', cursor: 'pointer', background: isExpanded ? '#FFF7ED' : '#FFFFFF',
+                                borderBottom: isExpanded ? '1px solid #FED7AA' : 'none', flexWrap: 'wrap', gap: '0.75rem'
+                              }}
+                            >
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                <div style={{
+                                  width: '36px', height: '36px', borderRadius: '10px',
+                                  background: '#FEF3C7', color: '#B45309', display: 'flex',
+                                  alignItems: 'center', justifyContent: 'center', fontWeight: 900
+                                }}>
+                                  <CalendarClock size={18} />
+                                </div>
+                                <div>
+                                  <div style={{ fontWeight: 900, fontSize: '0.95rem', color: '#1C1917' }}>
+                                    {sh.shiftId}
+                                    <span style={{
+                                      marginLeft: '8px', padding: '2px 8px', borderRadius: '999px',
+                                      fontSize: '0.68rem', fontWeight: 800, background: '#F3F4F6', color: '#4B5563'
+                                    }}>
+                                      CLOSED
+                                    </span>
+                                  </div>
+                                  <div style={{ fontSize: '0.75rem', color: '#78716C' }}>
+                                    {sh.businessDate} • Started {sh.startTime ? new Date(sh.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'} • Closed {sh.endTime ? new Date(sh.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'} • Cashier: <strong>{sh.cashierName || 'Maria Santos'}</strong>
+                                  </div>
+                                </div>
+                              </div>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
+                                <div style={{ textAlign: 'right' }}>
+                                  <div style={{ fontSize: '0.72rem', color: '#78716C', fontWeight: 700 }}>SHIFT SALES</div>
+                                  <div style={{ fontWeight: 900, fontSize: '1.05rem', color: '#059669' }}>
+                                    ₱{Number(s.totalSales || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                                  </div>
+                                </div>
+                                <div style={{ textAlign: 'right' }}>
+                                  <div style={{ fontSize: '0.72rem', color: '#78716C', fontWeight: 700 }}>ORDERS</div>
+                                  <div style={{ fontWeight: 800, fontSize: '0.9rem', color: '#1C1917' }}>
+                                    {s.successfulCount || 0} Paid
+                                  </div>
+                                </div>
+                                <span style={{ fontSize: '0.8rem', color: '#C24522', fontWeight: 700 }}>
+                                  {isExpanded ? '▲ Hide Details' : '▼ View Breakdown'}
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* Expanded Breakdown */}
+                            {isExpanded && (
+                              <div style={{ padding: '1.25rem', background: '#FAFAF9', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '0.6rem' }}>
+                                  <div style={{ background: '#FFFFFF', padding: '0.75rem', borderRadius: '10px', border: '1px solid #E7E5E4' }}>
+                                    <div style={{ fontSize: '0.7rem', color: '#78716C', fontWeight: 700 }}>CASH SALES</div>
+                                    <div style={{ fontWeight: 800, color: '#047857' }}>₱{Number(s.cashSales || 0).toFixed(2)}</div>
+                                    <div style={{ fontSize: '0.68rem', color: '#A8A29E' }}>{s.cashSalesCount || 0} transactions</div>
+                                  </div>
+                                  <div style={{ background: '#FFFFFF', padding: '0.75rem', borderRadius: '10px', border: '1px solid #E7E5E4' }}>
+                                    <div style={{ fontSize: '0.7rem', color: '#78716C', fontWeight: 700 }}>GCASH SALES</div>
+                                    <div style={{ fontWeight: 800, color: '#2563EB' }}>₱{Number(s.gcashSales || 0).toFixed(2)}</div>
+                                  </div>
+                                  <div style={{ background: '#FFFFFF', padding: '0.75rem', borderRadius: '10px', border: '1px solid #E7E5E4' }}>
+                                    <div style={{ fontSize: '0.7rem', color: '#78716C', fontWeight: 700 }}>MAYA SALES</div>
+                                    <div style={{ fontWeight: 800, color: '#059669' }}>₱{Number(s.mayaSales || 0).toFixed(2)}</div>
+                                  </div>
+                                  <div style={{ background: '#FFFFFF', padding: '0.75rem', borderRadius: '10px', border: '1px solid #E7E5E4' }}>
+                                    <div style={{ fontSize: '0.7rem', color: '#78716C', fontWeight: 700 }}>CARD / OTHER</div>
+                                    <div style={{ fontWeight: 800, color: '#7C3AED' }}>₱{Number((s.cardSales || 0) + (s.otherDigitalSales || 0)).toFixed(2)}</div>
+                                  </div>
+                                  <div style={{ background: '#FFFFFF', padding: '0.75rem', borderRadius: '10px', border: '1px solid #E7E5E4' }}>
+                                    <div style={{ fontSize: '0.7rem', color: '#78716C', fontWeight: 700 }}>OPENING FLOAT</div>
+                                    <div style={{ fontWeight: 800, color: '#1C1917' }}>₱{Number(sh.openingFloat || 0).toLocaleString()}</div>
+                                  </div>
+                                  <div style={{ background: '#FFFFFF', padding: '0.75rem', borderRadius: '10px', border: '1px solid #E7E5E4' }}>
+                                    <div style={{ fontSize: '0.7rem', color: '#78716C', fontWeight: 700 }}>REFUNDS / VOIDS</div>
+                                    <div style={{ fontWeight: 800, color: '#B91C1C' }}>{s.refundedCount || 0} ref / {s.voidedCount || 0} void</div>
+                                  </div>
+                                </div>
+                                <div style={{ fontSize: '0.75rem', color: '#78716C' }}>
+                                  Register: <strong>{sh.registerId}</strong> • Closed by: <strong>{sh.closedBy || sh.cashierName}</strong> ({sh.closedById || 'SYSTEM'}) • Reason: <strong>{sh.closedReason === 'auto_daily_reset' ? 'Automatic Business Day Reset' : 'Manual Shift Restart'}</strong>
+                                </div>
+                              </div>
+                            )}
+                          </div>
                         );
-                      })}
-                  </tbody>
-                </table>
-              </div>
+                      })
+                  )}
+                </div>
+              )}
+
+              {/* ── TAB 2: ORDER RECEIPTS ── */}
+              {receiptsTab === 'orders' && (
+                <div style={{ background: '#FFFFFF', borderRadius: '16px', border: '1px solid #E7E5E4', overflow: 'hidden' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.84rem' }}>
+                    <thead>
+                      <tr style={{ background: '#FAF8F5', borderBottom: '1px solid #E7E5E4', textAlign: 'left' }}>
+                        <th style={{ padding: '0.85rem 1.25rem' }}>Order #</th>
+                        <th style={{ padding: '0.85rem 1rem' }}>Date & Time</th>
+                        <th style={{ padding: '0.85rem 1rem' }}>Customer / Table</th>
+                        <th style={{ padding: '0.85rem 1rem' }}>Items</th>
+                        <th style={{ padding: '0.85rem 1rem' }}>Payment</th>
+                        <th style={{ padding: '0.85rem 1rem' }}>Total Paid</th>
+                        <th style={{ padding: '0.85rem 1.25rem', textAlign: 'right' }}>Official Receipt</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {orders
+                        .filter(o => {
+                          if (!historySearch.trim()) return true;
+                          const q = historySearch.toLowerCase();
+                          return (
+                            String(o.orderId || o.id).toLowerCase().includes(q) ||
+                            (o.customer || '').toLowerCase().includes(q) ||
+                            (o.payment || '').toLowerCase().includes(q)
+                          );
+                        })
+                        .slice(0, 40)
+                        .map(order => {
+                          const id = order.orderId || order.id;
+                          return (
+                            <tr key={id} style={{ borderBottom: '1px solid #F5F5F4' }}>
+                              <td style={{ padding: '0.85rem 1.25rem', fontWeight: 800 }}>#{id}</td>
+                              <td style={{ padding: '0.85rem 1rem', color: '#78716C', fontSize: '0.78rem' }}>
+                                {order.createdAt ? new Date(order.createdAt).toLocaleString() : 'Today'}
+                              </td>
+                              <td style={{ padding: '0.85rem 1rem' }}>
+                                <div style={{ fontWeight: 700 }}>{order.customer}</div>
+                                <div style={{ fontSize: '0.74rem', color: '#78716C' }}>{order.diningOption} • {order.tableNumber}</div>
+                              </td>
+                              <td style={{ padding: '0.85rem 1rem', fontSize: '0.79rem' }}>
+                                {(order.items || []).map(i => `${i.quantity || i.qty || 1}x ${i.name}`).join(', ')}
+                              </td>
+                              <td style={{ padding: '0.85rem 1rem', fontWeight: 700 }}>{order.payment}</td>
+                              <td style={{ padding: '0.85rem 1rem', fontWeight: 900, color: '#047857' }}>
+                                ₱{Number(order.totalPrice || order.total || 0).toFixed(2)}
+                              </td>
+                              <td style={{ padding: '0.85rem 1.25rem', textAlign: 'right' }}>
+                                <button
+                                  onClick={() => handlePrintReceipt(order)}
+                                  style={{
+                                    padding: '6px 12px', borderRadius: '8px', border: '1px solid #C24522',
+                                    background: '#FFF7ED', color: '#C24522', fontWeight: 800, fontSize: '0.76rem',
+                                    cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '5px'
+                                  }}
+                                >
+                                  <Printer size={13} /> Print Receipt
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           )}
 

@@ -1740,6 +1740,13 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
       }
     };
 
+    const onShiftRestarted = () => {
+      fetch('/api/orders')
+        .then(r => r.json())
+        .then(data => { if (Array.isArray(data)) setOrders(data); })
+        .catch(() => {});
+    };
+
     localSocket.on('initial-orders', onInitialOrders);
     localSocket.on('new-kitchen-order', onNewOrder);
     localSocket.on('new-order', onNewOrder);
@@ -1750,6 +1757,7 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
     localSocket.on('drinks-updated', onDrinksUpdated);
     localSocket.on('initial-promos', onPromosUpdated);
     localSocket.on('promos-updated', onPromosUpdated);
+    localSocket.on('shift-restarted', onShiftRestarted);
 
     // Initial fetch from backend API
     fetch('/api/menu')
@@ -1812,6 +1820,7 @@ export default function AdminView({ onLogout, onOpenSecurity, onReturnToKiosk, s
       localSocket.off('drinks-updated', onDrinksUpdated);
       localSocket.off('initial-promos', onPromosUpdated);
       localSocket.off('promos-updated', onPromosUpdated);
+      localSocket.off('shift-restarted', onShiftRestarted);
       window.removeEventListener('umami_catalog_updated', handleLocalCatalogSync);
       window.removeEventListener('storage', handleLocalCatalogSync);
       window.removeEventListener('umami_new_order', handleCustomNewOrder);

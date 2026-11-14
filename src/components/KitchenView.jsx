@@ -591,6 +591,23 @@ function KitchenView({ onReturnToKiosk }) {
       );
     });
 
+    socket.on('shift-restarted', (payload) => {
+      console.log("[Kitchen] Shift restarted received:", payload);
+      // Fresh session in KDS: Remove completed and cancelled orders from active queue
+      setOrders(prev => prev.filter(o => {
+        const s = normalizeKitchenStatus(o.status);
+        return s !== 'Completed' && s !== 'Cancelled';
+      }));
+      try {
+        const stored = JSON.parse(localStorage.getItem('umami_orders') || '[]');
+        const activeOnly = stored.filter(o => {
+          const s = normalizeKitchenStatus(o.status);
+          return s !== 'Completed' && s !== 'Cancelled';
+        });
+        localStorage.setItem('umami_orders', JSON.stringify(activeOnly));
+      } catch (e) {}
+    });
+
     socket.on('disconnect', () => {
       setSocketConnected(false);
       console.log("[Kitchen] Disconnected from server");
@@ -1359,9 +1376,9 @@ function KitchenView({ onReturnToKiosk }) {
         ) : (
           <div className="kitchen-empty-state">
             <Utensils size={48} color="var(--text-muted)" style={{ marginBottom: '16px', opacity: 0.5 }} />
-            <h3>No Orders in this Queue</h3>
+            <h3>No Active Orders – Ready for New Orders</h3>
             <p>
-              When customers place orders from their phones or terminals, they will appear here instantly in real-time.
+              When customers place orders from their phones, smart kiosks, or POS terminals, they will appear here instantly in real time.
             </p>
           </div>
         )}

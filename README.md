@@ -31,7 +31,8 @@
    - [8. Frictionless Guest-First Dining Architecture (NO Customer Login Required)](#8-frictionless-guest-first-dining-architecture-no-customer-login-required)
    - [9. One Staff Account for All Employees & Role-Based Portals](#9-one-staff-account-for-all-employees--role-based-portals)
    - [10. Daily Reports Management (Cashier Z-Reads & Staff Shifts)](#10-daily-reports-management-cashier-z-reads--staff-shifts)
-   - [11. Security, Audit Trail & Forensic Logging](#11-security-audit-trail--forensic-logging)
+   - [11. Daily POS Sales Reset, Shift Restart & Live Kitchen Display Cleansing System](#11-daily-pos-sales-reset-shift-restart--live-kitchen-display-cleansing-system)
+   - [12. Security, Audit Trail & Forensic Logging](#12-security-audit-trail--forensic-logging)
 5. [Database Architecture & File Structure](#-database-architecture--file-structure)
 6. [API Reference & Socket.IO Real-Time Events](#-api-reference--socketio-real-time-events)
    - [REST Endpoints](#rest-endpoints)
@@ -461,6 +462,8 @@ erDiagram
     PROMOTION ||--o{ ORDER : applies_to
     TABLE ||--o{ SERVICE_REQUEST : creates
     TABLE ||--o{ ORDER : assigned_to
+    EMPLOYEE ||--o{ SHIFT_RECORD : operates
+    SHIFT_RECORD ||--o{ ORDER : includes
 
     EMPLOYEE {
         string id PK "EMP-001"
@@ -551,9 +554,29 @@ erDiagram
         float discountAmount "Applied promo discount"
         float totalPrice "Final Order Amount (PHP)"
         string promoCode "UMAMI20"
+        string shiftId "SHIFT_RECORD FK (e.g. SHIFT-20261114-001)"
+        string businessDate "YYYY-MM-DD"
         string_array allergens "Customer excluded allergens"
         timestamp createdAt "Order creation timestamp"
         timestamp paidAt "Payment verification timestamp"
+    }
+
+    SHIFT_RECORD {
+        string shiftId PK "SHIFT-20261114-001"
+        string cashierId "EMPLOYEE FK (EMP-101)"
+        string cashierName "Maria Santos"
+        string registerId "POS-01 (Main Counter)"
+        float openingFloat "Beginning shift cash float (₱3,000)"
+        string businessDate "YYYY-MM-DD"
+        string status "active | closed"
+        timestamp startTime "Shift opening ISO timestamp"
+        timestamp endTime "Shift closing ISO timestamp"
+        string closedBy "Cashier or Admin who authorized restart"
+        string closedReason "manual_restart | auto_daily_reset"
+        float totalSales "Reconciled shift sales total (₱)"
+        int successfulCount "Count of verified paid transactions"
+        float cashSales "Cash payments collected"
+        float digitalSales "GCash, Maya, PayPal, Card sales"
     }
 
     PAYMENT_SESSION {
@@ -856,7 +879,24 @@ A centralized, enterprise-grade role architecture ensures strict security while 
   - Interactive table: Employee, Role & Station, Shift & Time, Shift Highlights, Status, and Actions (**Details**, **Slip**).
   - Admin can review full drilldowns, approve reports, or request corrections with custom remarks, updating `data/daily_reports.json` and employee history.
 
-### 11. Security, Audit Trail & Forensic Logging
+### 11. Daily POS Sales Reset, Shift Restart & Live Kitchen Display Cleansing System
+- **Authorized Shift Restart & Daily Sales Reset (`?view=admin` role:cashier & admin):**
+  - **Restart Shift Button:** Located next to *Lock Register* on the Cashier POS Terminal header.
+  - **High-Fidelity Safety Confirmation Modal:** Requires explicit confirmation by typing `RESTART` before closing the shift.
+  - **Safeguard Against Unfinished Orders:** Automatically queries active orders in the database. If any order is still in `New`, `Preparing`, `Ready for Pickup`, or `Pending Payment Verification`, the system displays an alert with the blocking order IDs and prevents accidental shift reset. A supervisor can review and finalize pending tickets or authorize an emergency carryover.
+  - **Shift Closing Snapshot:** Before resetting, generates an immutable closing snapshot saved in `data/shifts.json` containing total gross/net sales, verified transaction count, granular payment breakdown (Cash, GCash, Maya, PayPal, Card, Other Digital), opening float (₱3,000), refunds, voids, discounts, cashier details, and opening/closing timestamps.
+  - **Live Counter Reset to ₱0.00:** The header pill `● POS Live Sync • ₱30,391.80 Shift Sales` immediately transitions to `● POS Live Sync • ₱0.00 Shift Sales` with an active pulsing indicator.
+  - **Automatic Business Day Reset:** Evaluates the `Asia/Manila` business date on startup. If the date boundary has crossed, it safely archives the prior shift and starts a new business day at ₱0.00 without duplicating resets on page refreshes or re-logins.
+- **Synchronized Kitchen Order Display Cleansing (`?view=kitchen`):**
+  - Upon receiving the `shift-restarted` Socket.IO broadcast, the Kitchen Order Display automatically purges previously completed and cancelled orders from the active queue while strictly preserving all records in the persistent database.
+  - Active tickets display the professional empty state: **"No Active Orders – Ready for New Orders."**
+  - Any new customer orders submitted via Kiosk, Mobile QR, or POS Terminal immediately enter the clean active queue with audio alerts and visual tickets.
+- **Dual-Tab Shift History & Customer Receipts:**
+  - Accessible via **Receipts & Shift History** on the Cashier POS sidebar.
+  - **Shift Records Tab:** Lists all closed shift sessions with expandable financial breakdowns and cashier audit attribution.
+  - **Order Receipts Tab:** Itemized customer tickets with instant printable thermal receipts.
+
+### 12. Security, Audit Trail & Forensic Logging
 - Immutable logging of every security-relevant action into `data/audit_logs.json` (logins, failed authentication, price updates, refunds, webhook signature rejections).
 - Salted and hashed password security with protected API sanitization (passwords never returned in GET payloads).
 
@@ -883,6 +923,7 @@ allergicSuggestion/
 │   ├── preferences.json         # Dynamic allergen and flavor preference taxonomies
 │   ├── promos.json              # Active promo discount codes and banners
 │   ├── service_requests.json    # Live customer table assistance calls
+│   ├── shifts.json              # Active and closed business shifts with financial summaries
 │   ├── staff_tasks.json         # Operational shift checklists for staff members
 │   └── menus/
 │       ├── umami.json           # Umami Craft Fusion primary food catalog
@@ -960,6 +1001,10 @@ allergicSuggestion/
 | `POST`| `/api/daily-reports/:id/review` | Admin reviews daily report with custom remarks (*Approved* / *Needs Correction*). |
 | `POST`| `/api/daily-reports/:id/approve` | Fast-track executive daily report approval. |
 | `POST`| `/api/daily-reports/:id/return` | Returns daily report to employee for revision with required corrections note. |
+| `GET` | `/api/shifts/active` | Retrieves live active shift metadata and computed verified sales. |
+| `GET` | `/api/shifts/history` | Retrieves paginated historical closed shifts with payment breakdowns. |
+| `GET` | `/api/shifts/:shiftId/summary` | Retrieves comprehensive closing audit summary for a specific shift. |
+| `POST`| `/api/shifts/restart` | Authorized shift restart: closes active shift, archives closing snapshot, resets live sales to ₱0.00, and notifies kitchen. |
 | `GET` | `/api/orders` | Retrieves order history with optional filtering. |
 | `GET` | `/api/orders/:orderId` | Retrieves single order authoritative status, items, and pickup token for session restoration. |
 | `POST`| `/api/orders` | Submits a new order to the system. |
@@ -996,6 +1041,7 @@ allergicSuggestion/
 | `employees-updated` | Server → Client | `{ employees }` | Broadcasts updated employee directory whenever Admin creates, edits, or activates staff. |
 | `attendance-updated` | Server → Client | `{ attendance }` | Broadcasts real-time employee attendance clocking across Admin and Staff portals. |
 | `staff-tasks-updated` | Server → Client | `{ tasks }` | Synchronizes station task status and completion timestamps across stations. |
+| `shift-restarted` | Server → All | `{ newShift, closedShift, timestamp }` | Broadcasts daily shift restart, resets POS live sales to ₱0.00, and clears finished orders from KDS. |
 | `request-network-refresh` | Client → Server | `{}` | Requests immediate storewide state re-synchronization across all kiosks and portals. |
 
 ---

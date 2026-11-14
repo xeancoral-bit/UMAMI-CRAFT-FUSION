@@ -607,6 +607,181 @@ loadMenuData();
 loadDrinksData();
 loadDailyReportsData();
 
+// ══════════════════════════════════════════════════════════════════════════
+// SHIFT MANAGEMENT SYSTEM – Persistent Shift DB
+// ══════════════════════════════════════════════════════════════════════════
+const SHIFTS_FILE = path.join(__dirname, 'data', 'shifts.json');
+let shiftsData = {
+  activeShift: null,
+  history: []
+};
+
+async function loadShiftsData() {
+  try {
+    const raw = await fs.readFile(SHIFTS_FILE, 'utf8');
+    shiftsData = JSON.parse(raw);
+    if (!shiftsData.history) shiftsData.history = [];
+    console.log('[Shifts] Loaded shifts data. Active shift:', shiftsData.activeShift?.shiftId || 'none');
+  } catch (err) {
+    console.warn('[Shifts] No shifts.json found, initializing default.');
+    const today = new Date().toISOString().slice(0, 10);
+    shiftsData = {
+      activeShift: {
+        shiftId: `SHIFT-${today.replace(/-/g, '')}-001`,
+        cashierId: 'EMP-101',
+        cashierName: 'Maria Santos',
+        registerId: 'POS-01 (Main Counter)',
+        openingFloat: 3000,
+        startTime: new Date().toISOString(),
+        businessDate: today,
+        status: 'active',
+        lastAutoResetDate: today
+      },
+      history: []
+    };
+    await saveShiftsData();
+  }
+}
+
+async function saveShiftsData() {
+  try {
+    await fs.writeFile(SHIFTS_FILE, JSON.stringify(shiftsData, null, 2), 'utf8');
+  } catch (err) {
+    console.error('[Shifts] Failed to save shifts data:', err);
+  }
+}
+
+/** Compute live shift sales from orders filtered by shiftId (or today's date as fallback) */
+function computeShiftSales(shiftId, businessDate) {
+  const shiftOrders = orders.filter(o => {
+    if (shiftId && o.shiftId) return o.shiftId === shiftId;
+    // Fallback: orders created on the same business date
+    return (o.createdAt || '').slice(0, 10) === businessDate;
+  });
+
+  let totalSales = 0;
+  let cashSales = 0;
+  let digitalSales = 0;
+  let gcashSales = 0;
+  let mayaSales = 0;
+  let paypalSales = 0;
+  let cardSales = 0;
+  let otherDigitalSales = 0;
+  let cashSalesCount = 0;
+  let digitalSalesCount = 0;
+  let cancelledCount = 0;
+  let refundedCount = 0;
+  let voidedCount = 0;
+  let successfulCount = 0;
+  let discountsApplied = 0;
+  let cashReceived = 0;
+  let changeGiven = 0;
+
+  shiftOrders.forEach(o => {
+    const amt = Number(o.totalPrice || o.total || 0);
+    const ps = String(o.paymentStatus || '').toLowerCase();
+    const s = String(o.status || '').toLowerCase();
+    const pm = String(o.paymentMethod || o.payment || '').toLowerCase();
+    discountsApplied += Number(o.discountAmount || 0);
+
+    if (s === 'cancelled') { cancelledCount++; return; }
+    if (ps === 'refunded' || o.isRefunded) { refundedCount++; return; }
+    if (ps === 'voided' || o.isVoided) { voidedCount++; return; }
+    if (ps.includes('pending') || ps.includes('rejected') || ps === 'failed') return;
+
+    // Count only verified/successful/approved payments
+    const isVerified = o.isPaymentVerified === true || ps === 'approved' || ps === 'successful' || ps === 'success';
+    if (!isVerified) return;
+
+    successfulCount++;
+    totalSales += amt;
+
+    if (pm.includes('cash') && !pm.includes('gcash')) {
+      cashSales += amt;
+      cashSalesCount++;
+      const tendered = Number(o.cashReceived || amt);
+      cashReceived += tendered;
+      changeGiven += Math.max(0, tendered - amt);
+    } else {
+      digitalSales += amt;
+      digitalSalesCount++;
+      if (pm.includes('gcash')) gcashSales += amt;
+      else if (pm.includes('maya')) mayaSales += amt;
+      else if (pm.includes('paypal')) paypalSales += amt;
+      else if (pm.includes('card') || pm.includes('credit') || pm.includes('debit')) cardSales += amt;
+      else otherDigitalSales += amt;
+    }
+  });
+
+  return {
+    totalSales: Number(totalSales.toFixed(2)),
+    cashSales: Number(cashSales.toFixed(2)),
+    digitalSales: Number(digitalSales.toFixed(2)),
+    gcashSales: Number(gcashSales.toFixed(2)),
+    mayaSales: Number(mayaSales.toFixed(2)),
+    paypalSales: Number(paypalSales.toFixed(2)),
+    cardSales: Number(cardSales.toFixed(2)),
+    otherDigitalSales: Number(otherDigitalSales.toFixed(2)),
+    successfulCount,
+    cashSalesCount,
+    digitalSalesCount,
+    cancelledCount,
+    refundedCount,
+    voidedCount,
+    discountsApplied: Number(discountsApplied.toFixed(2)),
+    cashReceived: Number(cashReceived.toFixed(2)),
+    changeGiven: Number(changeGiven.toFixed(2)),
+    totalOrders: shiftOrders.length
+  };
+}
+
+/** Check on startup if the business date has changed and auto-reset the shift */
+async function checkAutoShiftReset() {
+  const todayPH = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' }); // YYYY-MM-DD
+  if (!shiftsData.activeShift) return;
+
+  const lastReset = shiftsData.activeShift.lastAutoResetDate || shiftsData.activeShift.businessDate;
+  if (lastReset === todayPH) {
+    console.log(`[Shifts] Auto-reset check: shift is current for ${todayPH}. No reset needed.`);
+    return;
+  }
+
+  console.log(`[Shifts] Auto-reset triggered: last business date was ${lastReset}, today is ${todayPH}.`);
+  const oldShift = { ...shiftsData.activeShift };
+  const sales = computeShiftSales(oldShift.shiftId, oldShift.businessDate);
+
+  const closedRecord = {
+    ...oldShift,
+    status: 'closed',
+    endTime: new Date().toISOString(),
+    closedReason: 'auto_daily_reset',
+    sales,
+    closedAt: new Date().toISOString()
+  };
+  shiftsData.history.unshift(closedRecord);
+
+  // Build next shift ID
+  const dateTag = todayPH.replace(/-/g, '');
+  const todayShifts = shiftsData.history.filter(h => h.businessDate === todayPH);
+  const seqNum = String(todayShifts.length + 1).padStart(3, '0');
+
+  shiftsData.activeShift = {
+    shiftId: `SHIFT-${dateTag}-${seqNum}`,
+    cashierId: oldShift.cashierId,
+    cashierName: oldShift.cashierName,
+    registerId: oldShift.registerId,
+    openingFloat: oldShift.openingFloat,
+    startTime: new Date().toISOString(),
+    businessDate: todayPH,
+    status: 'active',
+    lastAutoResetDate: todayPH
+  };
+  await saveShiftsData();
+  console.log(`[Shifts] New shift started: ${shiftsData.activeShift.shiftId}`);
+}
+
+loadShiftsData().then(() => checkAutoShiftReset());
+
 // Serve static assets in production
 app.use(express.static(path.join(__dirname, 'dist')));
 
@@ -760,12 +935,18 @@ io.on('connection', (socket) => {
       socket.join(kitchenRoom);
       console.log(`[Socket] Kitchen terminal ${socket.id} joined ${kitchenRoom}`);
       // Only payments approved by Admin can automatically enter KDS
+      // Exclude completed or cancelled orders from previous closed shifts
+      const activeShiftId = shiftsData.activeShift?.shiftId;
       const approvedKitchenOrders = orders.filter(o => {
         const s = String(o.status || '').toLowerCase();
         const ps = String(o.paymentStatus || '').toLowerCase();
         if (s.includes('pending') && (s.includes('verification') || s.includes('payment'))) return false;
         if (s.includes('rejected')) return false;
         if (ps.includes('pending') || ps.includes('rejected')) return false;
+        const isDone = s === 'completed' || s === 'cancelled' || s === 'served';
+        if (isDone && activeShiftId && o.shiftId && o.shiftId !== activeShiftId) {
+          return false;
+        }
         return true;
       });
       socket.emit('initial-orders', approvedKitchenOrders);
@@ -989,6 +1170,8 @@ io.on('connection', (socket) => {
       busserName: null,
       device: orderPayload?.device || orderPayload?.platform || (socket.role === 'mobile' ? 'Mobile' : 'Desktop'),
       platform: orderPayload?.platform || orderPayload?.device || (socket.role === 'mobile' ? 'Mobile' : 'Desktop'),
+      shiftId: shiftsData.activeShift?.shiftId || null,
+      businessDate: shiftsData.activeShift?.businessDate || new Date().toISOString().slice(0, 10),
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       statusHistory: [
@@ -2276,12 +2459,18 @@ app.patch('/api/service-requests/:id', async (req, res) => {
 app.get('/api/orders', (req, res) => {
   if (req.query.role === 'kitchen') {
     // Only return approved orders that are ready for kitchen preparation
+    // Exclude completed or cancelled orders from previous closed shifts
+    const activeShiftId = shiftsData.activeShift?.shiftId;
     const kitchenOrders = orders.filter(o => {
       const s = String(o.status || '').toLowerCase();
       const ps = String(o.paymentStatus || '').toLowerCase();
       if (s.includes('pending') && (s.includes('verification') || s.includes('payment'))) return false;
       if (s.includes('rejected')) return false;
       if (ps.includes('pending') || ps.includes('rejected')) return false;
+      const isDone = s === 'completed' || s === 'cancelled' || s === 'served';
+      if (isDone && activeShiftId && o.shiftId && o.shiftId !== activeShiftId) {
+        return false;
+      }
       return true;
     });
     return res.json(kitchenOrders);
@@ -3843,6 +4032,8 @@ app.post('/api/orders', async (req, res) => {
       isAllergy: Array.isArray(payload.allergens) && payload.allergens.length > 0,
       device: payload.device || payload.platform || 'Desktop',
       platform: payload.platform || payload.device || 'Desktop',
+      shiftId: shiftsData.activeShift?.shiftId || null,
+      businessDate: shiftsData.activeShift?.businessDate || new Date().toISOString().slice(0, 10),
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       statusHistory: [
@@ -3942,6 +4133,143 @@ app.get('/api/admin/reconciliation', (req, res) => {
       createdAt: o.createdAt
     }))
   });
+});
+
+// ══════════════════════════════════════════════════════════════════════════
+// SHIFT MANAGEMENT API ENDPOINTS
+// ══════════════════════════════════════════════════════════════════════════
+
+// GET /api/shifts/active – Returns current active shift + computed live sales
+app.get('/api/shifts/active', (req, res) => {
+  if (!shiftsData.activeShift) {
+    return res.status(404).json({ error: 'No active shift found' });
+  }
+  const sales = computeShiftSales(
+    shiftsData.activeShift.shiftId,
+    shiftsData.activeShift.businessDate
+  );
+  res.json({ activeShift: shiftsData.activeShift, sales });
+});
+
+// GET /api/shifts/history – Returns closed shift history (paginated)
+app.get('/api/shifts/history', (req, res) => {
+  const page = Math.max(1, parseInt(req.query.page || '1', 10));
+  const limit = Math.min(50, parseInt(req.query.limit || '20', 10));
+  const start = (page - 1) * limit;
+  const slice = shiftsData.history.slice(start, start + limit);
+  res.json({
+    total: shiftsData.history.length,
+    page,
+    limit,
+    shifts: slice
+  });
+});
+
+// GET /api/shifts/:shiftId/summary – Full summary for a specific shift
+app.get('/api/shifts/:shiftId/summary', (req, res) => {
+  const { shiftId } = req.params;
+  const isActive = shiftsData.activeShift?.shiftId === shiftId;
+  const shiftRecord = isActive
+    ? shiftsData.activeShift
+    : shiftsData.history.find(h => h.shiftId === shiftId);
+
+  if (!shiftRecord) {
+    return res.status(404).json({ error: 'Shift not found' });
+  }
+
+  const sales = isActive
+    ? computeShiftSales(shiftId, shiftRecord.businessDate)
+    : (shiftRecord.sales || computeShiftSales(shiftId, shiftRecord.businessDate));
+
+  res.json({ shift: shiftRecord, sales, isActive });
+});
+
+// POST /api/shifts/restart – Close current shift & open new one
+app.post('/api/shifts/restart', async (req, res) => {
+  try {
+    const { actorName, actorId, actorRole, forceCarryover } = req.body || {};
+
+    if (!shiftsData.activeShift) {
+      return res.status(400).json({ error: 'No active shift to restart' });
+    }
+
+    // Block if there are pending/preparing/ready orders (unless forceCarryover is explicitly set)
+    if (!forceCarryover) {
+      const blockingStatuses = ['new', 'preparing', 'ready for pickup', 'pending payment verification', 'pending'];
+      const pendingOrders = orders.filter(o => {
+        if (shiftsData.activeShift.shiftId && o.shiftId && o.shiftId !== shiftsData.activeShift.shiftId) return false;
+        const s = String(o.status || '').toLowerCase();
+        const ps = String(o.paymentStatus || '').toLowerCase();
+        return blockingStatuses.some(bs => s.includes(bs) || ps.includes(bs));
+      });
+
+      if (pendingOrders.length > 0) {
+        const ids = pendingOrders.map(o => o.orderId || o.id).slice(0, 5);
+        return res.status(409).json({
+          error: 'blocking_orders',
+          message: `There are ${pendingOrders.length} active/pending order(s) that must be resolved before restarting the shift.`,
+          pendingCount: pendingOrders.length,
+          sampleOrderIds: ids
+        });
+      }
+    }
+
+    // Compute final sales for the closing shift
+    const oldShift = { ...shiftsData.activeShift };
+    const sales = computeShiftSales(oldShift.shiftId, oldShift.businessDate);
+
+    const closedRecord = {
+      ...oldShift,
+      status: 'closed',
+      endTime: new Date().toISOString(),
+      closedBy: actorName || 'System',
+      closedById: actorId || 'SYSTEM',
+      closedByRole: actorRole || 'cashier',
+      closedReason: 'manual_restart',
+      sales,
+      closedAt: new Date().toISOString()
+    };
+    shiftsData.history.unshift(closedRecord);
+
+    // Determine today's business date in PH timezone
+    const todayPH = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' });
+    const dateTag = todayPH.replace(/-/g, '');
+    const todayShifts = shiftsData.history.filter(h => h.businessDate === todayPH);
+    const seqNum = String(todayShifts.length + 1).padStart(3, '0');
+
+    const newShift = {
+      shiftId: `SHIFT-${dateTag}-${seqNum}`,
+      cashierId: actorId || oldShift.cashierId,
+      cashierName: actorName || oldShift.cashierName,
+      registerId: oldShift.registerId,
+      openingFloat: oldShift.openingFloat,
+      startTime: new Date().toISOString(),
+      businessDate: todayPH,
+      status: 'active',
+      lastAutoResetDate: todayPH
+    };
+
+    shiftsData.activeShift = newShift;
+    await saveShiftsData();
+
+    // Emit real-time event to all connected clients
+    io.emit('shift-restarted', {
+      newShift,
+      closedShift: closedRecord,
+      timestamp: new Date().toISOString()
+    });
+
+    console.log(`[Shifts] Shift restarted by ${actorName || 'System'}. Closed: ${closedRecord.shiftId}, New: ${newShift.shiftId}`);
+
+    res.json({
+      success: true,
+      newShift,
+      closedShift: closedRecord
+    });
+  } catch (err) {
+    console.error('[Shifts] Error restarting shift:', err);
+    res.status(500).json({ error: 'Failed to restart shift' });
+  }
 });
 
 // Update order status endpoint
