@@ -1,49 +1,5 @@
 [
   {
-    "id": "RPT-20261113-253",
-    "reportDate": "2026-11-13",
-    "employeeId": "EMP-3086",
-    "employeeName": "Chef Test Marco",
-    "role": "Kitchen Staff",
-    "position": "Sous Chef & Robata Specialist",
-    "shift": "Morning Shift (07:30 - 16:00)",
-    "attendance": {
-      "status": "Present (On Time)",
-      "clockIn": "07:28 AM",
-      "clockOut": "04:02 PM",
-      "totalHours": 8.5,
-      "breakMinutes": 45,
-      "isLate": false
-    },
-    "reportType": "staff",
-    "cashierData": null,
-    "staffData": {
-      "assignedStation": "Robata Grill",
-      "totalAssignedTasks": 2,
-      "tasksCompleted": [
-        "Broth Reduction",
-        "Allergen Audit"
-      ],
-      "tasksPending": [],
-      "kitchenOrdersHandled": 48,
-      "tableServiceCallsHandled": 2,
-      "incidentsReported": "None",
-      "dailyAccomplishments": "Tested grill temperatures and allergen line.",
-      "kitchenOperationsNotes": "Equipment sanitized.",
-      "customerConcernsHandled": "None",
-      "inventoryUpdates": "",
-      "shiftHandoverInstructions": ""
-    },
-    "reportStatus": "Approved",
-    "submittedAt": "2026-11-13T20:47:09.554Z",
-    "reviewedBy": "Chief Administrator",
-    "reviewedAt": "2026-11-13T20:47:09.575Z",
-    "reviewNotes": "Excellent station operation and verified allergen precautions.",
-    "employeeNotes": "",
-    "createdAt": "2026-11-13T20:47:09.554Z",
-    "updatedAt": "2026-11-13T20:47:09.575Z"
-  },
-  {
     "id": "RPT-20261111-001",
     "reportDate": "2026-11-11",
     "employeeId": "EMP-101",
@@ -108,7 +64,7 @@
     "reviewNotes": "All register transactions reconciled with POS tape. Drawer count is 100% accurate.",
     "employeeNotes": "Morning shift ran smoothly. Processed 10 POS orders (₱5,152.00) with zero cashier delays.",
     "createdAt": "2026-11-11T20:27:19.264Z",
-    "updatedAt": "2026-11-13T20:27:53.399Z"
+    "updatedAt": "2026-11-14T14:14:32.786Z"
   },
   {
     "id": "RPT-20261111-002",
@@ -207,7 +163,7 @@
     "reviewNotes": "",
     "employeeNotes": "Smooth evening rush. Processed 42 orders (₱25,239.80). GCash and card payments verified on terminal receipts.",
     "createdAt": "2026-11-11T20:27:19.264Z",
-    "updatedAt": "2026-11-13T20:27:53.399Z"
+    "updatedAt": "2026-11-14T14:14:32.786Z"
   },
   {
     "id": "RPT-20261111-003",
@@ -248,7 +204,7 @@
     "reviewNotes": "Outstanding food prep quality and zero food safety incidents.",
     "employeeNotes": "Allergen warning chime alerted line cooks promptly.",
     "createdAt": "2026-11-11T20:27:19.264Z",
-    "updatedAt": "2026-11-13T20:27:53.399Z"
+    "updatedAt": "2026-11-14T14:14:32.786Z"
   },
   {
     "id": "RPT-20261111-004",
@@ -289,7 +245,7 @@
     "reviewNotes": "Closing kitchen sanitation completed ahead of schedule.",
     "employeeNotes": "Gyoza dough supply replenished for tomorrow morning.",
     "createdAt": "2026-11-11T20:27:19.264Z",
-    "updatedAt": "2026-11-13T20:27:53.399Z"
+    "updatedAt": "2026-11-14T14:14:32.786Z"
   },
   {
     "id": "RPT-20261111-005",
@@ -330,7 +286,7 @@
     "reviewNotes": "Great customer feedback on table service speed.",
     "employeeNotes": "Customers appreciated the immediate water refill response.",
     "createdAt": "2026-11-11T20:27:19.264Z",
-    "updatedAt": "2026-11-13T20:27:53.399Z"
+    "updatedAt": "2026-11-14T14:14:32.786Z"
   },
   {
     "id": "RPT-20261111-006",
@@ -371,7 +327,7 @@
     "reviewNotes": "Quick verified and certified by Store Admin.",
     "employeeNotes": "Dinner shift ran smoothly with minimal wait times.",
     "createdAt": "2026-11-11T20:27:19.264Z",
-    "updatedAt": "2026-11-13T20:27:53.399Z"
+    "updatedAt": "2026-11-14T14:14:32.786Z"
   },
   {
     "id": "RPT-20261111-007",
@@ -412,7 +368,7 @@
     "reviewNotes": "Shift operations fully certified.",
     "employeeNotes": "Overall restaurant performance on target. Daily revenue reached ₱30,391.80 across 52 orders.",
     "createdAt": "2026-11-11T20:27:19.264Z",
-    "updatedAt": "2026-11-13T20:27:53.399Z"
+    "updatedAt": "2026-11-14T14:14:32.786Z"
   },
   {
     "id": "RPT-20261111-008",
@@ -452,7 +408,51 @@
     "reviewNotes": "Quick verified and certified by Store Admin.",
     "employeeNotes": "Traffic delay caused 28-min late clock in. Completed all assigned duties.",
     "createdAt": "2026-11-11T20:27:19.264Z",
-    "updatedAt": "2026-11-13T20:27:53.399Z"
+    "updatedAt": "2026-11-14T14:14:32.786Z"
+  },
+  {
+    "id": "RPT-20261113-253",
+    "reportDate": "2026-11-13",
+    "employeeId": "EMP-3086",
+    "employeeName": "Chef Test Marco",
+    "role": "Kitchen Staff",
+    "position": "Sous Chef & Robata Specialist",
+    "shift": "Morning Shift (07:30 - 16:00)",
+    "attendance": {
+      "status": "Present (On Time)",
+      "clockIn": "07:28 AM",
+      "clockOut": "04:02 PM",
+      "totalHours": 8.5,
+      "breakMinutes": 45,
+      "isLate": false
+    },
+    "reportType": "staff",
+    "cashierData": null,
+    "staffData": {
+      "assignedStation": "Robata Grill",
+      "totalAssignedTasks": 2,
+      "tasksCompleted": [
+        "Broth Reduction",
+        "Allergen Audit"
+      ],
+      "tasksPending": [],
+      "kitchenOrdersHandled": 48,
+      "tableServiceCallsHandled": 2,
+      "incidentsReported": "None",
+      "dailyAccomplishments": "Tested grill temperatures and allergen line.",
+      "kitchenOperationsNotes": "Equipment sanitized.",
+      "customerConcernsHandled": "None",
+      "inventoryUpdates": "",
+      "shiftHandoverInstructions": ""
+    },
+    "reportStatus": "Approved",
+    "submittedAt": "2026-11-13T20:47:09.554Z",
+    "reviewedBy": "Chief Administrator",
+    "reviewedAt": "2026-11-13T20:47:09.575Z",
+    "reviewNotes": "Excellent station operation and verified allergen precautions.",
+    "employeeNotes": "",
+    "createdAt": "2026-11-13T20:47:09.554Z",
+    "updatedAt": "2026-11-13T20:47:09.575Z"
   },
   {
     "id": "RPT-STF-00679",

@@ -7,23 +7,31 @@
 
 ## 📑 Table of Contents
 1. [System Architecture & Network Topology](#-system-architecture--network-topology)
+   - [A. Dual-Server & Network Discovery Model](#a-dual-server--network-discovery-model)
+   - [B. Triple-QR Code Ecosystem (Not Just One QR)](#b-triple-qr-code-ecosystem-not-just-one-qr)
+   - [C. 4-Layer Customer & Order Identification Framework](#c-4-layer-customer--order-identification-framework)
+   - [D. Hybrid Omnichannel Fulfillment: Counter Pick-Up vs. Table Service](#d-hybrid-omnichannel-fulfillment-counter-pick-up-vs-table-service)
+   - [E. Payment Architecture: High-Fidelity Sandbox vs. Live Production Deployment](#e-payment-architecture-high-fidelity-sandbox-vs-live-production-deployment)
+   - [F. Two-Phase Cash Payment & Counter POS Reconciliation](#f-two-phase-cash-payment--counter-pos-reconciliation)
 2. [End-to-End System Flowcharts](#-end-to-end-system-flowcharts)
-   - [A. Omnichannel Ordering & Two-Stage Dietary Safety Flow](#a-omnichannel-ordering--two-stage-dietary-safety-flow)
+   - [A. Omnichannel Ordering, Dietary Safety & Hybrid Fulfillment Flow](#a-omnichannel-ordering-dietary-safety--hybrid-fulfillment-flow)
    - [B. Dynamic Wi-Fi & LAN IP Resolution Flow](#b-dynamic-wi-fi--lan-ip-resolution-flow)
-   - [C. Payment Method & E-Wallet Sub-Selection Flow](#c-payment-method--e-wallet-sub-selection-flow)
+   - [C. Payment Method, Cash Counter & E-Wallet Sub-Selection Flow](#c-payment-method-cash-counter--e-wallet-sub-selection-flow)
    - [D. One Staff Account, Attendance & Daily Reports Flow](#d-one-staff-account-attendance--daily-reports-flow)
+   - [E. Triple-QR Code Lifecycle & Resolution Architecture](#e-triple-qr-code-lifecycle--resolution-architecture)
 3. [Entity-Relationship Diagram (ERD)](#-entity-relationship-diagram-erd)
 4. [Core Features & Modules](#-core-features--modules)
    - [1. Commercial Self-Service Touchscreen Kiosk](#1-commercial-self-service-touchscreen-kiosk)
-   - [2. Dynamic Wi-Fi Connection & QR Code Generation](#2-dynamic-wi-fi-connection--qr-code-generation)
+   - [2. Dynamic Wi-Fi Connection & Triple-QR Ecosystem](#2-dynamic-wi-fi-connection--triple-qr-ecosystem)
    - [3. Customer Allergy Verification & Two-Stage Double Confirmation](#3-customer-allergy-verification--two-stage-double-confirmation)
-   - [4. Payment Gateway Engine & 7 E-Wallet Provider Workflows](#4-payment-gateway-engine--7-e-wallet-provider-workflows)
+   - [4. Payment Gateway Engine, Cash Reconciliation & Dual-Mode Sandbox/Live](#4-payment-gateway-engine-cash-reconciliation--dual-mode-sandboxlive)
    - [5. Route Persistence & Navigation State Management](#5-route-persistence--navigation-state-management)
-   - [6. Real-Time Kitchen Display System (KDS) & Buzzer Alerts](#6-real-time-kitchen-display-system-kds--buzzer-alerts)
-   - [7. Table Service Assistance & Busser Operations](#7-table-service-assistance--busser-operations)
-   - [8. One Staff Account for All Employees & Role-Based Portals](#8-one-staff-account-for-all-employees--role-based-portals)
-   - [9. Daily Reports Management (Cashier Z-Reads & Staff Shifts)](#9-daily-reports-management-cashier-z-reads--staff-shifts)
-   - [10. Security, Audit Trail & Forensic Logging](#10-security-audit-trail--forensic-logging)
+   - [6. Real-Time Kitchen Display System (KDS), Buzzer Alerts & 4-Layer Order ID](#6-real-time-kitchen-display-system-kds-buzzer-alerts--4-layer-order-id)
+   - [7. Table Service Assistance, Busser Operations & Hybrid Fulfillment](#7-table-service-assistance-busser-operations--hybrid-fulfillment)
+   - [8. Frictionless Guest-First Dining Architecture (NO Customer Login Required)](#8-frictionless-guest-first-dining-architecture-no-customer-login-required)
+   - [9. One Staff Account for All Employees & Role-Based Portals](#9-one-staff-account-for-all-employees--role-based-portals)
+   - [10. Daily Reports Management (Cashier Z-Reads & Staff Shifts)](#10-daily-reports-management-cashier-z-reads--staff-shifts)
+   - [11. Security, Audit Trail & Forensic Logging](#11-security-audit-trail--forensic-logging)
 5. [Database Architecture & File Structure](#-database-architecture--file-structure)
 6. [API Reference & Socket.IO Real-Time Events](#-api-reference--socketio-real-time-events)
    - [REST Endpoints](#rest-endpoints)
@@ -35,6 +43,8 @@
 ---
 
 ## 🏛 System Architecture & Network Topology
+
+### A. Dual-Server & Network Discovery Model
 
 The platform runs on a dual-server synchronized architecture bound to `0.0.0.0` for ubiquitous local network and mobile access:
 - **Frontend Presentation Layer (`Vite` / React 19 on Port 3000):** Delivers the Touchscreen Kiosk, Customer Mobile Web App, Kitchen Display System (KDS), Cashier POS, and Executive Admin Panel.
@@ -67,11 +77,95 @@ The platform runs on a dual-server synchronized architecture bound to `0.0.0.0` 
 
 ---
 
+### B. Triple-QR Code Ecosystem (Not Just One QR)
+
+A common point of inquiry is whether the restaurant utilizes only a single static QR code. In **Umami Craft Fusion**, there is **NOT just one QR code**. The system operates a coordinated **Triple-QR Ecosystem** where three distinct types of QR codes serve specialized operational roles:
+
+| QR Code Type | Location & Surface | Dynamic Payload / Target URL | Purpose & Operational Function |
+| :--- | :--- | :--- | :--- |
+| **1. Table & Mobile Session QR** | Printed on dining tables (`Table 01`–`Table 20`) & rendered dynamically on the Smart Kiosk idle screen. | `http://<LAN_IP>:3000/?view=mobile&kioskId=W9NY4Y&tableId=T-04&restaurant=umami` | Scanned by customer's smartphone camera. Binds the customer directly to their table/kiosk session, initializes allergy screening, and loads the interactive mobile ordering web app over Wi-Fi. |
+| **2. Bangko Sentral QR Ph Payment QR** | Rendered inside the Payment Modal on Kiosks and Mobile screens upon checkout. | Dynamic EMVCo QR Ph payload: `000201010212...` encoded with exact centavos, merchant `UMAMI CRAFT FUSION INC.`, and reference `TXN-UMAMI-...` | Scanned using any Philippine banking app or e-wallet (GCash, Maya, ShopeePay, GoTyme, BDO, BPI). Features an embedded official QR Ph center emblem and a **live 10-minute countdown expiration timer**. |
+| **3. Order Claim / Pick-Up Verification QR** | Rendered at the bottom of the Digital Itemized Receipt `<DigitalReceiptModal />`. | Verification hash: `http://<LAN_IP>:3000/verify-order?orderId=ORD-XXXX&token=U-108` | Flashed by the customer at the counter or to the floor busser. Staff can scan it to immediately verify paid status and authenticate food handover. |
+
+---
+
+### C. 4-Layer Customer & Order Identification Framework
+
+Because customers enjoy a **frictionless guest-first dining experience without mandatory login accounts**, the system employs a robust **4-layer order identification framework** ensuring staff, chefs, and bussers always know exactly who ordered each dish:
+
+1. **Prominent Pick-Up Token Number (e.g., `U-108`, `U-215`):**
+   - Generated sequentially per day/station.
+   - Displayed in massive bold typography on the customer's mobile receipt, kiosk confirmation, and the Kitchen Display System (KDS).
+   - Serves as the primary public callout when food is ready, synchronized with a 4-note chime fanfare and mobile hardware vibration.
+2. **Authoritative Table / Station Identifier (`Table 04`, `Table 12`, `Kiosk 01`):**
+   - Automatically extracted from the Table QR parameter (`tableId=T-04`) or physical kiosk terminal.
+   - Pinned to the top of every kitchen ticket and displayed in the Busser View (`?view=busser`), directing floor runners directly to the diner's physical seat.
+3. **Cryptographic Order Reference Number (`#ORD-XXXX` / `TXN-UMAMI-...`):**
+   - Immutable database primary key tracked across `/api/orders`, `/api/payments/session`, and cashier POS logs for auditability and receipt reprinting.
+4. **Visual Safety & Allergen Badges:**
+   - Orders containing declared dietary restrictions (e.g. Shellfish, Peanuts) flash prominent red alert badges on KDS tickets so kitchen supervisors can enforce allergen station isolation and cross-contact prevention.
+
+---
+
+### D. Hybrid Omnichannel Fulfillment: Counter Pick-Up vs. Table Service
+
+The system natively supports two distinct dining fulfillment models based on customer preference and ordering surface:
+
+1. **Counter Pick-Up Workflow (Kiosk & Takeout Orders):**
+   - Customer orders at the Smart Kiosk or selects **Takeout** mode on mobile.
+   - Upon payment, the customer receives a **Pick-Up Token (e.g., `U-108`)**.
+   - When the kitchen marks the ticket as *"Ready for Pickup"*, the system triggers an audible Web Audio chime fanfare and device vibration on the diner's phone.
+   - The customer walks to the pick-up counter, presents their digital token or receipt QR, and claims their tray.
+2. **Table Service & Busser Dispatch Workflow (Table QR Dine-In Orders):**
+   - Customer sits at their assigned dining table and scans the Table QR sticker (`tableId=T-04`).
+   - The kitchen ticket clearly displays **`DINE-IN • Table 04`**.
+   - When food is plated, the ticket immediately routes to the **Busser Operations Dashboard (`?view=busser`)**.
+   - Floor bussers and food runners deliver the dishes directly to Table 04.
+   - Diners can tap the floating **Table Service Assistance** button on their phone to request water refills, extra napkins, cutlery, or bill assistance without leaving their table.
+
+---
+
+### E. Payment Architecture: High-Fidelity Sandbox vs. Live Production Deployment
+
+To answer why payments operate in simulation mode during demos and how live real money functions:
+
+1. **Why Sandbox / Simulation Mode is Active During Development & Capstone Defense:**
+   - Demonstrating and testing a full restaurant system requires hundreds of end-to-end checkout test runs.
+   - If real-money transactions were mandated during grading, defense, or student testing, developers and faculty would have to expend **real personal pesos** from their GCash or Maya accounts for every single test ticket!
+   - The built-in **High-Fidelity Sandbox Engine** produces valid BSP-compliant EMVCo QR Ph payloads, tests real HMAC-SHA256 signature verification, enforces 300-second replay attack protection, and simulates bank webhook callbacks—providing 100% architectural realism with zero financial risk.
+2. **Seamless Live Production Deployment (Real Money Ready):**
+   - The application is enterprise-ready for immediate live money acceptance.
+   - Switching from Sandbox to Live Real-Money requires only adding official merchant credentials in `.env` or `data/merchant_config.json`:
+     - Set `PAYMONGO_SECRET_KEY=sk_live_...` and `PAYMONGO_PUBLIC_KEY=pk_live_...`
+     - Provide the verified BSP Merchant Bank / E-Wallet account (`0917-888-UMAMI`)
+   - Once configured, QR Ph scans immediately debit actual Philippine Pesos from customers' GCash, Maya, or bank apps and deposit funds directly into the restaurant's commercial bank account.
+3. **Ultra Real-Time WebSocket Latency (< 500ms):**
+   - All payment settlements—whether sandbox simulations or live bank webhooks—utilize persistent Socket.IO WebSockets (`payment-completed` and `new-kitchen-order`).
+   - The moment payment settles, the kiosk and mobile screens update within **under 500 milliseconds**, instantly dispatching the order to the kitchen without manual page polling or delays.
+
+---
+
+### F. Two-Phase Cash Payment & Counter POS Reconciliation
+
+A frequent question is: *"Why is there a Cash option on the digital checkout?"*
+
+1. **Commercial QSR Inclusivity (Industry Standard):**
+   - Modern fast-casual self-service kiosks (e.g., McDonald's, Jollibee, KFC) must serve all demographics.
+   - A significant portion of Philippine diners—including students, elderly patrons, and unbanked customers—rely exclusively on physical cash. Disabling cash would result in substantial customer turnaway.
+2. **Two-Phase Authorization & Fraud Prevention:**
+   - When a customer selects **"Cash (Pay at Counter)"** on the Kiosk or Mobile web app, the order is created with status **`paymentStatus: 'Pending Counter Settlement'`**.
+   - **Crucial Security Measure:** The kitchen **NEVER** begins cooking unpaid cash orders! This completely eliminates phantom or prank orders.
+   - The customer brings their order reference number or printed slip to the **Front Counter POS (`?view=admin` role: cashier)**.
+   - Head Cashier Maria collects the physical banknotes, inputs the cash received, hands out change, and clicks **"Confirm Cash Payment"**.
+   - Only upon cashier confirmation does the backend unlock the order, mark it as `Paid`, and dispatch the ticket to the Kitchen Display System (KDS).
+
+---
+
 ## 🔄 End-to-End System Flowcharts
 
-### A. Omnichannel Ordering & Two-Stage Dietary Safety Flow
+### A. Omnichannel Ordering, Dietary Safety & Hybrid Fulfillment Flow
 
-The entire customer journey from terminal arrival to pickup:
+The entire customer journey from terminal arrival, QR code scanning, dietary screening, payment settlement, to hybrid dining fulfillment:
 
 ```mermaid
 flowchart TD
@@ -79,14 +173,14 @@ flowchart TD
 
     %% Kiosk Flow
     ChannelChoice -->|Touchscreen Kiosk| KioskWelcome["Step 1: Kiosk Welcome Screen (?view=kiosk)"]
-    KioskWelcome --> SelectDining["Select Dining Option: Dine-In or Takeout"]
+    KioskWelcome --> SelectDining["Select Dining Mode: Dine-In (Table) or Takeout (Counter)"]
     SelectDining --> KioskCatalog["Step 2: Browse Menu Categories & Combos"]
 
-    %% Mobile QR Flow
-    ChannelChoice -->|Mobile Phone| ScanQR["Scan Dynamic Kiosk QR Code"]
+    %% Mobile QR Flow (QR #1)
+    ChannelChoice -->|Mobile Phone| ScanQR["QR Code #1: Scan Dynamic Table / Kiosk QR<br/>(http://<LAN_IP>:3000/?view=mobile&kioskId=...&tableId=T-04)"]
     ScanQR --> ConnectCheck{"Phone on Same Wi-Fi?"}
-    ConnectCheck -->|No / Mobile Data On| ErrUnreachable["ERR_ADDRESS_UNREACHABLE<br/>(Turn off cellular data or switch to Cloud Tunnel)"]
-    ConnectCheck -->|Yes| ValidateSession["POST /api/qr/validate (Scoped Session)"]
+    ConnectCheck -->|No / Mobile Data On| ErrUnreachable["ERR_ADDRESS_UNREACHABLE<br/>(Connect to restaurant Wi-Fi)"]
+    ConnectCheck -->|Yes| ValidateSession["POST /api/qr/validate (Scoped Session & Table Bound)"]
 
     %% Step 1: Mandatory Allergy Verification Page
     ValidateSession --> AllergyQuestion["Step 1: 'Do You Have Any Food Allergies?' Page<br/>(Clean Centered Card, Shield Icon & Session Pill)"]
@@ -104,7 +198,7 @@ flowchart TD
     OpenFlavorsPage --> SelectFlavors["Choose Flavor Preferences<br/>(Spicy, Vegan, Sweet, Savory, Healthy, Citrus, Crispy, Smoky)"]
     SelectFlavors --> FlavorBackOption["Contextual Back Button<br/>(Returns to Allergens if Path B, or Question if Path A without losing data)"]
     SelectFlavors --> StaffNotice["Review Staff Cross-Contact & Kitchen Safety Notice"]
-    StaffNotice --> SaveVault["Click 'Continue to Menu ›'<br/>(Encrypted to LocalStorage & Scoped QR Session)"]
+    StaffNotice --> SaveVault["Click 'Continue to Menu ›'<br/>(Stored in Local Dietary Vault - No Customer Account Needed)"]
 
     %% Step 4: Filtered Safe Catalog
     SaveVault --> SafeCatalog["Step 4: Browse Filtered Menu Catalog (Filtered Dishes & Badges)"]
@@ -131,35 +225,43 @@ flowchart TD
     ReviewCart --> ValidatePromo["Validate Promo Code (e.g. UMAMI20)"]
     ValidatePromo --> SelectPayMethod{"Select Payment Method"}
 
-    SelectPayMethod -->|Cash| SelectCash["Cash at Front Counter POS"]
-    SelectPayMethod -->|Card| SelectCard["Credit / Debit Card Terminal"]
-    SelectPayMethod -->|E-Wallet| OpenEWalletTray["Expand 7 Supported E-Wallets Tray<br/>(GCash, Maya, PayPal, MariBank, GrabPay, ShopeePay, GoTyme)"]
-    OpenEWalletTray --> ChooseSpecificWallet["Select Provider (Verified Account: 0917-888-UMAMI)"]
+    %% Two-Phase Cash Payment
+    SelectPayMethod -->|Cash (Inclusivity)| SelectCash["Select 'Cash (Pay at Counter)'"]
+    SelectCash --> SubmitCashOrder["Order Created (paymentStatus: 'Pending Counter Settlement')<br/>(KITCHEN DOES NOT COOK UNTIL CASH PAID)"]
+    SubmitCashOrder --> CashierPOS["Customer Brings Order Slip / Reference to Cashier POS-01"]
+    CashierPOS --> CashierReceives["Head Cashier Receives Bills, Enters Count, Gives Change"]
+    CashierReceives --> MarkCashPaid["Cashier Clicks 'Confirm Cash Payment' (Paid)"]
 
-    %% Payment Fulfillment & Route Persistence
-    SelectCash --> SubmitCashOrder["Order Created (paymentStatus: 'Pending Counter')"]
-    SubmitCashOrder --> CashierPOS["Head Cashier Receives Cash & Validates"]
-    CashierPOS --> MarkCashPaid["Cashier Marks 'Paid' in POS"]
-
-    ChooseSpecificWallet --> InitiateWallet["POST /api/payments/initiate-provider & /process-ewallet"]
-    InitiateWallet --> SubmitDigitalOrder["Order Created & Settle via Gateway Webhook"]
-    SelectCard --> SubmitDigitalOrder
+    %% Digital QR Ph Payment (QR #2)
+    SelectPayMethod -->|Card| SelectCard["Credit / Debit Card Terminal (3DS 2.0 OTP)"]
+    SelectPayMethod -->|E-Wallet / QR Ph| OpenEWalletTray["QR Code #2: Bangko Sentral QR Ph Dynamic Standee<br/>(EMVCo Payload, 10-Min Expiry, GCash, Maya, ShopeePay)"]
+    OpenEWalletTray --> InitiateWallet["POST /api/payments/initiate-provider & /process-ewallet"]
+    SelectCard --> SubmitDigitalOrder["POST /api/payments/process-card"]
+    InitiateWallet --> SubmitDigitalOrder
     SubmitDigitalOrder --> GatewayWebhook["Gateway Webhook Call (POST /api/webhooks/payment)"]
     GatewayWebhook --> HMACVerification{"HMAC-SHA256 & Amount Match?"}
     HMACVerification -->|Invalid| RejectPayment["Reject 401/422 & Flag Audit Log"]
-    HMACVerification -->|Valid| ApprovePayment["Set paymentStatus: 'Successful'<br/>Credit 10% Loyalty Points"]
+    HMACVerification -->|Valid| ApprovePayment["Set paymentStatus: 'Successful'<br/>(Sandbox Demo or Live PayMongo Real Money)"]
 
-    %% Kitchen Dispatch, Real-Time Buzzer & Persistent Session
-    MarkCashPaid --> DispatchKitchen["Socket.IO: 'new-kitchen-order'"]
-    ApprovePayment --> DispatchKitchen
-    DispatchKitchen --> OrderTracker["Live Order Tracker (?view=mobile&orderId=ORD-...)<br/>Preserves Active Order & Parameters Across Refreshes"]
+    %% Digital Receipt & Pick-Up Claim QR (QR #3)
+    MarkCashPaid --> IssueReceipt["Issue Digital Itemized Receipt & Token (e.g. U-108)<br/>QR Code #3: Order Claim / Pick-Up Verification QR"]
+    ApprovePayment --> IssueReceipt
 
+    %% Kitchen Dispatch & 4-Layer Order ID
+    IssueReceipt --> DispatchKitchen["Socket.IO Broadcast: 'new-kitchen-order' (< 500ms)<br/>Tagged with Token (U-108), Table (Table 04), Order ID & Allergen Badges"]
+    DispatchKitchen --> OrderTracker["Live Order Tracker on Mobile/Kiosk<br/>Preserves Active Order Across Refreshes"]
     DispatchKitchen --> KDSView["Kitchen Display System (KDS) View"]
     KDSView --> ChefPreparing["Chef Starts Preparation (Status: 'Preparing')"]
-    ChefPreparing --> ChefReady["Chef Marks 'Ready for Pickup'"]
-    ChefReady --> BuzzerAlert["Trigger Web Audio 4-Note Chime<br/>& Mobile Hardware Vibration"]
-    BuzzerAlert --> BusserHandover["Busser Delivers to Table / Pickup Counter"]
-    BusserHandover --> CompleteOrder["Order Marked 'Completed'"]
+    ChefPreparing --> ChefReady["Chef Marks 'Ready for Pickup / Delivery'"]
+
+    %% Hybrid Dining Fulfillment
+    ChefReady --> FulfillmentCheck{"Fulfillment Mode"}
+    FulfillmentCheck -->|Takeout / Counter Kiosk| CounterPickup["1. COUNTER PICK-UP WORKFLOW:<br/>Web Audio 4-Note Chime Fanfare + Phone Vibration<br/>Customer presents Token U-108 at Pickup Counter"]
+    FulfillmentCheck -->|Dine-In Table QR| TableService["2. TABLE SERVICE WORKFLOW:<br/>Routes to Busser View (?view=busser)<br/>Floor Runner Delivers Plated Dishes Directly to Table 04"]
+
+    CounterPickup --> CompleteOrder["Order Marked 'Completed'"]
+    TableService --> CompleteOrder
+    TableService --> TableAssistance["Diner can tap Table Service Assistance Modal<br/>(Request Water Refill, Napkins, Utensils)"]
 ```
 
 ---
@@ -200,46 +302,64 @@ flowchart TD
 
 ---
 
-### C. Payment Method & E-Wallet Sub-Selection Flow
+### C. Payment Method, Cash Counter & E-Wallet Sub-Selection Flow
 
 ```mermaid
-flowchart LR
-    subgraph Payment_Selection [Customer Checkout]
-        CashBtn["💵 Cash"]
-        CardBtn["💳 Card"]
-        EWalletBtn["📱 E-Wallet"]
+flowchart TD
+    subgraph Payment_Selection [Customer Checkout Selection]
+        CashBtn["💵 Cash (Pay at Counter)"]
+        CardBtn["💳 Card (Terminal / 3DS)"]
+        EWalletBtn["📱 E-Wallet / QR Ph"]
     end
 
-    subgraph EWallet_Tray [Supported Digital Wallets Tray]
-        GCash["GCash"]
-        Maya["Maya"]
-        PayPal["PayPal"]
-        MariBank["MariBank"]
-        GrabPay["GrabPay"]
-        ShopeePay["ShopeePay"]
-        GoTyme["GoTyme Bank"]
+    subgraph Two_Phase_Cash [Two-Phase Cash POS Settlement Workflow]
+        CreatePendingOrder["1. System Creates Order (status: 'Pending Counter Settlement')<br/>(KITCHEN WILL NOT COOK UNTIL CASH IS VERIFIED)"]
+        CustomerSlip["2. Customer Receives Pending Slip / Order ID (#ORD-XXXX)"]
+        FrontCounterPOS["3. Customer Visits POS-01 (Head Cashier Maria)"]
+        CashierReceivesCash["4. Cashier Collects Banknotes & Inputs Amount in POS"]
+        POSChangeCalc["5. POS Calculates Exact Change & Updates Shift Float"]
+        CashierConfirmPaid["6. Cashier Clicks 'Confirm Cash Payment' (Paid)"]
     end
 
-    subgraph Verification_Engine [Security & Dispatch Engine]
-        OrderPending["Create Pending Order"]
+    subgraph EWallet_Tray [Supported Digital Wallets & QR Ph Standee]
+        GCash["GCash (QR Ph / E-Wallet)"]
+        Maya["Maya (QR Ph / Wallet)"]
+        PayPal["PayPal (International)"]
+        MariBank["MariBank (Digital Bank)"]
+        GrabPay["GrabPay (GrabRewards)"]
+        ShopeePay["ShopeePay (Shopee App)"]
+        GoTyme["GoTyme Bank (Go Rewards)"]
+    end
+
+    subgraph Verification_Engine [Security, Settlement & Dual-Mode Engine]
+        OrderPendingDigital["Generate Dynamic QR Ph Session (TXN-UMAMI-...)"]
+        ModeCheck{"Engine Mode"}
+        ModeCheck -->|Sandbox Demo| SimulateWebhook["Simulate Instant Webhook (< 500ms)<br/>(Zero real-money loss during testing)"]
+        ModeCheck -->|Live Production| RealBankWebhook["PayMongo / Bank Gateway Webhook<br/>(Debits Actual Philippine Pesos)"]
         HMACCheck["HMAC-SHA256 Signature Verification"]
         TimestampCheck["Replay Attack Check (<= 300s window)"]
-        AmountCheck["Exact Amount & Currency Check (PHP)"]
-        ApproveOrder["Set 'Successful' & Award Loyalty Points"]
-        KitchenDispatch["Emit 'new-kitchen-order'"]
+        AmountCheck["Exact Centavo Match (Currency: PHP)"]
+        ApproveOrder["Set paymentStatus: 'Successful'<br/>Award 10% Loyalty Points"]
+        KitchenDispatch["Socket.IO: Emit 'new-kitchen-order' & Dispatch to KDS"]
     end
 
-    EWalletBtn -->|Expands Tray| EWallet_Tray
-    GCash --> OrderPending
-    Maya --> OrderPending
-    PayPal --> OrderPending
-    MariBank --> OrderPending
-    GrabPay --> OrderPending
-    ShopeePay --> OrderPending
-    GoTyme --> OrderPending
-    CardBtn --> OrderPending
+    CashBtn --> CreatePendingOrder
+    CreatePendingOrder --> CustomerSlip --> FrontCounterPOS --> CashierReceivesCash --> POSChangeCalc --> CashierConfirmPaid
+    CashierConfirmPaid --> KitchenDispatch
 
-    OrderPending --> HMACCheck
+    EWalletBtn -->|Expands Tray| EWallet_Tray
+    GCash --> OrderPendingDigital
+    Maya --> OrderPendingDigital
+    PayPal --> OrderPendingDigital
+    MariBank --> OrderPendingDigital
+    GrabPay --> OrderPendingDigital
+    ShopeePay --> OrderPendingDigital
+    GoTyme --> OrderPendingDigital
+    CardBtn --> OrderPendingDigital
+
+    OrderPendingDigital --> ModeCheck
+    SimulateWebhook --> HMACCheck
+    RealBankWebhook --> HMACCheck
     HMACCheck --> TimestampCheck
     TimestampCheck --> AmountCheck
     AmountCheck --> ApproveOrder
@@ -252,7 +372,7 @@ flowchart LR
 
 ```mermaid
 flowchart TD
-    AdminLogin([User Logs In via /api/admin/login]) --> RoleCheck{Employee Account Type}
+    StaffLogin([Authorized Staff / Manager Logs In via /api/admin/login<br/>(Customers DO NOT Log In - Guest-First Ordering)]) --> RoleCheck{Employee Account Type}
 
     %% Admin Portal
     RoleCheck -->|administrator| AdminPanel["Admin View (?view=admin)"]
@@ -290,6 +410,36 @@ flowchart TD
 
 ---
 
+### E. Triple-QR Code Lifecycle & Resolution Architecture
+
+```mermaid
+flowchart TD
+    subgraph QR1_TableSession [1. Table & Mobile Session QR Code (Guest Scans via Phone Camera)]
+        KioskOrTableSticker["Table Sticker (e.g. Table 04) or Idle Kiosk Screen"]
+        CustomerPhone["Customer Smartphone Scans URL:<br/>http://<LAN_IP>:3000/?view=mobile&kioskId=W9NY4Y&tableId=T-04&restaurant=umami"]
+        LocalDietaryVault["Initializes Table-Scoped Ordering Session<br/>Enables Local Dietary Vault (Private Allergy Selections)"]
+    end
+
+    subgraph QR2_PaymentQRPh [2. Bangko Sentral QR Ph Dynamic Standee (Scanned via E-Wallet App)]
+        CheckoutTrigger["Customer Reaches Checkout & Selects E-Wallet / QR Ph"]
+        GenerateQRPh["Server Generates EMVCo Dynamic Payload (TXN-UMAMI-...)<br/>Exact Centavos Amount + 10-Minute Expiry Countdown Timer"]
+        CustomerEWalletApp["Customer Scans QR Ph with GCash, Maya, ShopeePay or Bank App"]
+        WebhookSettlement["Socket.IO / Webhook Settles Payment & Unlocks Order (< 500ms)"]
+    end
+
+    subgraph QR3_ReceiptClaim [3. Order Claim / Pick-Up Verification QR Code (Scanned by Staff)]
+        ReceiptModal["System Displays Digital Itemized Receipt with Token U-108<br/>Contains Embedded Claim Verification QR Code"]
+        StaffScan["Pick-Up Counter Staff or Floor Busser Scans QR Code<br/>to Authenticate Order Handover & Prevent Wrong Deliveries"]
+        FinishHandover["Order Marked 'Completed' in Database & Archived"]
+    end
+
+    KioskOrTableSticker --> CustomerPhone --> LocalDietaryVault
+    LocalDietaryVault --> CheckoutTrigger --> GenerateQRPh --> CustomerEWalletApp --> WebhookSettlement
+    WebhookSettlement --> ReceiptModal --> StaffScan --> FinishHandover
+```
+
+---
+
 ## 🗄 Entity-Relationship Diagram (ERD)
 
 The system maintains a relational-style entity schema stored in the persistent JSON storage layer with foreign keys and cascade validations:
@@ -304,6 +454,7 @@ erDiagram
     CUSTOMER ||--o{ QR_SESSION : owns
     ORDER ||--|{ ORDER_ITEM : contains
     ORDER ||--o{ PAYMENT_WEBHOOK : verified_by
+    ORDER ||--o| PAYMENT_SESSION : generates
     MENU_ITEM ||--o{ ORDER_ITEM : references
     MENU_ITEM ||--|{ INGREDIENT : contains
     CATEGORY ||--o{ MENU_ITEM : categorizes
@@ -382,11 +533,14 @@ erDiagram
 
     ORDER {
         string orderId PK "ORD-20261113-001"
+        string pickupToken "U-108 (Sequential Pick-Up Buzzer Token)"
         string customer "Guest / Customer Name"
-        string customerId "CUSTOMER FK"
+        string customerId "CUSTOMER FK (Optional Loyalty Phone)"
         string diningOption "Dine-In | Takeout"
+        string fulfillmentMode "Counter Pick-Up | Table Service"
         string tableNumber "Table 04 / Takeout Counter"
         string kioskId "W54ESK | MOBILE_01"
+        string claimQrPayload "Verification QR Payload for Counter Handover"
         string status "Pending Payment | New | Preparing | Ready for Pickup | Completed"
         string payment "Cash | E-Wallet | Card"
         string eWalletProvider "GCash | Maya | PayPal | MariBank | GrabPay | ShopeePay | GoTyme"
@@ -400,6 +554,16 @@ erDiagram
         string_array allergens "Customer excluded allergens"
         timestamp createdAt "Order creation timestamp"
         timestamp paidAt "Payment verification timestamp"
+    }
+
+    PAYMENT_SESSION {
+        string referenceNumber PK "TXN-UMAMI-17945931"
+        string orderId "ORDER FK"
+        string qrPhPayload "EMVCo Dynamic Payload (000201010212...)"
+        string provider "QR Ph | GCash | Maya | PayPal | ShopeePay | GoTyme"
+        float payableAmount "380.00"
+        string status "Awaiting Payment | Settled | Expired"
+        timestamp expiresAt "10-Minute Expiration TTL"
     }
 
     ORDER_ITEM {
@@ -496,14 +660,17 @@ erDiagram
   - **Step 4 – Interactive Product Customizer (`<KioskProductModal />`):** Full dish description, ingredient composition list, size modifiers, spice sliders, and special instructions. Cross-checks ingredients against active customer dietary restrictions with an unmistakable safety banner.
   - **Step 5 – Touchscreen Checkout (`<KioskCheckoutModal />`):** Streamlined 2-step checkout with dining option confirmation, table number entry, promo code validator, and comprehensive payment method selection.
 
-### 2. Dynamic Wi-Fi Connection & QR Code Generation
+### 2. Dynamic Wi-Fi Connection & Triple-QR Ecosystem
 - **Zero Hardcoded IP Addresses:** Solves `ERR_ADDRESS_UNREACHABLE` dynamically by eliminating hardcoded references (`192.168.1.59`, `192.168.1.18`, `192.168.1.16`).
 - **Kernel Routing Table Probe:** Node.js executes UDP probes against multiple targets (`1.1.1.1`, `8.8.8.8`, `192.168.1.1`) to reliably identify the primary gateway interface without sending external packets.
 - **WLAN Interface Discovery:** Leverages `netsh wlan show interfaces` on Windows to read the active SSID, band (5 GHz / 2.4 GHz), and signal strength.
-- **Automatic QR Regeneration:** Automatically refreshes the QR code URL whenever the host moves to a different router, house, or restaurant location:
-  ```
-  http://<CURRENT_HOST_IP>:3000/?view=mobile&kioskId=<kioskId>&kioskPort=3001&restaurant=umami
-  ```
+- **The Triple-QR Architecture (Not Just One QR Code):**
+  - **QR Code #1 – Dynamic Table & Mobile Session QR:** Displayed on the idle Kiosk screen and affixed to physical dining tables (`Table 01`–`Table 20`). Diners scan this with their phone camera to load the mobile ordering web app bound to their specific table:
+    ```
+    http://<CURRENT_HOST_IP>:3000/?view=mobile&kioskId=<kioskId>&tableId=T-04&restaurant=umami
+    ```
+  - **QR Code #2 – Bangko Sentral QR Ph Dynamic Payment QR:** Generated dynamically per checkout transaction with exact centavos, merchant identifier `0917-888-UMAMI`, embedded official QR Ph center emblem, and live **10-minute countdown expiration timer**.
+  - **QR Code #3 – Digital Receipt Claim & Verification QR:** Issued on the customer's digital itemized receipt alongside their large **Pickup Token (e.g. `U-108`)**, scanned by counter staff or bussers to verify claiming.
 - **Windows Firewall Automation:** Server startup automatically ensures inbound TCP traffic on ports 3000–3020 is allowed on any network profile. A one-click repair endpoint (`POST /api/network/fix-firewall`) and [allow-firewall.bat](file:///c:/Users/USER/allergicSuggestion/allow-firewall.bat) are provided for non-elevated instances.
 - **Universal Cloud Tunnel Backup:** Built-in toggle to switch to **"Any-Wi-Fi (Cloud Tunnel)"** if router AP Client Isolation is active.
 
@@ -530,11 +697,29 @@ erDiagram
     - **Stage 2 (Checkout Review Warning - 2 of 2):** When proceeding to checkout, if the cart contains any items conflicting with declared allergens, a second high-visibility warning appears. It itemizes every conflicting dish, lists the triggering allergens, and provides one-click options: **"Remove Conflicting Dish"** or **"Acknowledge & Proceed to Payment"**.
   - **Privacy Guarantee:** All dietary data persists strictly in client `localStorage` and binds temporarily to the scoped session token, preventing data leakage across different guests.
 
-### 4. Payment Gateway Engine & 7 E-Wallet Provider Workflows
+### 4. Payment Gateway Engine, Cash Reconciliation & Dual-Mode Sandbox/Live
 - **Accurate Verified Merchant Account Information:**
   - **Merchant Name:** `UMAMI CRAFT FUSION INC.`
   - **Verified Merchant Identifier:** `0917-888-UMAMI (86264)`
   - Centralized merchant configuration module ensuring consistent, verified business identity across all online and in-person payment interfaces without placeholder numbers or randomized recipient data.
+- **Why Cash Payment Exists on Digital Kiosks (Commercial Inclusivity):**
+  - Following the operational standards of top QSR chains (e.g., McDonald's, Jollibee, KFC), self-ordering terminals must remain accessible to cash-preferring customers, unbanked diners, students, and senior citizens without active e-wallets.
+  - **Two-Phase Counter Cash Authorization:**
+    1. When a diner chooses **"Cash (Pay at Counter)"**, the ticket is tagged as `paymentStatus: 'Pending Counter Settlement'`.
+    2. **Kitchen Anti-Fraud Guard:** The kitchen **DOES NOT** cook unpaid orders.
+    3. The customer brings their order reference number or printed slip to **Cashier POS-01** (`?view=admin` under cashier role).
+    4. Head Cashier Maria collects banknotes, counts physical cash, and clicks **"Confirm Cash Payment"**.
+    5. The backend immediately marks the order as `Paid` and dispatches it via Socket.IO to the Kitchen KDS.
+- **Dual-Mode Architecture: High-Fidelity Sandbox vs. Live Production Deployment:**
+  - **Academic / Capstone Sandbox Engine (Zero Financial Loss):**
+    - Built specifically for development, demonstration, and capstone grading so testers can run hundreds of checkout cycles without depleting personal GCash or Maya funds.
+    - Simulates authentic bank webhooks, verifies SHA256 HMAC signatures, generates valid EMVCo QR Ph formats, and enforces 300-second timestamp drift defense.
+  - **Turnkey Live Real-Money Production Deployment:**
+    - The codebase is 100% live-money ready.
+    - Simply update `.env` or `data/merchant_config.json` with live merchant API keys (`PAYMONGO_SECRET_KEY=sk_live_...` or BSP Registered Merchant Bank details).
+    - Upon doing so, customers scanning QR Ph will have actual Philippine Pesos debited from their mobile wallets directly into the restaurant's commercial merchant account.
+  - **Ultra Real-Time WebSocket Latency (< 500ms):**
+    - Both digital wallet settlements and cashier cash confirmations broadcast instantly over Socket.IO WebSockets (`payment-completed`), updating client receipts and kitchen tickets within under half a second.
 - **7 Supported E-Wallet Providers with Provider-Specific Workflows:**
   - **GCash** (Popular)
   - **Maya** (QR Ph)
@@ -543,7 +728,7 @@ erDiagram
   - **GrabPay** (GrabRewards)
   - **ShopeePay** (Shopee App)
   - **GoTyme Bank** (Go Rewards)
-  - Each provider card triggers dedicated gateway session creation via `POST /api/payments/initiate-provider` and direct settlement via `POST /api/payments/process-ewallet`, eliminating fake alerts and "Network error during simulation" dialogs.
+  - Each provider card triggers dedicated gateway session creation via `POST /api/payments/initiate-provider` and direct settlement via `POST /api/payments/process-ewallet`.
 - **Card Payment Terminal Form (`<CardPaymentForm />`):**
   - Auto-formatted 16-digit card input, expiration validation (`MM/YY`), masked CVV, live brand detection (Visa, Mastercard, JCB, Amex), and simulated bank 3D Secure 2.0 multi-factor OTP identity verification.
 - **Official Philippine QR Ph Standee Display:**
@@ -554,10 +739,8 @@ erDiagram
     - Three colored app badges: **BANKS** (Blue `#0056B3`), **E-WALLETS** (Red `#DC2626`), **AND MORE** (Green `#16A34A`).
     - Payable amount banner (`₱...`), transaction reference (`TXN-UMAMI-...` with one-tap copy), live **10-minute expiration countdown timer**, and direct gateway settlement actions.
 - **Digital Itemized Receipt (`<DigitalReceiptModal />`):**
-  - Displays upon successful payment with green checkmark banner, order ID (`#ORD-XXXX`), and large **Pickup Token** (e.g. `U-108`).
-  - Itemized dish breakdown, customizations, subtotal, 12% VAT inclusive calculation, promo discount, total paid, and pickup verification QR code.
-  - Automatically dispatches paid order directly to Kitchen Display System (KDS).
-  - One-click **Print Receipt** (`window.print()`) and **Start New Order**.
+  - Displays upon successful payment with green checkmark banner, order ID (`#ORD-XXXX`), large **Pickup Token** (e.g. `U-108`), and an embedded **Claim Verification QR Code**.
+  - Itemized dish breakdown, customizations, subtotal, 12% VAT inclusive calculation, promo discount, total paid, and one-click **Print Receipt** (`window.print()`).
 
 ### 5. Route Persistence & Navigation State Management
 - **Centralized Route Initialization:**
@@ -571,26 +754,41 @@ erDiagram
   - Kiosk customer receipts are cached in session storage so customers viewing their order confirmation / pickup token retain their receipt view across accidental browser refreshes.
 - **Smart Error Boundary:**
   - [ErrorBoundary.jsx](file:///c:/Users/USER/allergicSuggestion/src/components/ErrorBoundary.jsx) respects the active view and query parameters rather than forcing a hardcoded redirect to `/?view=kiosk`.
-  - **Replay Attack Defense:** 300-second maximum timestamp drift threshold.
-  - **Idempotency Cache:** Prevents duplicate debits or duplicate kitchen ticket printing.
-  - **Exact Centavo Matching:** Rejects payments where amount or currency diverges from database order totals.
-  - **Loyalty Rewards:** Automatically credits 10% of total spend into the customer's account balance.
 
-### 5. Real-Time Kitchen Display System (KDS) & Buzzer Alerts
+### 6. Real-Time Kitchen Display System (KDS), Buzzer Alerts & 4-Layer Order ID
 - **Interactive Kitchen Board (`?view=kitchen`):** Grouped by status (*New*, *Preparing*, *Ready for Pickup*, *Completed*).
-- **Allergen Highlighting:** Orders containing special dietary restrictions prominently flash red badges so chefs prioritize cross-contamination safeguards.
-- **Audio Chime & Vibration:** Web Audio API triggers a crisp 4-note synthesized fanfare when an order is ready, alongside physical device vibration on customer mobile phones.
+- **How Staff Identify Exactly Who Ordered (Zero Confusion):**
+  1. **Pick-Up Token Number (e.g., `U-108`, `U-215`):** Sequential high-contrast identifier rendered in huge bold text on both customer receipts and kitchen tickets.
+  2. **Table / Station Identifier (`Table 04`, `Takeout Counter`):** Explicitly states whether food is for Table 04 or Counter pickup, routing waitstaff directly to the customer's physical seat.
+  3. **Order Reference ID (`#ORD-XXXX` / `TXN-UMAMI-...`):** Universal primary key for verification against POS records and payment logs.
+  4. **Allergen Highlighting Badges:** Orders with declared restrictions (e.g. Shellfish, Gluten) flash red badges so line cooks enforce allergen cross-contact isolation.
+- **Audio Chime & Phone Vibration:** Web Audio API triggers a crisp 4-note synthesized fanfare when an order is ready, alongside physical device vibration on customer mobile phones.
 
-### 6. Real-Time Kitchen Display System (KDS) & Buzzer Alerts
-- **Interactive Kitchen Board (`?view=kitchen`):** Grouped by status (*New*, *Preparing*, *Ready for Pickup*, *Completed*).
-- **Allergen Highlighting:** Orders containing special dietary restrictions prominently flash red badges so chefs prioritize cross-contamination safeguards.
-- **Audio Chime & Vibration:** Web Audio API triggers a crisp 4-note synthesized fanfare when an order is ready, alongside physical device vibration on customer mobile phones.
+### 7. Table Service Assistance, Busser Operations & Hybrid Fulfillment
+- **Hybrid Omnichannel Dining Model (Pick-Up vs. Table Service):**
+  - **Counter Pick-Up (Takeout & Kiosk Orders):** Diners wait in the lobby or dining room until their token (`U-108`) is called with the audio chime and screen alert, then claim their tray at the pick-up counter.
+  - **Table Service (Table QR Dine-In Orders):** Diners seated at tables have their food delivered directly by floor bussers and food runners via the **Busser Operations Dashboard (`?view=busser`)**.
+- **Table Service Assistance Modal (`<TableServiceModal />`):** Mobile diners seated at tables can request staff assistance with one tap (Water Refill, Extra Napkins, Utensils, Bill Settlement, or General Assistance) without leaving their table.
+- **Busser View Queue (`?view=busser`):** Real-time queue for floor runners to acknowledge table calls, track delivery statuses, and manage dining turnover.
 
-### 7. Table Service Assistance & Busser Operations
-- **Table Service Modal (`<TableServiceModal />`):** Mobile diners can request server assistance (Napkins, Water Refill, Utensils, Bill Settlement, or General Assistance).
-- **Busser View (`?view=busser`):** Real-time queue for bussers and floor runners to acknowledge and fulfill table requests and manage dining turnover.
+### 8. Frictionless Guest-First Dining Architecture (NO Customer Login Required)
+The Umami Craft Fusion dining experience is intentionally designed with a **100% frictionless, guest-first architecture with ZERO customer login requirement**:
 
-### 8. One Staff Account for All Employees & Role-Based Portals
+- **No Customer Accounts or Passwords:**
+  - Customers and diners **DO NOT have login accounts**, usernames, or passwords.
+  - Matching enterprise commercial standards for quick-service restaurant (QSR) kiosks (e.g., McDonald's, Jollibee) and table QR ordering systems, customers can immediately view the menu, personalize flavor preferences, exclude allergens, customize dishes, and pay without any registration barrier.
+- **Elimination of Checkout Abandonment:**
+  - Mandatory sign-up forms at self-ordering kiosks create massive queue delays, customer frustration, and cart abandonment. The guest-first model allows instant ordering in under 60 seconds.
+- **Local Dietary Vault (Session-Isolated Allergy Safety):**
+  - Customer allergy responses (YES/NO), declared standard allergens, and custom freeform exclusions are stored securely in browser `localStorage` and scoped strictly to the active dining session.
+  - Dietary preferences persist seamlessly across page refreshes and order steps without leaking between different guests or requiring a persistent user account.
+- **Frictionless Loyalty Perks:**
+  - Loyalty membership tiers and points balances (`data/customer_accounts.json`) are credited automatically upon payment settlement based on order references or phone numbers—no customer login screen or password required.
+- **Strict Role Demarcation (Who Actually Logs In):**
+  - **Diners / Customers:** **NEVER log in.** They access `?view=kiosk` or `?view=mobile` directly as guests.
+  - **Authorized Personnel Only:** The login system (`/api/admin/login` and `<AdminLoginModal />`) is strictly restricted to employees: Super Administrator, Head Cashier, and the Centralized Staff Account.
+
+### 9. One Staff Account for All Employees & Role-Based Portals
 A centralized, enterprise-grade role architecture ensures strict security while eliminating confusing multi-account registration for staff:
 
 - **One Staff Account for All Employees:**
@@ -599,8 +797,8 @@ A centralized, enterprise-grade role architecture ensures strict security while 
   - **Employee Directory Single Source of Truth:** Every employee has an official personnel profile containing their complete name, employee ID (`EMP-201`, `EMP-202`, etc.), position, department, assigned station, and shift schedule.
   - **Live Reflection of Admin-Added Staff:** When the Administrator registers a new employee under **Admin Panel → Employee Account Mngt**, the employee is instantly saved to `data/employees.json` with PIN and station. Socket `employees-updated` and window `umami-system-sync` events immediately broadcast the change, and the new staff member appears in the Staff Dashboard name selection dropdown in real time without requiring a browser refresh.
   - **Individual Identification & PIN Verification:** Inside the shared Staff Dashboard, staff members select their registered name from a searchable database dropdown and enter their unique 4-digit PIN before clocking attendance, updating station tasks, or submitting reports. Includes a **Quick Demo PIN** helper for rapid testing.
-  - **Strict Personnel Attribution:** The shared login account is never recorded as the actor. Every attendance record, station task update, activity log entry, and daily report is immutably tagged with the verified individual employee's name and ID.
-  - **Real-Time Header Sync Button (`[🔄 Sync]`):** Located in the top bar of the Staff Dashboard (matching reference designs). Clicking it triggers an actual backend synchronization of employees, live attendance records, assigned tasks, pending duties, kitchen orders, and daily reports with the shared database, displaying a spinning indicator and a success toast with the exact sync timestamp.
+  - **Strict Personnel Attribution:** The shared login account is never recorded as the actor. Every attendance record, station task update, activity log entry, and daily report is stamped with the verified employee's name, ID, position, station, and timestamp.
+  - **Dedicated Sync Button:** A persistent top-header Sync button lets staff immediately synchronize assigned tasks, pending duties, kitchen orders, and daily reports with the shared database, displaying a spinning indicator and a success toast with the exact sync timestamp.
 
 | Role | Default Credentials | Viewport | Responsibilities |
 | :--- | :--- | :--- | :--- |
@@ -608,7 +806,7 @@ A centralized, enterprise-grade role architecture ensures strict security while 
 | **Head Cashier** | `cashier.maria` / `cashier123` | `CashierDashboard` | Touchscreen POS, beginning shift float entry, payment collection, voids/refunds, and Cashier Daily Z-Read submission. |
 | **Centralized Staff** | `kitchen@umamicraft.com` / `staff123` | `StaffDashboard` | Shared terminal access, PIN-verified attendance, kitchen prep queue, station task checklists, table service calls, 5-Card Staff Daily Reports, and Official Report Slips. |
 
-### 9. Daily Reports Management (Cashier Z-Reads & Staff Shifts)
+### 10. Daily Reports Management (Cashier Z-Reads & Staff Shifts)
 - **Cashier Daily Report (Z-Read):**
   - Calculates gross sales, discounts, refunds, voids, and net cash vs. digital payments.
   - **Denomination Breakdown Table:** Cashiers enter the exact count of physical bills (₱1000, ₱500, ₱200, ₱100, ₱50, ₱20) and coins.
@@ -657,7 +855,7 @@ A centralized, enterprise-grade role architecture ensures strict security while 
   - Interactive table: Employee, Role & Station, Shift & Time, Shift Highlights, Status, and Actions (**Details**, **Slip**).
   - Admin can review full drilldowns, approve reports, or request corrections with custom remarks, updating `data/daily_reports.json` and employee history.
 
-### 10. Security, Audit Trail & Forensic Logging
+### 11. Security, Audit Trail & Forensic Logging
 - Immutable logging of every security-relevant action into `data/audit_logs.json` (logins, failed authentication, price updates, refunds, webhook signature rejections).
 - Salted and hashed password security with protected API sanitization (passwords never returned in GET payloads).
 
@@ -744,7 +942,7 @@ allergicSuggestion/
 | `POST`| `/api/webhooks/paymongo` | PayMongo webhook listener with replay attack protection. |
 | `POST`| `/api/webhooks/simulate` | Webhook simulation testing harness. |
 | `GET` | `/api/webhooks/logs` | Retrieves cryptographic webhook event audit logs. |
-| `POST`| `/api/admin/login` | Unified role-based authentication (Admin, Cashier, One Staff Account). |
+| `POST`| `/api/admin/login` | Unified role-based authentication (Admin, Cashier, One Staff Account only; Customers do NOT log in). |
 | `GET` | `/api/employees` | Retrieves employee list (passwords omitted). |
 | `GET` | `/api/employees/staff-directory` | Retrieves employee directory for staff identification & PIN verification. |
 | `POST`| `/api/employees/verify-pin` | Verifies individual employee PIN for attendance and task attribution. |
@@ -765,7 +963,7 @@ allergicSuggestion/
 | `GET` | `/api/orders/:orderId` | Retrieves single order authoritative status, items, and pickup token for session restoration. |
 | `POST`| `/api/orders` | Submits a new order to the system. |
 | `PUT` | `/api/orders/:id/status` | Updates order lifecycle status (*Preparing*, *Ready*, *Completed*). |
-| `GET` | `/api/customer-accounts` | Retrieves customer loyalty membership tiers and points balances. |
+| `GET` | `/api/customer-accounts` | Retrieves customer loyalty membership tiers & point balances (tracked by order/phone, no customer login needed). |
 | `GET` | `/api/menu` | Retrieves menu products (supports `?restaurant=umami` scoping). |
 | `GET` | `/api/restaurant` | Returns active restaurant metadata, LAN IP, and Wi-Fi state. |
 | `POST`| `/api/payments/create-session` | Creates transaction-specific QR Ph / Card payment session with EMVCo payload. |
